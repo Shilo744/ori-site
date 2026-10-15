@@ -15,7 +15,7 @@
 .mac .arc-body::-webkit-scrollbar-thumb { background: rgba(140, 150, 255, 0.35); border-radius: 8px; }
 
 /* hero */
-.mac .arc-hero { --accent: #35f2ff; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 132px; padding: 16px 24px; border-radius: 18px; overflow: hidden; background: #0d0e2b; box-shadow: 0 0 0 1px rgba(140, 150, 255, 0.2), 0 16px 36px rgba(0, 0, 0, 0.35); }
+.mac .arc-hero { --accent: #35f2ff; position: relative; display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 112px; padding: 14px 24px; border-radius: 18px; overflow: hidden; background: #0d0e2b; box-shadow: 0 0 0 1px rgba(140, 150, 255, 0.2), 0 16px 36px rgba(0, 0, 0, 0.35); }
 .mac .arc-hero-bg { position: absolute; inset: 0; background: linear-gradient(120deg, #1b1650, #0d1a4e 45%, #2a1560 100%); background-size: 200% 200%; animation: arc-flow 14s ease-in-out infinite alternate; }
 .mac .arc-hero-bg i { position: absolute; border-radius: 50%; filter: blur(28px); opacity: 0.55; }
 .mac .arc-hero-bg i:nth-child(1) { width: 190px; height: 190px; left: -40px; top: -70px; background: var(--accent); animation: arc-float 9s ease-in-out infinite alternate; }
@@ -24,15 +24,15 @@
 @keyframes arc-flow { to { background-position: 100% 100%; } }
 @keyframes arc-float { to { transform: translate(26px, 18px) scale(1.12); } }
 .mac .arc-hero-copy { position: relative; z-index: 1; min-width: 0; }
-.mac .arc-hero h1 { margin: 5px 0 5px; font-size: 27px; line-height: 1.08; font-weight: 800; letter-spacing: -0.025em; color: #fff; }
+.mac .arc-hero h1 { margin: 4px 0 4px; font-size: 25px; line-height: 1.08; font-weight: 800; letter-spacing: -0.025em; color: #fff; }
 .mac .arc-hero h1 em { font-style: normal; background: linear-gradient(90deg, var(--accent), #fff); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .mac .arc-hero p { margin: 0; font-size: 12.5px; color: rgba(236, 238, 255, 0.72); }
-.mac .arc-hero-actions { margin-top: 14px; }
+.mac .arc-hero-actions { margin-top: 10px; }
 .mac .arc-hero .gk-kicker { color: var(--accent); text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 60%, transparent); }
-.mac .arc-hero-art { position: relative; z-index: 1; flex: none; width: 190px; height: 107px; border-radius: 12px; transform: perspective(500px) rotateY(-14deg) rotateX(4deg) rotate(2deg); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 16px 34px rgba(0, 0, 0, 0.5), 0 0 40px color-mix(in srgb, var(--accent) 35%, transparent); }
+.mac .arc-hero-art { position: relative; z-index: 1; flex: none; width: 168px; height: 94.5px; border-radius: 12px; transform: perspective(500px) rotateY(-14deg) rotateX(4deg) rotate(2deg); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18), 0 16px 34px rgba(0, 0, 0, 0.5), 0 0 40px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 /* section headings */
-.mac .arc-sec { display: flex; align-items: baseline; justify-content: space-between; margin: 18px 2px 10px; }
+.mac .arc-sec { display: flex; align-items: baseline; justify-content: space-between; margin: 14px 2px 9px; }
 .mac .arc-sec h2 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.01em; color: #fff; }
 .mac .arc-sec span { font-size: 11px; color: var(--gk-dim); }
 

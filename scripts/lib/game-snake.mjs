@@ -125,4 +125,38 @@ export async function runSnake(session, { ok, fail }) {
   check((await page.evaluate(() => document.querySelector('.win-snake .gk-toggle b').textContent)) === 'WRAP', 'mode pill toggles Walls → Wrap');
   await page.evaluate(() => document.querySelector('.win-snake .gk-toggle').click());
   await page.evaluate(() => window.__ori.desktop.reset());
+
+  // T36: two game windows + the tab hidden/shown → only the ACTIVE window's loop may run afterwards
+  await page.evaluate(() => {
+    const o = window.__ori;
+    if (!o.registry.getApp('kittest')) {
+      o.registry.registerApp({
+        id: 'kittest', name: 'Kit Test', category: 'game', titlebar: 'dark', size: { w: 300, h: 200 }, icon: '<svg viewBox="0 0 64 64"></svg>',
+        mount(el, ctx) {
+          const rt = o.kit.createRuntime(ctx, { id: 'kittest', update() {}, render() {} });
+          if (ctx.isInteractive()) rt.loop.start();
+          return rt.hooks;
+        },
+      });
+    }
+    o.desktop.reset();
+    o.openApp('snake');
+    o.openApp('kittest');
+  });
+  await sleep(300);
+  const loops = () => page.evaluate(() => window.__ori.loops().sort().join());
+  check((await loops()) === 'kittest', 'only the focused game window runs its loop');
+  const setHidden = (h) => page.evaluate((hidden) => {
+    if (hidden) Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    else delete document.hidden;
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, h);
+  await setHidden(true);
+  check((await loops()) === '', 'hiding the tab stops every loop');
+  await setHidden(false);
+  check((await loops()) === 'kittest', 'showing the tab restarts only the active window\'s loop (not the inactive one)');
+  await page.evaluate(() => window.__ori.desktop.wm.focus('snake'));
+  check((await loops()) === 'snake', 'focus moves the running loop to the newly active window');
+  await page.evaluate(() => window.__ori.desktop.reset());
+  check((await loops()) === '', 'closing windows leaves no loop running');
 }

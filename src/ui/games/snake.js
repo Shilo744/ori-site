@@ -490,6 +490,7 @@ registerApp({
 
     // ── lifecycle ──
     const rt = createRuntime(ctx, {
+      id: 'snake',
       update,
       render,
       onSuspend() { input.clear(); if (state === 'playing') pauseRun(); },

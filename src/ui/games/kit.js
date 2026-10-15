@@ -48,7 +48,7 @@ export function createLoop({ update, render, hz = 60, maxFrame = 0.25, maxSteps 
  * A loop that follows the window lifecycle: it only runs while the window is active, the desktop is live and the page is
  * visible. `hooks` is what a game returns from `mount`.
  */
-export function createRuntime(ctx, { update, render, onSuspend, onResume, hz = 60 }) {
+export function createRuntime(ctx, { id = '', update, render, onSuspend, onResume, hz = 60 }) {
   const loop = createLoop({ update, render, hz });
   let alive = true;
   const hooks = {
@@ -57,12 +57,19 @@ export function createRuntime(ctx, { update, render, onSuspend, onResume, hz = 6
     onBlur() { /* pause() follows */ },
     destroy() { alive = false; loop.stop(); },
   };
-  const vis = () => { if (document.hidden) hooks.pause(); else if (ctx.isInteractive()) hooks.resume(); };
+  // tab hidden → stop; tab visible again → only the ACTIVE window's loop restarts (an inactive game stays stopped)
+  const vis = () => { if (document.hidden) hooks.pause(); else if (ctx.isActive()) hooks.resume(); };
   document.addEventListener('visibilitychange', vis);
   const origDestroy = hooks.destroy;
-  hooks.destroy = () => { document.removeEventListener('visibilitychange', vis); origDestroy(); };
+  hooks.destroy = () => { document.removeEventListener('visibilitychange', vis); runtimes.delete(rt); origDestroy(); };
+  const rt = { id, loop };
+  runtimes.add(rt);
   return { loop, hooks };
 }
+
+const runtimes = new Set();
+/** Ids of the games whose render loop is running right now (test hook: window.__ori.loops()). */
+export const loopsRunning = () => [...runtimes].filter((r) => r.loop.running).map((r) => r.id);
 
 // ───────────────────────── canvas ─────────────────────────
 /** Sizes a canvas for crisp output (device-pixel ratio capped — the screen is a 3D plane, more pixels only cost fps). */
@@ -197,14 +204,16 @@ export function createInput(ctx, { target, keys = KEYS, repeat = false, swipe = 
       if (o && !moved) fire('tap', e);
       o = null;
     };
+    const cancel = () => { o = null; };
     target.addEventListener('pointerdown', down_);
     target.addEventListener('pointermove', move);
     target.addEventListener('pointerup', up);
-    target.addEventListener('pointercancel', () => { o = null; });
+    target.addEventListener('pointercancel', cancel);
     swipeOff = () => {
       target.removeEventListener('pointerdown', down_);
       target.removeEventListener('pointermove', move);
       target.removeEventListener('pointerup', up);
+      target.removeEventListener('pointercancel', cancel);
     };
   }
   return api;

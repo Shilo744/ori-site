@@ -53,6 +53,8 @@ export function createWM({ root, layer, isLocked, isCompact, scale, hooks = {} }
         return () => entry.keys.delete(handler);
       },
       isInteractive: () => !isLocked() && !entry.minimized,
+      /** True only for the focused window while the desktop is live — what a render loop should follow. */
+      isActive: () => frontId === entry.id && !isLocked() && !entry.minimized,
       isCompact,
     };
   }

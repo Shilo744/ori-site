@@ -9,6 +9,7 @@ import * as sound from './audio.js';
 import { content } from './content.js';
 import { getView } from './scene/views.js';
 import { registerApp, getApp, listApps as registryList } from './ui/apps/registry.js';
+import * as kit from './ui/games/kit.js';
 import { storage } from './core/storage.js';
 import { bus } from './core/bus.js';
 import { achievements } from './core/achievements.js';
@@ -472,6 +473,9 @@ window.__ori = {
   listApps: () => desktop.listApps(),
   registry: { registerApp, getApp, listApps: registryList },
   core: { storage, bus, achievements, notifications },
+  kit,
+  /** ids of the game windows whose render loop is running (tests: only the active one may be). */
+  loops: () => kit.loopsRunning(),
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
   /** Time of day in hours (0–24). No-op until the daylight system (T9) listens to it. */
