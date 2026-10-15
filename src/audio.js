@@ -174,5 +174,67 @@ export function chime() {
   });
 }
 
+// ── game SFX helpers (all honour the master gain / mute and stay silent while the page is inactive) ──
+let whiteBuf = null;
+const white = (c) => whiteBuf || (whiteBuf = noiseBuffer(c, 1));
+
+/** One tone with a fast attack and exponential decay. `delay` (s) schedules it for chiptune sequences. */
+export function blip(freq = 440, dur = 0.08, type = 'square', vol = 0.1, delay = 0) {
+  const c = ensure();
+  if (!c || !live()) return;
+  const t = c.currentTime + delay;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+/** A tone gliding from `f0` to `f1` (laser, power-up, death…). */
+export function sweep(f0 = 800, f1 = 200, dur = 0.25, type = 'sawtooth', vol = 0.08, delay = 0) {
+  const c = ensure();
+  if (!c || !live()) return;
+  const t = c.currentTime + delay;
+  const o = c.createOscillator();
+  const g = c.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(f0, t);
+  o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g).connect(master);
+  o.start(t);
+  o.stop(t + dur + 0.02);
+}
+
+/** Filtered noise burst (explosions, thuds, line clears). */
+export function noiseHit(dur = 0.15, vol = 0.16, freq = 900, type = 'lowpass', delay = 0) {
+  const c = ensure();
+  if (!c || !live()) return;
+  const t = c.currentTime + delay;
+  const src = c.createBufferSource();
+  src.buffer = white(c);
+  const f = c.createBiquadFilter();
+  f.type = type;
+  f.frequency.value = freq;
+  const g = c.createGain();
+  g.gain.setValueAtTime(vol, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(f).connect(g).connect(master);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + dur + 0.02);
+}
+
+/** A quick run of notes (jingles): `arp([523, 659, 784], 0.07)`. */
+export function arp(freqs, step = 0.07, type = 'square', vol = 0.09) {
+  freqs.forEach((f, i) => blip(f, step * 1.6, type, vol, i * step));
+}
+
 /** For debugging in the console: window.__ori.audio() */
 export const debugState = () => ({ ctx: ctx && ctx.state, gain: master && +master.gain.value.toFixed(2), pageActive, enabled });

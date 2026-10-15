@@ -9,7 +9,8 @@
     "build": "node build.mjs",
     "smoke": "node scripts/smoke.mjs",
     "shot": "node scripts/shot.mjs",
-    "dom-snap": "node scripts/dom-snap.mjs"
+    "dom-snap": "node scripts/dom-snap.mjs",
+    "test:game": "node scripts/test-game.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

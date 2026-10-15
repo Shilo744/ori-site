@@ -1,0 +1,111 @@
+/* Arcade look shared by every game window: deep indigo, neon accents, rounded HUD pills. 960×624 logical space. */
+.mac .gk {
+  --gk-bg: #080918;
+  --gk-bg2: #15163a;
+  --gk-ink: #eceeff;
+  --gk-dim: rgba(236, 238, 255, 0.55);
+  --gk-line: rgba(140, 150, 255, 0.16);
+  --gk-cyan: #35f2ff;
+  --gk-pink: #ff3da6;
+  --gk-lime: #b6ff3c;
+  --gk-amber: #ffb52e;
+  --gk-violet: #8f6bff;
+  --gk-red: #ff4d5e;
+  --gk-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; align-items: center;
+  background: radial-gradient(130% 95% at 50% -8%, var(--gk-bg2) 0%, var(--gk-bg) 62%);
+  color: var(--gk-ink); font-family: Inter, -apple-system, system-ui, sans-serif;
+  user-select: none; -webkit-user-select: none; touch-action: none; overflow: hidden;
+}
+
+/* window chrome */
+.mac .win.win-game { background: var(--gk-bg, #080918); box-shadow: 0 0 0 0.5px rgba(130, 140, 255, 0.4), 0 24px 60px rgba(6, 3, 28, 0.55), 0 0 46px rgba(85, 90, 255, 0.2); }
+.mac .win.win-game:not(.active) { box-shadow: 0 0 0 0.5px rgba(130, 140, 255, 0.28), 0 10px 28px rgba(6, 3, 28, 0.35); }
+.mac .win-game > .tb.dark { background: linear-gradient(#1a1b3c, #111230); border-bottom-color: rgba(130, 140, 255, 0.2); }
+.mac .win-game:not(.active) > .tb.dark { background: #15162f; }
+.mac .win-game > .tb.dark .tt { color: #d9dcff; letter-spacing: 0.01em; }
+
+/* HUD pills */
+.mac .gk-hud { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; padding: 9px 12px 8px; }
+.mac .gk-pill {
+  --c: var(--gk-cyan);
+  display: inline-flex; align-items: baseline; gap: 7px; height: 26px; padding: 0 12px; align-items: center; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055); border: 1px solid rgba(255, 255, 255, 0.09); color: var(--gk-ink); font: inherit;
+}
+.mac .gk-pill span { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gk-dim); }
+.mac .gk-pill b { font: 700 14px/1 var(--gk-mono); color: var(--c); text-shadow: 0 0 10px color-mix(in srgb, var(--c) 55%, transparent); min-width: 1ch; }
+.mac .gk-pill.gk-pink { --c: var(--gk-pink); }
+.mac .gk-pill.gk-lime { --c: var(--gk-lime); }
+.mac .gk-pill.gk-amber { --c: var(--gk-amber); }
+.mac .gk-pill.gk-violet { --c: var(--gk-violet); }
+.mac .gk-pill.bump { animation: gk-bump 0.28s cubic-bezier(.2, .9, .3, 1.4); }
+@keyframes gk-bump { 40% { transform: scale(1.14); } }
+.mac .gk-toggle { cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s; }
+.mac .gk-toggle:hover { background: rgba(255, 255, 255, 0.11); border-color: rgba(255, 255, 255, 0.2); }
+.mac .gk-toggle:active { transform: scale(0.96); }
+.mac .gk-toggle:focus-visible, .mac .gk-btn:focus-visible, .mac .gk-pb:focus-visible { outline: 2px solid var(--gk-cyan); outline-offset: 2px; }
+
+.mac .gk-toggle:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+.mac .gk-fit { flex: none; }
+
+/* playfield frame */
+.mac .gk-field {
+  position: relative; border-radius: 14px; overflow: hidden; background: #070816;
+  box-shadow: 0 0 0 1px var(--gk-line), 0 0 30px rgba(70, 80, 255, 0.16), inset 0 0 40px rgba(0, 0, 0, 0.5);
+}
+.mac .gk-field canvas { display: block; }
+
+/* overlay card */
+.mac .gk-ov {
+  position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 14px;
+  background: rgba(5, 6, 20, 0.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+  opacity: 0; transition: opacity 0.18s ease;
+}
+.mac .gk-ov.in { opacity: 1; }
+.mac .gk-ov[hidden] { display: none; }
+.mac .gk-card {
+  min-width: 220px; max-width: min(320px, 92%); padding: 20px 26px 18px; text-align: center; border-radius: 20px;
+  background: linear-gradient(180deg, rgba(34, 36, 82, 0.86), rgba(16, 17, 44, 0.9)); border: 1px solid rgba(160, 170, 255, 0.2);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 0 40px rgba(110, 100, 255, 0.18);
+  transform: translateY(8px) scale(0.97); transition: transform 0.22s cubic-bezier(.2, .9, .3, 1.2);
+}
+.mac .gk-ov.in .gk-card { transform: none; }
+.mac .gk-kicker { font-size: 10.5px; font-weight: 700; letter-spacing: 0.26em; text-transform: uppercase; color: var(--gk-cyan); text-shadow: 0 0 12px rgba(53, 242, 255, 0.6); }
+.mac .gk-kicker:empty, .mac .gk-hint:empty, .mac .gk-stats:empty { display: none; }
+.mac .gk-title { margin: 5px 0 2px; font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: #fff; }
+.mac .gk-banner { margin: 8px auto 0; width: max-content; padding: 3px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #1a1300; background: linear-gradient(90deg, var(--gk-amber), #ffe27a); box-shadow: 0 0 18px rgba(255, 181, 46, 0.55); }
+.mac .gk-banner[hidden] { display: none; }
+.mac .gk-stats { display: flex; justify-content: center; gap: 22px; margin: 12px 0 4px; }
+.mac .gk-stat { display: flex; flex-direction: column; gap: 3px; }
+.mac .gk-stat span { font-size: 9.5px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gk-dim); }
+.mac .gk-stat b { font: 700 24px/1 var(--gk-mono); color: #fff; }
+.mac .gk-stat.gk-amber b { color: var(--gk-amber); text-shadow: 0 0 14px rgba(255, 181, 46, 0.5); }
+.mac .gk-stat.gk-cyan b { color: var(--gk-cyan); }
+.mac .gk-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--gk-dim); }
+.mac .gk-actions { display: flex; gap: 9px; justify-content: center; margin-top: 14px; }
+.mac .gk-btn {
+  height: 34px; padding: 0 20px; border-radius: 999px; font: 700 13px/1 Inter, system-ui, sans-serif; letter-spacing: 0.01em; color: var(--gk-ink); cursor: pointer;
+  background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); transition: transform 0.1s, background 0.15s, box-shadow 0.15s, filter 0.15s;
+}
+.mac .gk-btn:hover { background: rgba(255, 255, 255, 0.15); }
+.mac .gk-btn:active { transform: scale(0.96); }
+.mac .gk-btn[hidden] { display: none; }
+.mac .gk-btn.gk-primary { border-color: transparent; color: #04101a; background: linear-gradient(135deg, var(--gk-cyan), #7aa8ff 60%, var(--gk-violet)); box-shadow: 0 0 22px rgba(53, 242, 255, 0.4); }
+.mac .gk-btn.gk-primary:hover { filter: brightness(1.12); box-shadow: 0 0 30px rgba(53, 242, 255, 0.6); }
+
+/* on-screen controls: only for touch / flat mode */
+.mac .gk-pad { display: none; position: absolute; left: 0; right: 0; bottom: 0; padding: 10px 16px 12px; justify-content: space-between; align-items: flex-end; pointer-events: none; z-index: 4; }
+.mac.compact .gk-pad { display: flex; }
+@media (pointer: coarse) { .mac .gk-pad { display: flex; } }
+.mac .gk-dpad { position: relative; width: 156px; height: 156px; pointer-events: none; }
+.mac .gk-pb { pointer-events: auto; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.09); color: var(--gk-ink); cursor: pointer; backdrop-filter: blur(4px); touch-action: none; transition: transform 0.08s, background 0.12s; }
+.mac .gk-pb:active, .mac .gk-pb.on { background: rgba(53, 242, 255, 0.28); transform: scale(0.94); }
+.mac .gk-dpad .gk-pb { position: absolute; width: 52px; height: 52px; border-radius: 14px; }
+.mac .gk-pb svg { width: 24px; height: 24px; fill: currentColor; }
+.mac .gk-pb-up { left: 52px; top: 0; } .mac .gk-pb-left { left: 0; top: 52px; } .mac .gk-pb-right { left: 104px; top: 52px; } .mac .gk-pb-down { left: 52px; top: 104px; }
+.mac .gk-btns { display: flex; gap: 12px; pointer-events: none; }
+.mac .gk-pb-act { width: 64px; height: 64px; border-radius: 50%; font: 700 12px/1 Inter, system-ui, sans-serif; letter-spacing: 0.04em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .mac .gk-pill.bump, .mac .gk-card { animation: none; transition: none; }
+}

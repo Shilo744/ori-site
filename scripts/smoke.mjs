@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { SHOTS, build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, snap, parseSize, sleep } from './lib/harness.mjs';
 import { runWmContract } from './lib/wm-contract.mjs';
 import { runCoreContract } from './lib/core-contract.mjs';
+import { GAME_TESTS } from './lib/games.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -60,6 +61,13 @@ try {
 
     // window-manager contract (registers a throw-away app, so it runs after the app loop)
     await runWmContract(s, { ok, fail });
+
+    // full gameplay checks for every game that has one (slow under software GL, so opt-in: --games)
+    if (flag('games')) {
+      for (const id of apps) {
+        if (GAME_TESTS[id]) { log(`  ── game: ${id}`); await GAME_TESTS[id](s, { ok, fail }); }
+      }
+    }
 
     // room camera presets (3D mode only)
     if (size.width >= 860) {

@@ -60,6 +60,8 @@ npm run shot -- desk               # צילום אחד של זווית מצלמ�
 npm run shot -- app:terminal T17-terminal   # חלון של אפליקציה (או game:<id>), הארגומנט השני הוא שם הקובץ
 ```
 
+`npm run smoke -- --games` מוסיף בדיקות משחק מלאות (קלט אמיתי במקלדת, פאוזה, שמירת שיא, צילומי משחק) לכל משחק שיש לו בדיקה ב-`scripts/lib/games.mjs`; `npm run test:game -- snake` מריץ משחק אחד.
+
 הצילומים נשמרים ב-`shots/` (מחוץ ל-git; ה-smoke שומר ב-`shots/smoke/`). דגלים שימושיים: `--size=WxH`, `--time=18.5`, `--wait=ms`, `--keys=ArrowUp,Space`, `--no-build`, `--headed`.
 
 `npm run dom-snap -- before` / `-- after` שומר את ה-DOM המנורמל של כל האפליקציות/תפריטים/טרמינל ב-`shots/dom/<label>/` — להשוואה לפני/אחרי ריפקטור (`git diff --no-index --stat shots/dom/before shots/dom/after`).
@@ -95,6 +97,8 @@ scripts/                 smoke / shot / dom-snap (בדיקות וצילומי מ
 1. קובץ חדש `src/ui/apps/<id>.js` שקורא ל-`registerApp({ id, name, icon, size, category, dock, titlebar, mount(el, ctx) })` — ראו את ההערה בראש `src/ui/apps/registry.js` לכל השדות.
 2. שורת import אחת ב-`src/ui/apps/index.js` (הסדר שם = הסדר ב-Dock).
 3. זה הכול: ה-Dock (`dock: true`), Spotlight, תפריט Window, ופקודת `open` בטרמינל מתעדכנים לבד.
+
+**משחק חדש:** קובץ ב-`src/ui/games/<id>.js` שקורא ל-`registerApp({ category: 'game', titlebar: 'dark', … })` ונבנה מ-`kit.js` (לולאה קבועה `createRuntime`, `fitCanvas`, `createInput`+`createPad` למקלדת/swipe/כפתורים, `createHud`, `createOverlay`, `createParticles`), `scores.js` (שיא + 10 ריצות אחרונות) וצלילי `blip/sweep/noiseHit/arp` מ-`audio.js`; שורת import אחת ב-`src/ui/games/index.js`. הדוגמה: `snake.js`. מראה משותף ב-`games.css`.
 
 `mount` מקבל את אלמנט התוכן ו-`ctx` (`sound`, `storage`, `bus`, `achievements`, `notify`, `content`, `open(id, args)`, `win.setTitle/close/size`, `onKey(handler)`, `isInteractive()`) ומחזיר `{ destroy, onFocus, onBlur, onResize, onOpen, pause, resume }` (הכול אופציונלי). `onKey` מקבל keydown+keyup רק כשהחלון פעיל והמסך חי; החזרת `true` עושה `preventDefault`.
 

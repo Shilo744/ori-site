@@ -19,7 +19,7 @@ html, body {
 }
 
 #stage { position: fixed; inset: 0; }
-#stage canvas { position: absolute; inset: 0; display: block; outline: none; }
+#stage > canvas { position: absolute; inset: 0; display: block; outline: none; }
 #stage .css3d { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 
 #vignette {

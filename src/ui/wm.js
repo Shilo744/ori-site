@@ -147,7 +147,7 @@ export function createWM({ root, layer, isLocked, isCompact, scale, hooks = {} }
     const { x, y } = place(def, wins.size);
     const el = document.createElement('section');
     const std = def.titlebar !== 'none';
-    el.className = `win win-${def.id}${std ? ' win-std' : ''}`;
+    el.className = `win win-${def.id}${std ? ' win-std' : ''}${def.category === 'game' ? ' win-game' : ''}`;
     el.style.cssText = `left:${x}px;top:${y}px;width:${def.size.w}px;height:${def.size.h}px;`;
     let body = el;
     if (std) {

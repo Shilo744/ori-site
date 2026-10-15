@@ -51,7 +51,8 @@ export async function runCoreContract(session, { ok, fail }) {
     out.unlockOnce = [achievements.unlock('t-one'), achievements.unlock('t-one')].join();
     out.unlockEvents = unlocks.join();
     out.notified = notifications.recent().length - before;
-    out.counts = JSON.stringify(achievements.counts());
+    const counts = achievements.counts();
+    out.counts = counts.unlocked === 2 && counts.total === achievements.list().length && counts.total >= 2;
     return out;
   });
   check(r.storageGet === '{"n":1,"s":"x"}', 'storage get/set round-trips JSON');
@@ -65,7 +66,7 @@ export async function runCoreContract(session, { ok, fail }) {
   check(r.unlockedByProgress, 'reaching the goal unlocks');
   check(r.unlockOnce === 'true,false' && r.unlockEvents === 't-ach,t-one', 'unlock() fires once and emits achievement:unlock');
   check(r.notified === 2, 'each unlock queues a notification');
-  check(r.counts === '{"unlocked":2,"total":2}', 'counts()');
+  check(r.counts === true, 'counts() matches list()');
 
   // persistence across a reload
   await page.evaluate(() => window.__ori.core.storage.set('t:persist', { ok: true }));
