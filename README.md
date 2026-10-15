@@ -60,6 +60,8 @@ npm run shot -- desk               # צילום אחד של זווית מצלמ�
 npm run shot -- app:terminal T17-terminal   # חלון של אפליקציה (או game:<id>), הארגומנט השני הוא שם הקובץ
 ```
 
+`npm run test:games` מריץ את בדיקות ה-logic הטהורות של המשחקים ב-node (`scripts/test-<game>.mjs`, כרגע 2048: 16 בדיקות על כללי החיבור/ניקוד/סוף משחק).
+
 `npm run smoke -- --games` מוסיף בדיקות משחק מלאות (קלט אמיתי במקלדת, פאוזה, שמירת שיא, צילומי משחק) לכל משחק שיש לו בדיקה ב-`scripts/lib/games.mjs`; `npm run test:game -- snake` מריץ משחק אחד.
 
 הצילומים נשמרים ב-`shots/` (מחוץ ל-git; ה-smoke שומר ב-`shots/smoke/`). דגלים שימושיים: `--size=WxH`, `--time=18.5`, `--wait=ms`, `--keys=ArrowUp,Space`, `--no-build`, `--headed`.

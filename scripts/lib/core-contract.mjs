@@ -7,6 +7,7 @@ export async function runCoreContract(session, { ok, fail }) {
   const r = await page.evaluate(() => {
     const { storage, bus, achievements, notifications } = window.__ori.core;
     const out = {};
+    achievements.reset(); // earlier checks (games) may have unlocked things
     // storage
     storage.set('t:a', { n: 1, s: 'x' });
     out.storageGet = JSON.stringify(storage.get('t:a'));
