@@ -1,0 +1,17 @@
+{
+  "name": "ori-asher-portfolio-v2",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ori Asher — interactive 3D portfolio (modern room + MacBook)",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0"
+  }
+}

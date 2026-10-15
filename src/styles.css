@@ -1,0 +1,147 @@
+@import './ui/desktop.css';
+
+:root {
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --bg1: #f1f1f5;
+  --bg2: #d9dae1;
+  --bg3: #b9bbc6;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 38%, var(--bg1) 0%, var(--bg2) 55%, var(--bg3) 100%);
+  font-family: var(--mono);
+  -webkit-tap-highlight-color: transparent;
+}
+
+#stage { position: fixed; inset: 0; }
+#stage canvas { position: absolute; inset: 0; display: block; outline: none; }
+#stage .css3d { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+
+#vignette {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(30, 30, 50, 0.22) 100%);
+}
+
+/* terminal-style labels (like the reference site) */
+.tag {
+  display: inline-block;
+  background: #000;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: clamp(11px, 0.6vw + 6px, 15px);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
+  border: 0;
+}
+
+#hud {
+  position: fixed;
+  top: clamp(12px, 2vw, 28px);
+  left: clamp(12px, 2vw, 28px);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  pointer-events: none;
+}
+#hud.on { opacity: 1; transform: none; pointer-events: auto; }
+#hud .row { display: flex; gap: 6px; }
+#hud .btn { cursor: pointer; display: grid; place-items: center; width: clamp(36px, 3vw, 46px); padding: 0; height: clamp(34px, 2.8vw, 42px); }
+#hud .btn svg { width: 55%; height: 55%; fill: #fff; }
+#hud .btn:hover { background: #3a46e0; }
+#hud .btn[hidden] { display: none; }
+
+#prompt, #hint {
+  position: fixed;
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  z-index: 20;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  white-space: nowrap;
+}
+#prompt.on, #hint.on { opacity: 1; }
+#prompt.on { animation: blink 1.6s steps(2, jump-none) infinite; }
+@keyframes blink { 50% { opacity: 0.55; } }
+
+/* intro */
+#intro {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #000;
+  display: grid;
+  place-items: center;
+  transition: opacity 0.9s ease;
+}
+#intro.out { opacity: 0; pointer-events: none; }
+#intro .box {
+  width: min(560px, calc(100vw - 40px));
+  border: 6px solid #fff;
+  padding: 22px 22px 24px;
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 15px;
+  line-height: 1.55;
+}
+#intro p { margin: 0 0 18px; min-height: 48px; white-space: pre-wrap; }
+#intro p::after { content: '_'; animation: caret 0.9s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+#intro .start {
+  display: block;
+  margin: 0 auto;
+  background: transparent;
+  color: #fff;
+  border: 3px solid #fff;
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+#intro .start:hover { background: #fff; color: #000; }
+#intro .start[hidden] { display: none; }
+
+@media (max-width: 640px) {
+  #hud { top: 14px; left: 14px; }
+  .tag { font-size: 12px; padding: 7px 10px; }
+  #hud .btn { height: 27px; }
+}
+
+/* ── flat (phone / small window) mode: the screen UI goes full-bleed ── */
+#flat {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  padding-top: 46px;
+  background: radial-gradient(ellipse at 50% 30%, var(--bg1) 0%, var(--bg2) 70%, var(--bg3) 100%);
+}
+#flat[hidden] { display: none; }
+#flat .mac {
+  position: relative !important;
+  transform: none !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-radius: 16px 16px 0 0;
+}
+body.flat-mode #hud { flex-direction: row; align-items: center; top: 8px; left: 8px; gap: 6px; }
+body.flat-mode #hud-title, body.flat-mode #hud-clock { display: none; }
+body.flat-mode #hud .row { margin: 0; }
+
+/* while you're "inside" the laptop the HUD drops to the bottom-left so it never covers the menu bar */
+body.in-screen:not(.flat-mode) #hud { top: auto; bottom: clamp(10px, 1.4vw, 20px); left: clamp(10px, 1.6vw, 24px); flex-direction: row; align-items: center; gap: 6px; transform: none; }
+body.in-screen:not(.flat-mode) #hud-title { display: none; }
+body.in-screen:not(.flat-mode) #hud .row { margin: 0; }
+body.in-screen:not(.flat-mode) #hint { bottom: auto; top: 10px; }

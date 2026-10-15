@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Ori Asher — Portfolio 2026</title>
+  <meta name="description" content="Ori Asher — Creative Developer. An interactive portfolio set in a modern room, on a MacBook." />
+  <meta name="theme-color" content="#d9dae0" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Ccircle cx='32' cy='33' r='15' fill='none' stroke='%23fff' stroke-width='7'/%3E%3Ccircle cx='50' cy='15' r='6' fill='%23fff'/%3E%3C/svg%3E" />
+  <meta property="og:title" content="Ori Asher — Portfolio 2026" />
+  <meta property="og:description" content="An interactive portfolio set in a modern room, on a MacBook." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="vignette"></div>
+
+  <!-- HUD -->
+  <div id="hud" aria-label="Ori Asher">
+    <div class="tag" id="hud-name">Ori Asher</div>
+    <div class="tag" id="hud-title">Creative Developer</div>
+    <div class="row">
+      <div class="tag" id="hud-clock">00:00:00</div>
+      <button class="tag btn" id="btn-sound" aria-label="Toggle sound" title="Sound"></button>
+      <button class="tag btn" id="btn-view" aria-label="Toggle camera" title="Zoom in / out"></button>
+    </div>
+  </div>
+
+  <div id="prompt" class="tag">Click anywhere to begin</div>
+  <div id="hint" class="tag">Press Esc or the camera button to zoom out</div>
+
+  <!-- Intro -->
+  <div id="intro">
+    <div class="box">
+      <p id="intro-text"></p>
+      <button id="intro-start" class="start" hidden>START</button>
+    </div>
+  </div>
+
+  <noscript><p style="padding:24px;font-family:sans-serif">This portfolio needs JavaScript and WebGL.</p></noscript>
+  <script src="app.js"></script>
+</body>
+</html>

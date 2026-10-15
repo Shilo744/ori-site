@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ori-site-v2",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dev.mjs"],
+      "port": 5191
+    }
+  ]
+}
