@@ -15,7 +15,8 @@
 //
 // Optional extras: `pos:{x,y}` first position, `aliases:[{ name, args }]` extra names for `open(name)`,
 // `hidden` (kept out of Spotlight / terminal listings), `dockId` (which Dock icon shows the running dot),
-// `menuTitle` (name in the Window menu), `spotlightKind` (label in Spotlight, default Application / Game).
+// `menuTitle` (name in the Window menu), `spotlightKind` (label in Spotlight, default Application / Game),
+// `chrome: 'game'` (neon arcade window frame for a non-game app, e.g. the Arcade launcher).
 
 const apps = new Map(); // id -> normalised definition (insertion order = Dock order)
 const aliases = new Map(); // alias -> { id, args }

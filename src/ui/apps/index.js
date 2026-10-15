@@ -6,6 +6,7 @@ import './notes.js';
 import './mail.js';
 import './terminal.js';
 import './settings.js';
+import './arcade.js';
 import './welcome.js';
 import '../games/index.js'; // games (category 'game') — not in the Dock, found through Spotlight / the Arcade
 

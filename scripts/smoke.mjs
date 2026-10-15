@@ -8,6 +8,7 @@ import { SHOTS, build, serveDist, launchBrowser, newSession, loadSite, enterScre
 import { runWmContract } from './lib/wm-contract.mjs';
 import { runCoreContract } from './lib/core-contract.mjs';
 import { GAME_TESTS } from './lib/games.mjs';
+import { runArcade } from './lib/arcade-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -61,6 +62,9 @@ try {
 
     // window-manager contract (registers a throw-away app, so it runs after the app loop)
     await runWmContract(s, { ok, fail });
+
+    // Arcade launcher (covers, scores, real click / keyboard launch, tabs, terminal commands)
+    await runArcade(s, { ok, fail });
 
     // full gameplay checks for every game that has one (slow under software GL, so opt-in: --games)
     if (flag('games')) {

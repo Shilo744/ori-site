@@ -5,6 +5,7 @@ import { achievements } from '../../core/achievements.js';
 import * as sound from '../../audio.js';
 import { createRuntime, fitCanvas, createInput, createHud, createOverlay, createPad, createParticles, createFit } from './kit.js';
 import { scores } from './scores.js';
+import { registerGameInfo } from './catalog.js';
 
 const COLS = 20, ROWS = 20, CELL = 20, W = COLS * CELL, H = ROWS * CELL;
 const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -37,6 +38,78 @@ achievements.define([{
   id: 'hungry', name: 'Hungry', desc: 'Score 25 in Snake', goal: 25, rarity: 'common',
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18h6V9h8V5"/><circle cx="18" cy="5" r="1.6" fill="currentColor"/></svg>',
 }]);
+
+/** Arcade cover art: a glowing snake curling toward an apple on a neon grid. */
+function drawCover(g, w, h) {
+  const bg = g.createRadialGradient(w * 0.5, h * 0.45, 10, w * 0.5, h * 0.5, w * 0.75);
+  bg.addColorStop(0, '#1c1d52');
+  bg.addColorStop(1, '#070817');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, w, h);
+  const cell = h / 9;
+  g.fillStyle = 'rgba(255,255,255,0.03)';
+  for (let y = 0; y < 9; y++) for (let x = 0; x * cell < w; x++) if ((x + y) % 2 === 0) g.fillRect(x * cell, y * cell, cell, cell);
+  g.fillStyle = 'rgba(150,160,255,0.28)';
+  for (let y = 1; y < 9; y++) for (let x = 1; x * cell < w; x++) g.fillRect(x * cell - 1, y * cell - 1, 2, 2);
+  // the snake: an S-curve of rounded segments, cyan head → violet tail
+  const pts = [[0.86, 0.3], [0.7, 0.3], [0.54, 0.3], [0.4, 0.3], [0.4, 0.5], [0.4, 0.7], [0.26, 0.7], [0.14, 0.7], [0.14, 0.5]];
+  g.lineCap = g.lineJoin = 'round';
+  g.strokeStyle = 'rgba(53,242,255,0.16)';
+  g.lineWidth = cell * 1.3;
+  g.beginPath();
+  pts.forEach(([x, y], i) => (i ? g.lineTo(x * w, y * h) : g.moveTo(x * w, y * h)));
+  g.stroke();
+  for (let i = pts.length - 2; i >= 0; i--) {
+    const k = i / (pts.length - 1);
+    g.strokeStyle = `hsl(${172 + k * 98} 100% ${60 - k * 8}%)`;
+    g.lineWidth = cell * (0.86 - k * 0.3);
+    g.beginPath();
+    g.moveTo(pts[i][0] * w, pts[i][1] * h);
+    g.lineTo(pts[i + 1][0] * w, pts[i + 1][1] * h);
+    g.stroke();
+  }
+  const hx = pts[0][0] * w, hy = pts[0][1] * h;
+  g.shadowColor = 'rgba(53,242,255,0.95)';
+  g.shadowBlur = 22;
+  g.fillStyle = '#e8fffd';
+  g.beginPath();
+  g.arc(hx, hy, cell * 0.5, 0, Math.PI * 2);
+  g.fill();
+  g.shadowBlur = 0;
+  g.fillStyle = '#071018';
+  g.beginPath();
+  g.arc(hx - cell * 0.05, hy - cell * 0.2, cell * 0.11, 0, Math.PI * 2);
+  g.arc(hx - cell * 0.05, hy + cell * 0.2, cell * 0.11, 0, Math.PI * 2);
+  g.fill();
+  // the apple
+  const ax = 0.9 * w - cell * 0.2, ay = 0.7 * h;
+  const halo = g.createRadialGradient(ax, ay, 0, ax, ay, cell * 1.6);
+  halo.addColorStop(0, 'rgba(255,61,166,0.6)');
+  halo.addColorStop(1, 'rgba(255,61,166,0)');
+  g.fillStyle = halo;
+  g.fillRect(ax - cell * 2, ay - cell * 2, cell * 4, cell * 4);
+  g.shadowColor = '#ff3da6';
+  g.shadowBlur = 18;
+  g.fillStyle = '#ff5cb6';
+  g.beginPath();
+  g.arc(ax, ay, cell * 0.42, 0, Math.PI * 2);
+  g.fill();
+  g.shadowBlur = 0;
+  g.fillStyle = 'rgba(255,255,255,0.85)';
+  g.beginPath();
+  g.arc(ax - cell * 0.13, ay - cell * 0.13, cell * 0.12, 0, Math.PI * 2);
+  g.fill();
+}
+
+registerGameInfo({
+  id: 'snake',
+  name: 'Snake',
+  tagline: 'Eat. Grow. Don’t bite yourself.',
+  accent: '#35f2ff',
+  controls: 'Arrows / WASD · Space to pause',
+  variants: [{ id: 'snake:wrap', label: 'Wrap' }],
+  drawCover,
+});
 
 registerApp({
   id: 'snake',

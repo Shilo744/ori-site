@@ -1,7 +1,7 @@
 // Takes one screenshot into shots/.
 //   npm run shot -- overview                     room camera preset (overview|desk|window|shelf|bench|plant|mac-close|iphone|ipad)
 //   npm run shot -- app:terminal T17-neofetch    an app window (or `game:<id>`), second arg = file name (no extension)
-//   options: --size=1280x800  --time=18.5  --wait=800  --no-build  --headed  --keys="ArrowUp,Space"
+//   options: --size=1280x800  --time=18.5  --wait=800  --no-build  --headed  --keys="ArrowUp,Space"  --eval="js"
 import { join } from 'node:path';
 import { SHOTS, build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, snap, parseSize, sleep } from './lib/harness.mjs';
 
@@ -31,6 +31,8 @@ try {
 
   const time = opt('time', '');
   if (time !== '') await page.evaluate((h) => window.__ori.setTime(+h), time);
+  // --eval="js" (repeatable): run page code first, e.g. seed scores: --eval="__ori.core.storage.set('scores:snake',{best:31,plays:4,last:Date.now(),runs:[]})"
+  for (const code of args.filter((a) => a.startsWith('--eval=')).map((a) => a.slice(7))) await page.evaluate(code);
 
   const [kind, id] = target.split(':');
   if (kind === 'app' || kind === 'game') {

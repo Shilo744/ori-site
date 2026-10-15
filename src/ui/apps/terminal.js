@@ -25,7 +25,7 @@ function initTerminal(el, ctx) {
   };
   const openable = () => listApps({ category: 'app', hidden: false }).map((a) => a.id).join(', ');
   const commands = {
-    help: () => ['Available commands:', '  <b>about</b>       who I am', '  <b>skills</b>      what I work with', '  <b>projects</b>    selected work', '  <b>experience</b>  where I\'ve worked', '  <b>contact</b>     get in touch', '  <b>open</b> &lt;app&gt;  open an app', '  <b>clear</b>       clear the screen'],
+    help: () => ['Available commands:', '  <b>about</b>       who I am', '  <b>skills</b>      what I work with', '  <b>projects</b>    selected work', '  <b>experience</b>  where I\'ve worked', '  <b>contact</b>     get in touch', '  <b>open</b> &lt;app&gt;  open an app', '  <b>games</b>       list the arcade games', '  <b>play</b> &lt;game&gt; start a game', '  <b>clear</b>       clear the screen'],
     about: () => C.about.paragraphs.map(esc),
     whoami: () => [`${esc(C.name)} — ${esc(C.title)}, based in ${esc(C.location)}.`],
     skills: () => [C.about.skills.map(esc).join(' · ')],
@@ -35,6 +35,16 @@ function initTerminal(el, ctx) {
     date: () => [new Date().toString()],
     clear: () => { out.innerHTML = ''; return []; },
     open: (a) => (resolve(a) ? (ctx.open(a), [`opening ${esc(a)}…`]) : [`unknown app: ${esc(a || '')}  (try: ${openable()})`]),
+    games: () => [
+      'Arcade games (type <b>play &lt;id&gt;</b>):',
+      ...listApps({ category: 'game' }).map((g) => `  <b>${esc(g.id)}</b>${' '.repeat(Math.max(1, 12 - g.id.length))}${esc(g.name)}`),
+    ],
+    play: (a) => {
+      const g = a && listApps({ category: 'game' }).find((x) => x.id === a);
+      if (!g) return [`unknown game: ${esc(a || '')}  (try: ${listApps({ category: 'game' }).map((x) => x.id).join(', ')})`];
+      ctx.open(g.id);
+      return [`launching ${esc(g.name)}…`];
+    },
     sudo: () => ['Permission granted. Ori has been notified 🎉  Say hi: ' + esc(C.contact.email)],
   };
   print([`<span class="dim">Last login: ${new Date().toDateString()} on ttys001</span>`, `Welcome! Type <b>help</b> to see what you can do.`, '']);

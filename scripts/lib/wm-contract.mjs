@@ -1,6 +1,6 @@
 // Integration test of the window-manager contract (T3): registers a throw-away app at runtime and checks
 // mount / titlebar / key routing / pause-resume / minimise / lock / resize / destroy / ctx.open.
-import { sleep } from './harness.mjs';
+import { sleep, settle } from './harness.mjs';
 
 export async function runWmContract(session, { ok, fail }) {
   const { page } = session;
@@ -110,7 +110,7 @@ export async function runWmContract(session, { ok, fail }) {
   // resize
   await clear();
   await page.evaluate(() => { document.querySelector('.mac .win-wmtest').style.width = '460px'; });
-  await sleep(300);
+  await settle(session, 2); // ResizeObserver callbacks only fire when a frame is rendered (slow under software GL)
   if (compact) ok('wm: (flat mode: window size is forced by CSS, resize check skipped)');
   else check((await log()).some((l) => l.startsWith('resize:460x')), 'onResize fires when the window size changes');
 
