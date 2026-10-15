@@ -61,6 +61,7 @@ stage.appendChild(css3d.domElement);
 // ── scene ──────────────────────────────────────────────────────────────
 const desktop = createDesktop({
   fast: FAST,
+  onPower: (kind) => handlePower(kind),
   onVolume: (on) => {
     sound.setEnabled(on);
     soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff;
@@ -68,6 +69,7 @@ const desktop = createDesktop({
 });
 const world = createScene({ renderer, screenElement: desktop.root });
 const { scene, mac } = world;
+mac.setLid(false, 0); // the laptop starts shut; START opens it
 
 const camera = new THREE.PerspectiveCamera(26, 1, 5, 12000);
 
@@ -87,10 +89,13 @@ const FAR_INTRO = {
 };
 const screenView = { pos: new THREE.Vector3(), target: new THREE.Vector3(), fov: 30 };
 
+const screenM = new THREE.Matrix4();
 function computeScreenView() {
   scene.updateMatrixWorld(true);
-  const center = new THREE.Vector3().setFromMatrixPosition(mac.screen.matrixWorld);
-  const normal = new THREE.Vector3(0, 0, 1).transformDirection(mac.screen.matrixWorld).normalize();
+  // aim at the screen as it is when the lid is OPEN, even if the lid is still shut (wake from Sleep)
+  mac.screenMatrixAt(mac.OPEN_DEG, screenM);
+  const center = new THREE.Vector3().setFromMatrixPosition(screenM);
+  const normal = new THREE.Vector3(0, 0, 1).transformDirection(screenM).normalize();
   const aspect = camera.aspect;
   const fov = aspect < 1.1 ? 36 : 30;
   const tan = Math.tan(THREE.MathUtils.degToRad(fov / 2));
@@ -120,6 +125,7 @@ const wantsFlat = () => window.innerWidth < 860;
 function goFlat() {
   state = 'flat';
   mac.screen.visible = false;
+  desktop.root.style.visibility = '';
   flatHost.appendChild(desktop.root);
   flatHost.hidden = false;
   desktop.root.classList.add('flat');
@@ -158,6 +164,9 @@ function setView(v) {
   view.fov = v.fov;
 }
 
+// lid timings (ms); `?fast=1` shortens them like the camera flights
+const lidMs = (ms) => (FAST ? ms * 0.15 : ms);
+
 function enterScreen() {
   if (state !== 'overview' && state !== 'ready') return;
   const wasReady = state === 'ready';
@@ -169,6 +178,9 @@ function enterScreen() {
   promptEl.classList.remove('on');
   desktop.setLocked(true);
   if (wasReady) hud.classList.add('on');
+  // waking the laptop: open the lid while the camera flies in; after Shut Down the boot animation runs again
+  if (!mac.lidOpen) mac.setLid(true, lidMs(1100));
+  if (poweredOff) { poweredOff = false; desktop.powerOn(); }
   flyTo(screenView, wasReady ? 2800 : 1900, {
     arc: wasReady ? 90 : 45,
     onDone: () => {
@@ -184,6 +196,17 @@ function enterScreen() {
       setTimeout(() => hintEl.classList.remove('on'), 4200);
     },
   });
+}
+
+let poweredOff = false; // Shut Down: the next wake runs the boot animation (Sleep wakes instantly)
+
+/** Apple menu → Sleep / Shut Down in 3D: the camera pulls back while the lid closes. Returns false in flat mode (the desktop blacks out instead). */
+function handlePower(kind) {
+  if (state !== 'screen') return false;
+  if (kind === 'shutdown') poweredOff = true;
+  exitScreen();
+  setTimeout(() => { if (state === 'exiting' || state === 'overview') mac.setLid(false, lidMs(950)); }, lidMs(550));
+  return true;
 }
 
 function exitScreen() {
@@ -240,7 +263,9 @@ window.addEventListener('pointermove', (e) => {
 
 stage.addEventListener('click', (e) => {
   if (state === 'ready') { enterScreen(); return; }
-  if (state === 'overview' && e.target.closest('.mac')) enterScreen();
+  if (state !== 'overview') return;
+  // the screen DOM is hidden while the lid is shut, so a closed laptop is picked in 3D
+  if (e.target.closest('.mac') || (!mac.lidOpen && hitsMac(e.clientX, e.clientY))) enterScreen();
 });
 // canvas + screen clicks (screen element is a CSS3D child, so listen on it too)
 desktop.root.addEventListener('click', () => {
@@ -299,8 +324,9 @@ startBtn.addEventListener('click', () => {
   setTimeout(() => (intro.style.display = 'none'), 1000);
   state = 'ready';
   promptEl.classList.add('on');
-  // boot the laptop while the room fades in
+  // the laptop opens its lid and boots while the room fades in
   setTimeout(() => { sound.chime(); }, 500);
+  setTimeout(() => mac.setLid(true, lidMs(1500)), lidMs(350));
   desktop.boot();
 });
 
@@ -325,6 +351,13 @@ window.addEventListener('pointerleave', () => { pointerPx.has = false; desktop.h
 
 const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
+
+/** Does a click at these client coordinates hit the MacBook model? */
+function hitsMac(cx, cy) {
+  ndc.set((cx / window.innerWidth) * 2 - 1, -(cy / window.innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  return ray.intersectObject(mac.group, true).length > 0;
+}
 const plane = new THREE.Plane();
 const hitP = new THREE.Vector3();
 const nrm = new THREE.Vector3();
@@ -419,7 +452,9 @@ function frame() {
 
   // display glow on the keys when close
   const near = THREE.MathUtils.clamp(1 - (dist - 40) / 400, 0, 1);
-  mac.glow.intensity = near * 1800;
+  mac.glow.intensity = near * 1800 * mac.openness;
+
+  world.update(dt, t, state);
 
   if (state !== 'flat') {
     renderer.render(scene, camera);
@@ -464,6 +499,9 @@ window.__ori = {
   view,
   renderer,
   scene: world.scene,
+  mac,
+  /** Lid control for tests: setLid(true|false, ms). Read mac.lidAngle / mac.lidOpen. */
+  setLid: (open, ms = 0) => mac.setLid(open, ms),
   /** Opens an app (or alias such as `about`) on the macOS desktop. Returns false for an unknown id. */
   openApp(id) {
     if (!desktop.listApps().includes(id) && !desktop.listAliases().includes(id)) return false;

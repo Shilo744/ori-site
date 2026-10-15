@@ -65,7 +65,7 @@ export function createDesktop(opts = {}) {
       frontChange: (def) => { mbApp.textContent = def ? def.name : 'Finder'; },
     },
   });
-  const power = { restart: () => restart(), shutdown: () => shutdown() };
+  const power = { restart: () => restart(), shutdown: () => shutdown(), sleep: () => sleep() };
   const menubar = createMenubar({ root, menuLayer: q('.menus'), appLabel: mbApp, cc: q('.cc'), wm, scale, power });
   const overlays = createOverlays({ root, wm, closeMenus: () => menubar.close(), onVolume: opts.onVolume });
 
@@ -76,17 +76,44 @@ export function createDesktop(opts = {}) {
     boot.dataset.wake = '';
     api.boot().then(() => wm.open('welcome'));
   }
+  const blackout = (kind) => {
+    boot.classList.remove('run', 'done');
+    boot.classList.add('shut');
+    boot.dataset.wake = kind;
+  };
+  /** Sleep: in 3D the host closes the lid (opts.onPower returns true); in flat mode we black out the screen. */
+  function sleep() {
+    menubar.close();
+    overlays.closeSpot();
+    if (opts.onPower && opts.onPower('sleep')) return;
+    wm.pauseAll();
+    blackout('sleep');
+  }
+  function wake() {
+    boot.classList.remove('shut');
+    boot.classList.add('done');
+    boot.dataset.wake = '';
+    if (!isLocked()) wm.resumeFront();
+  }
   function shutdown() {
     menubar.close();
     wm.clearAll();
-    boot.classList.remove('run', 'done');
-    boot.classList.add('shut');
-    boot.dataset.wake = '1';
+    api.opened = false;
+    blackout('off');
+    opts.onPower && opts.onPower('shutdown'); // 3D: the host closes the lid; flat: click the black screen to boot
   }
+  /** Boot after Shut Down (the host calls this when the lid opens again). */
+  function powerOn() {
+    boot.dataset.wake = '';
+    api.opened = true;
+    return api.boot().then(() => wm.open('welcome'));
+  }
+  window.addEventListener('keydown', () => { if (boot.dataset.wake === 'sleep') wake(); });
 
   // ── events ──
   root.addEventListener('click', (e) => {
     const t = e.target;
+    if (boot.dataset.wake === 'sleep') { wake(); return; }
     if (boot.dataset.wake) { restart(); return; }
     overlays.onClickAway(t);
     if (menubar.handleClick(e)) return;
@@ -186,6 +213,11 @@ export function createDesktop(opts = {}) {
       });
     },
     reset() { wm.clearAll(); },
+    sleep,
+    wake,
+    shutdown,
+    powerOn,
+    get isOff() { return boot.dataset.wake === 'off'; },
     moveCursor(x, y) {
       if (isLocked() || isCompact()) { cur.hidden = true; return; }
       const inside = x >= 0 && y >= 0 && x <= SCREEN_PX.w && y <= SCREEN_PX.h;

@@ -253,6 +253,12 @@ export function createScene({ renderer, screenElement }) {
   fill.position.set(500, 300, 600);
   scene.add(fill);
 
-  const update = () => {};
+  // physical keyboard presses the 3D keys (visible whenever the camera looks at the laptop)
+  mac.keys.bind();
+
+  /** Per-frame hook (called from the render loop with dt seconds, time, and the camera state). */
+  const update = (dt) => {
+    mac.update(dt);
+  };
   return { scene, mac, update, lights: { sun, fill }, ROOM };
 }

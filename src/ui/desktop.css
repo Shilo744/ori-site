@@ -58,6 +58,16 @@
   position: absolute; left: 50%; top: 0; width: 132px; height: 31px; transform: translateX(-50%);
   background: #000; border-radius: 0 0 11px 11px;
 }
+/* camera lens + indicator inside the notch (the real camera sits in the notch, so it is drawn on the screen layer) */
+.mac .mb-notch::before {
+  content: ''; position: absolute; left: 50%; top: 9px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #5b6b8f 0 7%, #1b2338 22%, #0a0d17 58%, #04050a 100%);
+  box-shadow: 0 0 0 1.5px #101218, 0 0 0 2.2px rgba(255, 255, 255, 0.05);
+}
+.mac .mb-notch::after {
+  content: ''; position: absolute; left: calc(50% + 14px); top: 12.5px; width: 3.5px; height: 3.5px; border-radius: 50%;
+  background: #0e1a12; box-shadow: 0 0 0 0.6px #05080a;
+}
 
 /* dropdown menus */
 .mac .menus { position: absolute; z-index: 6000; top: 28px; left: 0; right: 0; }

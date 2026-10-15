@@ -11,7 +11,7 @@ import { esc } from './apps/shared.js';
  * @param {HTMLElement} o.cc         the Control Center panel (closed together with the menus, like macOS)
  * @param {object} o.wm              window manager
  * @param {() => number} o.scale
- * @param {{ restart: Function, shutdown: Function }} o.power
+ * @param {{ restart: Function, shutdown: Function, sleep: Function }} o.power
  */
 export function createMenubar({ root, menuLayer, appLabel, cc, wm, scale, power }) {
   let menuOpen = null;
@@ -37,7 +37,7 @@ export function createMenubar({ root, menuLayer, appLabel, cc, wm, scale, power 
       { l: 'System Settings…', a: () => wm.open('settings') }, { l: 'App Store…', dis: true }, { sep: 1 },
       { l: 'Recent Items', dis: true, arrow: true }, { sep: 1 },
       { l: 'Force Quit…', k: '⌥⌘⎋', dis: true }, { sep: 1 },
-      { l: 'Sleep', dis: true }, { l: 'Restart…', a: () => power.restart() }, { l: 'Shut Down…', a: () => power.shutdown() }, { sep: 1 },
+      { l: 'Sleep', a: () => power.sleep() }, { l: 'Restart…', a: () => power.restart() }, { l: 'Shut Down…', a: () => power.shutdown() }, { sep: 1 },
       { l: 'Lock Screen', k: '⌃⌘Q', dis: true }, { l: `Log Out ${C.name}…`, k: '⇧⌘Q', dis: true },
     ];
     if (key === 'app') return [

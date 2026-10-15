@@ -231,6 +231,18 @@ export function noiseHit(dur = 0.15, vol = 0.16, freq = 900, type = 'lowpass', d
   src.stop(t + dur + 0.02);
 }
 
+/** The MacBook lid shutting: a soft low knock plus a muffled tap. */
+export function thud() {
+  sweep(130, 46, 0.2, 'sine', 0.26);
+  noiseHit(0.1, 0.12, 360);
+}
+
+/** The lid latch letting go as it starts to open. */
+export function latch() {
+  blip(1800, 0.025, 'square', 0.035);
+  noiseHit(0.035, 0.05, 2600, 'highpass');
+}
+
 /** A quick run of notes (jingles): `arp([523, 659, 784], 0.07)`. */
 export function arp(freqs, step = 0.07, type = 'square', vol = 0.09) {
   freqs.forEach((f, i) => blip(f, step * 1.6, type, vol, i * step));

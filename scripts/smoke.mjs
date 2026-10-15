@@ -9,6 +9,7 @@ import { runWmContract } from './lib/wm-contract.mjs';
 import { runCoreContract } from './lib/core-contract.mjs';
 import { GAME_TESTS } from './lib/games.mjs';
 import { runArcade } from './lib/arcade-test.mjs';
+import { runLid } from './lib/lid-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -39,6 +40,8 @@ try {
     await sleep(300);
     await shot('00-intro');
 
+    const lidBefore = await page.evaluate(() => window.__ori.mac.lidAngle);
+    if (lidBefore < 1) ok('the MacBook lid starts shut'); else fail(`the lid should start shut (angle ${lidBefore})`);
     await enterScreen(s);
     const st = await page.evaluate(() => window.__ori.state);
     if (st === (size.width < 860 ? 'flat' : 'screen')) ok(`entered the screen (state: ${st})`); else fail(`unexpected state after entering: ${st}`);
@@ -65,6 +68,9 @@ try {
 
     // Arcade launcher (covers, scores, real click / keyboard launch, tabs, terminal commands)
     await runArcade(s, { ok, fail });
+
+    // MacBook: lid, key presses, Sleep / Shut Down / Restart
+    await runLid(s, { ok, fail });
 
     // full gameplay checks for every game that has one (slow under software GL, so opt-in: --games)
     if (flag('games')) {

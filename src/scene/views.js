@@ -16,12 +16,20 @@ const PRESETS = {
 
 /** Returns `{ pos, target, fov }` for a preset name, or null if the name is unknown. */
 export function getView(name, world) {
+  const c = world.mac.group.position;
   if (name === 'mac-close') {
-    // keyboard + lid hinge close-up, relative to wherever the MacBook stands
-    const c = world.mac.group.position;
+    // the whole laptop, relative to wherever the MacBook stands
     return { pos: P(c.x + 36, c.y + 30, c.z + 56), target: P(c.x, c.y + 6, c.z - 2), fov: 28 };
+  }
+  if (name === 'mac-keys') {
+    // low, tight angle across the keycaps (shows the 3D keys, the key-well gap and the trackpad edge)
+    return { pos: P(c.x + 8, c.y + 12, c.z + 24), target: P(c.x - 2, c.y + 1, c.z + 2), fov: 24 };
+  }
+  if (name === 'mac-side') {
+    // left side: MagSafe + USB-C recesses, rounded base edge
+    return { pos: P(c.x - 40, c.y + 4, c.z + 14), target: P(c.x - 15, c.y + 0.5, c.z + 0.2), fov: 24 };
   }
   return PRESETS[name] || null;
 }
 
-export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'iphone', 'ipad'];
+export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'mac-side', 'iphone', 'ipad'];
