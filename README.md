@@ -62,6 +62,8 @@ npm run shot -- app:terminal T17-terminal   # חלון של אפליקציה (א
 
 הצילומים נשמרים ב-`shots/` (מחוץ ל-git; ה-smoke שומר ב-`shots/smoke/`). דגלים שימושיים: `--size=WxH`, `--time=18.5`, `--wait=ms`, `--keys=ArrowUp,Space`, `--no-build`, `--headed`.
 
+`npm run dom-snap -- before` / `-- after` שומר את ה-DOM המנורמל של כל האפליקציות/תפריטים/טרמינל ב-`shots/dom/<label>/` — להשוואה לפני/אחרי ריפקטור (`git diff --no-index --stat shots/dom/before shots/dom/after`).
+
 הכתובת `?fast=1` מדלגת על ההקלדה באינטרו, על אנימציית האתחול ומקצרת את טיסות המצלמה (לבדיקות בלבד). ב-Console זמין `window.__ori`: `ready`, `openApp(id)`, `listApps()`, `setView(name)`, `setTime(hours)`, `stats()`.
 
 ## מבנה הפרויקט
@@ -76,10 +78,25 @@ src/scene/props.js       שולחן, כיסא, צמחים, מנורות, ספר�
 src/scene/macbook.js     ה-MacBook Air (מודל פרוצדורלי + המסך החי)
 src/screen-size.js       גודל המסך הלוגי — מספר קטן יותר = כפתורים וטקסט גדולים יותר
 src/scene/textures.js    טקסטורות שנוצרות בקוד (עץ, פוסטרים, מקלדת…)
-src/ui/desktop.js        ה-macOS שרץ על המסך (חלונות, Dock, תפריטים, Spotlight…)
+src/scene/views.js       זוויות מצלמה בשם (desk, window, shelf… — לבדיקות ולסיור)
+src/core/                שירותים: storage (ori2:), bus (אירועים), achievements, notify
+src/ui/desktop.js        ה-macOS שרץ על המסך — מחבר את החלקים הבאים
+src/ui/shell.js          ה-HTML של שולחן העבודה (טפט, תפריט, Dock, Control Center…)
+src/ui/wm.js             מנהל החלונות: פתיחה, פוקוס, מזעור, גרירה, מקשים ו-pause/resume לאפליקציות
+src/ui/menubar.js        תפריטי העליון   ·   src/ui/overlays.js  Spotlight + Control Center
+src/ui/apps/             כל אפליקציה בקובץ משלה + registry.js (Dock, Spotlight והתפריטים קוראים ממנו)
 src/ui/desktop.css       העיצוב של macOS
 src/styles.css           HUD, מסך פתיחה, מצב מובייל
+scripts/                 smoke / shot / dom-snap (בדיקות וצילומי מסך)
 ```
+
+## להוסיף אפליקציה (או משחק)
+
+1. קובץ חדש `src/ui/apps/<id>.js` שקורא ל-`registerApp({ id, name, icon, size, category, dock, titlebar, mount(el, ctx) })` — ראו את ההערה בראש `src/ui/apps/registry.js` לכל השדות.
+2. שורת import אחת ב-`src/ui/apps/index.js` (הסדר שם = הסדר ב-Dock).
+3. זה הכול: ה-Dock (`dock: true`), Spotlight, תפריט Window, ופקודת `open` בטרמינל מתעדכנים לבד.
+
+`mount` מקבל את אלמנט התוכן ו-`ctx` (`sound`, `storage`, `bus`, `achievements`, `notify`, `content`, `open(id, args)`, `win.setTitle/close/size`, `onKey(handler)`, `isInteractive()`) ומחזיר `{ destroy, onFocus, onBlur, onResize, onOpen, pause, resume }` (הכול אופציונלי). `onKey` מקבל keydown+keyup רק כשהחלון פעיל והמסך חי; החזרת `true` עושה `preventDefault`.
 
 ## התאמות נפוצות
 

@@ -8,6 +8,11 @@ import { SCREEN_PX } from './screen-size.js';
 import * as sound from './audio.js';
 import { content } from './content.js';
 import { getView } from './scene/views.js';
+import { registerApp, getApp, listApps as registryList } from './ui/apps/registry.js';
+import { storage } from './core/storage.js';
+import { bus } from './core/bus.js';
+import { achievements } from './core/achievements.js';
+import { notifications } from './core/notify.js';
 
 // `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
 const FAST = new URLSearchParams(window.location.search).has('fast');
@@ -256,6 +261,7 @@ soundBtn.addEventListener('click', () => {
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (e.defaultPrevented) return; // the active app used Esc itself (e.g. a game pausing)
     if (state === 'screen' && desktop.closeOverlays()) return;
     if (state === 'screen' || state === 'flat') exitScreen();
   }
@@ -464,6 +470,8 @@ window.__ori = {
     return true;
   },
   listApps: () => desktop.listApps(),
+  registry: { registerApp, getApp, listApps: registryList },
+  core: { storage, bus, achievements, notifications },
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
   /** Time of day in hours (0–24). No-op until the daylight system (T9) listens to it. */

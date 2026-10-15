@@ -147,8 +147,18 @@ export async function backToRoom(session) {
   await sleep(150);
 }
 
-export async function snap(session, file) {
+/** Waits until the page has produced `frames` more animation frames (software WebGL renders ~1-2 fps, so a fixed sleep is not enough for CSS animations to be painted). */
+export async function settle(session, frames = 2) {
+  await session.page.evaluate((n) => new Promise((res) => {
+    let left = n;
+    const step = () => { if (--left <= 0) res(); else requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }), frames);
+}
+
+export async function snap(session, file, { frames = 2 } = {}) {
   await mkdir(join(file, '..'), { recursive: true });
+  await settle(session, frames);
   await session.page.screenshot({ path: file });
   return file;
 }

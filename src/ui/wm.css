@@ -1,0 +1,4 @@
+/* Windows whose title bar is drawn by the window manager (registry `titlebar: 'standard' | 'dark'`). */
+.mac .win.win-std { flex-direction: column; }
+.mac .win-std > .tb { flex: none; justify-content: center; }
+.mac .wm-body { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }

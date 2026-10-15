@@ -5,6 +5,8 @@
 //   npm run smoke -- --no-build --headed
 import { join } from 'node:path';
 import { SHOTS, build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, snap, parseSize, sleep } from './lib/harness.mjs';
+import { runWmContract } from './lib/wm-contract.mjs';
+import { runCoreContract } from './lib/core-contract.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -56,6 +58,9 @@ try {
     ok(`opened ${apps.length} apps`);
     await page.evaluate(() => window.__ori.desktop.reset());
 
+    // window-manager contract (registers a throw-away app, so it runs after the app loop)
+    await runWmContract(s, { ok, fail });
+
     // room camera presets (3D mode only)
     if (size.width >= 860) {
       await page.evaluate(() => window.__ori.desktop.open('home'));
@@ -76,6 +81,9 @@ try {
       await page.evaluate(() => window.__ori.setView('free'));
       log(`  stats: ${stats.calls} draw calls · ${stats.triangles} triangles · ${stats.geometries} geometries · ${stats.textures} textures · ~${stats.fps} fps (software GL)`);
     }
+
+    // core services (reloads the page to prove persistence, so it runs last)
+    await runCoreContract(s, { ok, fail });
 
     if (s.warnings.length) log(`  (${s.warnings.length} console warning${s.warnings.length > 1 ? 's' : ''}: ${[...new Set(s.warnings)].slice(0, 3).map((w) => w.slice(0, 90)).join(' | ')})`);
     if (s.errors.length) {
