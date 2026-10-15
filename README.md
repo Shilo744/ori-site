@@ -49,6 +49,21 @@ npm run build
 - **Vercel / GitHub Pages / Cloudflare Pages** — מצביעים על `dist` כתיקיית הפרסום
 - כדי לבדוק מקומית בלי שרת, אפשר גם לפתוח את `dist/index.html` ישירות
 
+## בדיקות וצילומי מסך (smoke / shot)
+
+הכלים משתמשים ב-Chrome (או Edge) שכבר מותקן במחשב דרך `playwright-core` — בלי הורדת דפדפן. הם בונים את האתר, מגישים את `dist/` על פורט אקראי ומריצים את הדפדפן (WebGL תוכנתי, בלי GPU).
+
+```bash
+npm run smoke                      # זרימה מלאה + פתיחת כל אפליקציה/משחק; נכשל על כל שגיאת קונסול/רשת
+npm run smoke -- --sizes=1366x768  # גדלי מסך אחרים (ברירת מחדל: 1280x800 ו-390x844 = מצב flat)
+npm run shot -- desk               # צילום אחד של זווית מצלמה: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad
+npm run shot -- app:terminal T17-terminal   # חלון של אפליקציה (או game:<id>), הארגומנט השני הוא שם הקובץ
+```
+
+הצילומים נשמרים ב-`shots/` (מחוץ ל-git; ה-smoke שומר ב-`shots/smoke/`). דגלים שימושיים: `--size=WxH`, `--time=18.5`, `--wait=ms`, `--keys=ArrowUp,Space`, `--no-build`, `--headed`.
+
+הכתובת `?fast=1` מדלגת על ההקלדה באינטרו, על אנימציית האתחול ומקצרת את טיסות המצלמה (לבדיקות בלבד). ב-Console זמין `window.__ori`: `ready`, `openApp(id)`, `listApps()`, `setView(name)`, `setTime(hours)`, `stats()`.
+
 ## מבנה הפרויקט
 
 ```

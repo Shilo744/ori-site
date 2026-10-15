@@ -769,6 +769,8 @@ export function createDesktop(opts = {}) {
   const api = {
     root,
     open,
+    listApps: () => Object.keys(APPS),
+    listAliases: () => Object.keys(ALIAS),
     setLocked(v) {
       root.classList.toggle('locked', v);
       if (v) { closeAllMenus(); closeSpot(); }
@@ -780,7 +782,7 @@ export function createDesktop(opts = {}) {
       void el.offsetWidth;
       el.classList.add('run');
       return new Promise((res) => {
-        setTimeout(() => { el.classList.add('done'); res(); }, 2700);
+        setTimeout(() => { el.classList.add('done'); res(); }, opts.fast ? 200 : 2700);
       });
     },
     reset() { clearWindows(); },

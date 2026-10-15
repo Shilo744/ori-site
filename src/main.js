@@ -7,6 +7,10 @@ import { SCREEN_CM } from './scene/macbook.js';
 import { SCREEN_PX } from './screen-size.js';
 import * as sound from './audio.js';
 import { content } from './content.js';
+import { getView } from './scene/views.js';
+
+// `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
+const FAST = new URLSearchParams(window.location.search).has('fast');
 
 // ── DOM ────────────────────────────────────────────────────────────────
 const $ = (id) => document.getElementById(id);
@@ -50,6 +54,7 @@ stage.appendChild(css3d.domElement);
 
 // ── scene ──────────────────────────────────────────────────────────────
 const desktop = createDesktop({
+  fast: FAST,
   onVolume: (on) => {
     sound.setEnabled(on);
     soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff;
@@ -133,7 +138,7 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 function flyTo(to, duration, { arc = 0, onDone } = {}) {
   tween = {
     t0: performance.now(),
-    dur: duration,
+    dur: FAST ? duration * 0.15 : duration,
     from: { pos: view.pos.clone(), target: view.target.clone(), fov: view.fov },
     to: { pos: to.pos.clone(), target: to.target.clone(), fov: to.fov },
     arc,
@@ -260,6 +265,11 @@ window.addEventListener('keydown', (e) => {
 const introLines = [`${content.name} Portfolio Showcase ${content.year}`, 'Click start to begin'];
 
 async function typeIntro() {
+  if (FAST) {
+    introText.textContent = introLines.join('\n');
+    startBtn.hidden = false;
+    return;
+  }
   let out = '';
   for (let li = 0; li < introLines.length; li++) {
     for (const ch of introLines[li]) {
@@ -341,6 +351,14 @@ viewBtn.hidden = true;
 
 let parallax = 11; // camera sway amplitude (cm), eased toward 0 while on the screen
 
+// debug/test state (see window.__ori below)
+let camOverride = null;
+let timeOfDay = null;
+let ready = false;
+let resolveReady;
+const readyPromise = new Promise((res) => { resolveReady = res; });
+let fps = 0, fpsFrames = 0, fpsT0 = performance.now();
+
 function frame() {
   const rawDt = clock.getDelta();
   const dt = Math.min(rawDt, 0.05);
@@ -366,26 +384,28 @@ function frame() {
   const lockedOnScreen = state === 'screen' || state === 'entering' || state === 'flat';
   parallax += ((lockedOnScreen ? 0 : 11) - parallax) * (1 - Math.pow(0.0005, Math.min(rawDt, 0.5)));
   if (state === 'screen' || state === 'flat') parallax = 0;
-  const amp = parallax;
-  dir.subVectors(view.target, view.pos).normalize();
+  // a debug camera preset (window.__ori.setView) replaces the view and switches parallax/sway off
+  const V = camOverride || view;
+  const amp = camOverride ? 0 : parallax;
+  dir.subVectors(V.target, V.pos).normalize();
   right.crossVectors(dir, camera.up).normalize();
   up.crossVectors(right, dir).normalize();
-  tmp.copy(view.pos);
+  tmp.copy(V.pos);
   tmp.addScaledVector(right, mouseS.x * amp);
   tmp.addScaledVector(up, -mouseS.y * amp * 0.6);
 
   // lazy sway while idling in the room
-  if (state === 'ready' || state === 'intro' || state === 'overview') {
+  if (!camOverride && (state === 'ready' || state === 'intro' || state === 'overview')) {
     tmp.addScaledVector(right, Math.sin(t * 0.25) * 7);
     tmp.y += Math.sin(t * 0.18) * 2.5;
   }
 
   camera.position.copy(tmp);
-  camera.lookAt(view.target);
-  if (camera.fov !== view.fov) {
-    camera.fov = view.fov;
+  camera.lookAt(V.target);
+  if (camera.fov !== V.fov) {
+    camera.fov = V.fov;
   }
-  const dist = camera.position.distanceTo(view.target);
+  const dist = camera.position.distanceTo(V.target);
   camera.near = Math.max(1, dist * 0.05);
   camera.far = dist * 12 + 4000;
   camera.updateProjectionMatrix();
@@ -399,9 +419,62 @@ function frame() {
     css3d.render(scene, camera);
     updateCursor();
   }
+
+  // fps estimate over ~0.5 s windows (no allocations)
+  fpsFrames++;
+  const nowMs = performance.now();
+  if (nowMs - fpsT0 >= 500) {
+    fps = (fpsFrames * 1000) / (nowMs - fpsT0);
+    fpsFrames = 0;
+    fpsT0 = nowMs;
+  }
+  if (!ready) { ready = true; resolveReady(); }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
-// small debug handle
-window.__ori = { audio: sound.debugState, get state() { return state; }, enterScreen, exitScreen, desktop, camera, view, renderer, scene: world.scene };
+// ── debug / test handle (used by scripts/smoke.mjs and scripts/shot.mjs) ──
+function debugSetView(name) {
+  if (!name || name === 'free') { camOverride = null; return true; }
+  if (name === 'overview') { camOverride = OVERVIEW; return true; }
+  if (name === 'screen') { computeScreenView(); camOverride = screenView; return true; }
+  const v = getView(name, world);
+  if (!v) return false;
+  camOverride = v;
+  return true;
+}
+
+window.__ori = {
+  audio: sound.debugState,
+  get state() { return state; },
+  get ready() { return ready; },
+  whenReady: readyPromise,
+  fast: FAST,
+  enterScreen,
+  exitScreen,
+  desktop,
+  camera,
+  view,
+  renderer,
+  scene: world.scene,
+  /** Opens an app (or alias such as `about`) on the macOS desktop. Returns false for an unknown id. */
+  openApp(id) {
+    if (!desktop.listApps().includes(id) && !desktop.listAliases().includes(id)) return false;
+    desktop.open(id);
+    return true;
+  },
+  listApps: () => desktop.listApps(),
+  /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
+  setView: debugSetView,
+  /** Time of day in hours (0–24). No-op until the daylight system (T9) listens to it. */
+  setTime(hours) {
+    timeOfDay = hours;
+    window.dispatchEvent(new CustomEvent('ori:settime', { detail: { hours } }));
+  },
+  get time() { return timeOfDay; },
+  stats() {
+    const r = renderer.info.render;
+    const mem = renderer.info.memory;
+    return { calls: r.calls, triangles: r.triangles, geometries: mem.geometries, textures: mem.textures, fps: Math.round(fps * 10) / 10 };
+  },
+};
