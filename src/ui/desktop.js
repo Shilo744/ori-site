@@ -11,6 +11,9 @@ import { createMenubar } from './menubar.js';
 import { createOverlays } from './overlays.js';
 import { esc } from './apps/shared.js';
 import { cursorForEdge } from './wm-interact.js';
+import { wallpaper } from '../core/wallpaper.js';
+import { theme } from '../core/theme.js';
+import { createSystemFx } from './system-fx.js';
 
 export function createDesktop(opts = {}) {
   const root = document.createElement('div');
@@ -18,6 +21,10 @@ export function createDesktop(opts = {}) {
   root.innerHTML = shellHTML();
 
   const q = (sel) => root.querySelector(sel);
+  // wallpaper (a canvas shared with the 3D wall art), theme (dark / accent) and the system preferences
+  wallpaper.attach(q('.wall'));
+  theme.attach(root, { night: opts.night });
+  createSystemFx({ root, onSound: opts.onVolume });
   const mbApp = q('#mb-app');
   const dock = q('.dock');
   const boot = q('.boot');
@@ -83,7 +90,7 @@ export function createDesktop(opts = {}) {
   });
   const power = { restart: () => restart(), shutdown: () => shutdown(), sleep: () => sleep() };
   const menubar = createMenubar({ root, menuLayer: q('.menus'), appLabel: mbApp, cc: q('.cc'), wm, scale, power });
-  const overlays = createOverlays({ root, wm, closeMenus: () => menubar.close(), onVolume: opts.onVolume });
+  const overlays = createOverlays({ root, wm, closeMenus: () => menubar.close() });
 
   // ── power ──
   function restart() {

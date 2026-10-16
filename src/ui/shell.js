@@ -17,34 +17,6 @@ export const CURSORS = `
   ${arrowPair('cu-nesw', '0 0 16 16', 'M13 3L3 13M13 3v5M13 3h-5M3 13v-5M3 13h5')}
   <svg class="cu cu-grab" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8.5V7.2c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v-.5c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v.4c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5v4.6c0 2.6-2 4.6-4.6 4.6H9.1c-1.3 0-2.4-.6-3.2-1.6L3.2 11.9c-.5-.6-.4-1.5.2-1.9.6-.5 1.4-.4 1.9.1z" fill="#fff" stroke="#000" stroke-width="1" stroke-linejoin="round"/></svg>`;
 
-const WALLPAPER = `
-      <svg viewBox="0 0 1280 832" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <defs>
-          <linearGradient id="wp-bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#0d1646"/><stop offset=".42" stop-color="#3b2a96"/>
-            <stop offset=".78" stop-color="#b6389a"/><stop offset="1" stop-color="#ff8f5e"/>
-          </linearGradient>
-          <linearGradient id="wp-a" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#4ad0ff" stop-opacity=".75"/><stop offset=".5" stop-color="#7a6bff" stop-opacity=".7"/><stop offset="1" stop-color="#ff7ad1" stop-opacity=".7"/>
-          </linearGradient>
-          <linearGradient id="wp-b" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#ffb36a" stop-opacity=".75"/><stop offset="1" stop-color="#ff5e9c" stop-opacity=".6"/>
-          </linearGradient>
-          <linearGradient id="wp-c" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stop-color="#2e1c7a" stop-opacity=".9"/><stop offset="1" stop-color="#7a2a9a" stop-opacity=".7"/>
-          </linearGradient>
-          <radialGradient id="wp-g1"><stop offset="0" stop-color="#ffd1a0" stop-opacity=".55"/><stop offset="1" stop-color="#ffd1a0" stop-opacity="0"/></radialGradient>
-          <radialGradient id="wp-g2"><stop offset="0" stop-color="#3ad0ff" stop-opacity=".32"/><stop offset="1" stop-color="#3ad0ff" stop-opacity="0"/></radialGradient>
-        </defs>
-        <rect width="1280" height="832" fill="url(#wp-bg)"/>
-        <circle cx="1040" cy="170" r="300" fill="url(#wp-g1)"/>
-        <circle cx="180" cy="120" r="340" fill="url(#wp-g2)"/>
-        <path d="M-60 560 C 200 360 460 720 760 520 S 1180 280 1360 430 V900 H-60Z" fill="url(#wp-c)"/>
-        <path d="M-60 600 C 220 440 520 780 820 590 S 1160 400 1360 520 V900 H-60Z" fill="url(#wp-a)"/>
-        <path d="M-60 700 C 260 580 560 820 900 690 S 1180 600 1360 690 V900 H-60Z" fill="url(#wp-b)"/>
-        <path d="M-60 770 C 300 700 620 840 960 760 S 1200 730 1360 770 V900 H-60Z" fill="#0c0a2a" opacity=".45"/>
-      </svg>`;
-
 const WIDGETS = `
       <div class="wg wg-cal"><div class="d" id="wg-day">THURSDAY</div><div class="n" id="wg-date">15</div><div class="ev"><i></i><span>Coffee &amp; code</span><em>10:30</em></div><div class="ev"><i class="b"></i><span>Portfolio review</span><em>16:00</em></div></div>
       <div class="wg wg-wx"><div class="c">${esc(C.location.split(',')[0])}</div><div class="t">27°</div><div class="s"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.6" fill="#ffd60a"/><g stroke="#ffd60a" stroke-width="2" stroke-linecap="round"><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g></svg>Sunny<br><em>H:29° L:21°</em></div></div>`;
@@ -58,26 +30,42 @@ const MENUBAR = `
       <div class="mb-notch"></div>
       <div class="mb-r">
         <span class="mbi sm"><svg viewBox="0 0 28 14" width="25" height="13" aria-hidden="true"><rect x=".7" y=".7" width="23" height="12.6" rx="3.6" fill="none" stroke="currentColor" stroke-opacity=".6" stroke-width="1.3"/><rect x="2.5" y="2.5" width="16.5" height="9" rx="2" fill="currentColor"/><path d="M25.4 4.6v4.8c.9-.3 1.6-1.2 1.6-2.4s-.7-2.1-1.6-2.4z" fill="currentColor" opacity=".6"/></svg></span>
-        <span class="mbi sm"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M1.8 8.6a15.6 15.6 0 0 1 20.4 0M5.2 12.3a10.6 10.6 0 0 1 13.6 0M8.6 16a5.6 5.6 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="12" cy="19.4" r="1.7" fill="currentColor"/></svg></span>
+        <span class="mbi sm wifi"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M1.8 8.6a15.6 15.6 0 0 1 20.4 0M5.2 12.3a10.6 10.6 0 0 1 13.6 0M8.6 16a5.6 5.6 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="12" cy="19.4" r="1.7" fill="currentColor"/></svg></span>
         <button class="mbi sm" data-act="spot" aria-label="Spotlight"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.2" cy="10.2" r="6.4" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m15 15 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
         <button class="mbi sm" data-act="cc" aria-label="Control Center"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><rect x="2.6" y="4" width="18.8" height="6.2" rx="3.1" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="16.4" cy="7.1" r="1.9" fill="currentColor"/><rect x="2.6" y="13.8" width="18.8" height="6.2" rx="3.1" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="7.6" cy="16.9" r="1.9" fill="currentColor"/></svg></button>
         <span class="mbi clock" id="mb-clock"></span>
       </div>`;
 
+const CC_ICON = {
+  wifi: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1.8 8.6a15.6 15.6 0 0 1 20.4 0M5.2 12.3a10.6 10.6 0 0 1 13.6 0M8.6 16a5.6 5.6 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="12" cy="19.4" r="1.7" fill="currentColor"/></svg>',
+  bluetooth: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7.5l10 9-5 4.5V3l5 4.5-10 9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.6A8.4 8.4 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6z" fill="currentColor"/></svg>',
+  half: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.4" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/></g></svg>',
+};
+export { CC_ICON };
+
 const CONTROL_CENTER = `
       <div class="cc-grid">
-        <div class="cc-box"><div class="cc-row"><i class="cc-ic on">${I.chevR}</i><div><b>Wi‑Fi</b><span>Home</span></div></div><div class="cc-row"><i class="cc-ic on">${I.share}</i><div><b>Bluetooth</b><span>On</span></div></div><div class="cc-row"><i class="cc-ic">${I.airdrop}</i><div><b>AirDrop</b><span>Contacts Only</span></div></div></div>
-        <div class="cc-side"><div class="cc-tile"><i class="cc-ic">${I.clock}</i><b>Focus</b></div><div class="cc-tile"><i class="cc-ic on">${I.desktop}</i><b>Stage<br>Manager</b></div></div>
+        <div class="cc-box">
+          <button class="cc-row" data-sys="wifi"><i class="cc-ic">${CC_ICON.wifi}</i><div><b>Wi‑Fi</b><span data-sub="wifi">Home</span></div></button>
+          <button class="cc-row" data-sys="bluetooth"><i class="cc-ic">${CC_ICON.bluetooth}</i><div><b>Bluetooth</b><span data-sub="bluetooth">On</span></div></button>
+          <button class="cc-row" data-sys="airdrop"><i class="cc-ic">${I.airdrop}</i><div><b>AirDrop</b><span data-sub="airdrop">Off</span></div></button>
+        </div>
+        <div class="cc-side">
+          <button class="cc-tile" data-sys="dnd"><i class="cc-ic">${CC_ICON.moon}</i><b>Do Not<br>Disturb</b></button>
+          <button class="cc-tile" data-cc-theme><i class="cc-ic">${CC_ICON.half}</i><b>Dark<br>Mode</b></button>
+          <button class="cc-tile" data-sys="nightShift"><i class="cc-ic">${CC_ICON.sun}</i><b>Night<br>Shift</b></button>
+        </div>
       </div>
-      <div class="cc-sl"><b>Display</b><input type="range" min="25" max="100" value="100" data-cc="bright" style="--v:100%" /></div>
-      <div class="cc-sl"><b>Sound</b><input type="range" min="0" max="100" value="70" data-cc="vol" style="--v:70%" /></div>`;
+      <div class="cc-sl"><b>Display</b><input type="range" min="25" max="100" value="100" data-cc="bright" style="--v:100%" aria-label="Display brightness" /></div>
+      <div class="cc-sl"><b>Sound</b><input type="range" min="0" max="100" value="70" data-cc="vol" style="--v:70%" aria-label="Sound volume" /></div>`;
 
 export function shellHTML() {
   const dockApps = listApps({ dock: true });
   return `
   <div class="scr">
-    <div class="wall">${WALLPAPER}
-    </div>
+    <div class="wall"></div>
 
     <div class="widgets">${WIDGETS}
     </div>
@@ -105,6 +93,7 @@ export function shellHTML() {
       </div>
     </div>
 
+    <div class="shift"></div>
     <div class="dimmer" hidden></div>
     <div class="boot"><div class="boot-in">${APPLE}<div class="bar"><i></i></div></div></div>
     <div class="glare"></div>

@@ -14,6 +14,10 @@ import { storage } from './core/storage.js';
 import { bus } from './core/bus.js';
 import { achievements } from './core/achievements.js';
 import { notifications } from './core/notify.js';
+import { evalState as evalDaylight, makeState as makeDaylightState } from './scene/daylight.js';
+import { system } from './core/system.js';
+import { wallpaper } from './core/wallpaper.js';
+import { theme } from './core/theme.js';
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
 
@@ -71,18 +75,23 @@ css3d.domElement.classList.add('css3d');
 stage.appendChild(css3d.domElement);
 
 // ── scene ──────────────────────────────────────────────────────────────
+let nightLevel = () => 0; // how dark the room is (0..1): theme "Auto" follows it; wired to the daylight system below
 const desktop = createDesktop({
   fast: FAST,
   onPower: (kind) => handlePower(kind),
-  onVolume: (on) => {
-    sound.setEnabled(on);
-    soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff;
-  },
+  night: () => nightLevel(),
+  onVolume: (on) => { soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff; }, // the speaker icon follows Settings / Control Center
 });
-const world = createScene({ renderer, screenElement: desktop.root, wallArt: storage.get('room:wallart', 'aurora') });
+const world = createScene({ renderer, screenElement: desktop.root, wallArt: wallpaper.id, wallHours: wallpaper.hours });
 const { scene, mac } = world;
 mac.setLid(false, 0); // the laptop starts shut; START opens it
 const daylight = world.daylight;
+const nightProbe = makeDaylightState();
+nightLevel = () => evalDaylight(daylight.targetHours, nightProbe).night; // theme "Auto": dark once the room is dark (no cross-fade lag)
+wallpaper.setHoursSource(() => daylight.targetHours); // the Dynamic wallpaper (desktop + wall art) follows the room's clock
+theme.sync();
+wallpaper.onChange(({ id }) => world.setWallArt(id, daylight.targetHours));
+bus.on('wallpaper:paint', ({ id, hours }) => { if (id === 'dynamic') world.setWallArt(id, hours); });
 if (FAST) daylight.transitionSeconds = 0.2; // tests: the 1.5 s cross-fade would take ~30 frames at software-GL speed
 function syncTimeBtn() {
   timeBtn.innerHTML = TIME_ICON[daylight.mode];
@@ -300,10 +309,11 @@ viewBtn.addEventListener('click', () => {
 });
 
 soundBtn.addEventListener('click', () => {
-  const next = !sound.isEnabled();
-  sound.setEnabled(next);
-  soundBtn.innerHTML = next ? ICON.soundOn : ICON.soundOff;
-  if (next) sound.click();
+  // the speaker button, Control Center and System Settings → Sound all share one state (core/system.js)
+  if (sound.isEnabled() && system.get('volume') > 0) { system.set('muted', true); return; }
+  if (system.get('volume') === 0) system.set('volume', 70);
+  system.set('muted', false);
+  sound.click();
 });
 
 window.addEventListener('keydown', (e) => {
@@ -328,7 +338,7 @@ const interactions = createInteractions({
   storage, achievements, bus,
 });
 registerRoom({
-  it: interactions, world, screenEl: desktop.root, achievements, storage, bus,
+  it: interactions, world, screenEl: desktop.root, achievements,
   hooks: {
     cycleTime() { sound.click(); daylight.cycleMode(); syncTimeBtn(); return TIME_LABEL[daylight.mode]; },
     enterScreen,
@@ -464,7 +474,8 @@ function frame() {
   // view is locked (amplitude eases to 0 as you fly in and back up as you leave).
   mouseS.lerp(mouse, 1 - Math.pow(0.001, dt));
   const lockedOnScreen = state === 'screen' || state === 'entering' || state === 'flat';
-  parallax += ((lockedOnScreen ? 0 : 11) - parallax) * (1 - Math.pow(0.0005, Math.min(rawDt, 0.5)));
+  const calm = system.get('reduceMotion'); // Settings → Accessibility → Reduce motion: no parallax, no idle sway
+  parallax += ((lockedOnScreen || calm ? 0 : 11) - parallax) * (1 - Math.pow(0.0005, Math.min(rawDt, 0.5)));
   if (state === 'screen' || state === 'flat') parallax = 0;
   // a debug camera preset (window.__ori.setView) replaces the view and switches parallax/sway off
   const V = camOverride || view;
@@ -477,7 +488,7 @@ function frame() {
   tmp.addScaledVector(up, -mouseS.y * amp * 0.6);
 
   // lazy sway while idling in the room
-  if (!camOverride && (state === 'ready' || state === 'intro' || state === 'overview')) {
+  if (!camOverride && !calm && (state === 'ready' || state === 'intro' || state === 'overview')) {
     tmp.addScaledVector(right, Math.sin(t * 0.25) * 7);
     tmp.y += Math.sin(t * 0.18) * 2.5;
   }
@@ -554,7 +565,7 @@ window.__ori = {
   },
   listApps: () => desktop.listApps(),
   registry: { registerApp, getApp, listApps: registryList },
-  core: { storage, bus, achievements, notifications },
+  core: { storage, bus, achievements, notifications, theme, system, wallpaper },
   kit,
   /** ids of the game windows whose render loop is running (tests: only the active one may be). */
   loops: () => kit.loopsRunning(),

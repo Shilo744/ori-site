@@ -70,6 +70,7 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
   // ── hover ──
   function setHover(next) {
     if (hover === next) return;
+    if (say) { say = null; } // a message from a click belongs to that object only
     if (hover) { hover.hull.forEach((h) => { h.visible = false; }); if (hover.onHover) hover.onHover(false); }
     hover = next;
     hoverT = 0;

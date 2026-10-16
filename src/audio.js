@@ -4,8 +4,10 @@ let master = null;
 let enabled = true;      // the user's own on/off choice (HUD button / Control Center)
 let pageActive = true;  // false while the tab is hidden or the window is not focused
 let ambient = null;
+let volume = 0.7; // 0..1, System Settings / Control Center (0.7 = the original loudness)
 
 const live = () => enabled && pageActive;
+const level = () => (live() ? 1.286 * volume : 0);
 
 function ensure() {
   if (ctx) return ctx;
@@ -13,7 +15,7 @@ function ensure() {
   if (!AC) return null;
   ctx = new AC();
   master = ctx.createGain();
-  master.gain.value = live() ? 0.9 : 0;
+  master.gain.value = level();
   master.connect(ctx.destination);
   if (!pageActive) ctx.suspend();
   return ctx;
@@ -36,8 +38,15 @@ export const time = () => (ctx ? ctx.currentTime : 0);
 function applyGain() {
   if (!ctx) return;
   master.gain.cancelScheduledValues(ctx.currentTime);
-  master.gain.setTargetAtTime(live() ? 0.9 : 0, ctx.currentTime, 0.06);
+  master.gain.setTargetAtTime(level(), ctx.currentTime, 0.06);
 }
+
+/** Master volume 0..1 (the user's slider); 0.7 is the default loudness. */
+export function setVolume(v) {
+  volume = Math.max(0, Math.min(1, +v || 0));
+  applyGain();
+}
+export const getVolume = () => volume;
 
 export function setEnabled(v) {
   enabled = v;
@@ -372,4 +381,4 @@ export function padLevel() {
 }
 
 /** For debugging in the console: window.__ori.audio() */
-export const debugState = () => ({ ctx: ctx && ctx.state, gain: master && +master.gain.value.toFixed(2), pageActive, enabled, pad: !!pad });
+export const debugState = () => ({ ctx: ctx && ctx.state, gain: master && +master.gain.value.toFixed(2), pageActive, enabled, pad: !!pad, volume });

@@ -8,6 +8,7 @@ const kept = []; // newest first
 let sink = null;
 let pending = [];
 let seq = 0;
+let dnd = false; // Do Not Disturb: kept in recent(), but no banner
 
 export function notify(n) {
   const note = {
@@ -18,14 +19,19 @@ export function notify(n) {
     app: n?.app || '',
     onClick: typeof n?.onClick === 'function' ? n.onClick : null,
     at: Date.now(),
+    silent: dnd,
   };
   kept.unshift(note);
   if (kept.length > MAX_KEPT) kept.pop();
-  if (sink) sink(note);
+  if (dnd) { /* no banner */ } else if (sink) sink(note);
   else { pending.push(note); if (pending.length > MAX_KEPT) pending.shift(); }
   bus.emit('notify', note);
   return note.id;
 }
+
+/** Do Not Disturb (System Settings → Notifications, Control Center → Focus). */
+export function setDoNotDisturb(on) { dnd = !!on; bus.emit('notify:dnd', dnd); }
+export const isDoNotDisturb = () => dnd;
 
 /** UI hook: receives every new notification, and first everything that was queued before it was installed. */
 export function setSink(fn) {
@@ -47,4 +53,4 @@ export function clear() {
   bus.emit('notify:clear');
 }
 
-export const notifications = { notify, setSink, queued, recent, clear };
+export const notifications = { notify, setSink, queued, recent, clear, setDoNotDisturb, isDoNotDisturb };

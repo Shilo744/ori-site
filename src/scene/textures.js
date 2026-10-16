@@ -1,5 +1,6 @@
 // Procedural canvas textures — no external assets needed.
 import * as THREE from 'three';
+import { drawWallpaper } from '../core/wallpapers.js';
 
 const rng = (seed) => {
   let s = (seed >>> 0) || 1;
@@ -284,73 +285,10 @@ export function stoneTexture({ repeat, aniso = 8 } = {}) {
   return toTexture(c, { repeat, aniso });
 }
 
-/** Procedural wallpapers: background stops, two glows, three ribbon fills and a dark shadow ribbon. */
-export const WALLPAPERS = ['aurora', 'dune', 'lagoon'];
-const PALETTES = {
-  aurora: {
-    bg: ['#0d1646', '#3b2a96', '#b6389a', '#ff8f5e'], glow: ['rgba(255,209,160,0.55)', 'rgba(58,208,255,0.32)'],
-    r1: [[0, 'rgba(46,28,122,0.9)'], [1, 'rgba(122,42,154,0.7)']],
-    r2: [[0, 'rgba(74,208,255,0.75)'], [0.5, 'rgba(122,107,255,0.7)'], [1, 'rgba(255,122,209,0.7)']],
-    r3: [[0, 'rgba(255,179,106,0.75)'], [1, 'rgba(255,94,156,0.6)']], r4: 'rgba(12,10,42,0.45)',
-  },
-  dune: {
-    bg: ['#2a1b3d', '#8a3a5e', '#e0734d', '#ffc77a'], glow: ['rgba(255,214,150,0.55)', 'rgba(255,120,120,0.3)'],
-    r1: [[0, 'rgba(80,28,70,0.9)'], [1, 'rgba(170,52,92,0.7)']],
-    r2: [[0, 'rgba(255,170,90,0.75)'], [0.5, 'rgba(255,120,150,0.7)'], [1, 'rgba(255,210,120,0.7)']],
-    r3: [[0, 'rgba(255,214,150,0.75)'], [1, 'rgba(255,120,90,0.6)']], r4: 'rgba(40,10,30,0.45)',
-  },
-  lagoon: {
-    bg: ['#06222e', '#0f5a6b', '#27a3a0', '#b9f0c8'], glow: ['rgba(200,255,230,0.45)', 'rgba(80,200,255,0.3)'],
-    r1: [[0, 'rgba(8,60,80,0.9)'], [1, 'rgba(18,110,120,0.7)']],
-    r2: [[0, 'rgba(90,230,210,0.75)'], [0.5, 'rgba(60,170,255,0.7)'], [1, 'rgba(150,255,190,0.7)']],
-    r3: [[0, 'rgba(190,255,200,0.75)'], [1, 'rgba(60,200,170,0.6)']], r4: 'rgba(4,28,40,0.45)',
-  },
-};
-
-function drawWallpaper(g, w, h, variant = 'aurora') {
-  const P = PALETTES[variant] || PALETTES.aurora;
-  const sx = w / 1280, sy = h / 832;
-  const bg = g.createLinearGradient(0, 0, w, h);
-  [0, 0.42, 0.78, 1].forEach((o, i) => bg.addColorStop(o, P.bg[i]));
-  g.fillStyle = bg;
-  g.fillRect(0, 0, w, h);
-
-  const glow = (cx, cy, rad, col) => {
-    const rg = g.createRadialGradient(cx * sx, cy * sy, 0, cx * sx, cy * sy, rad * sx);
-    rg.addColorStop(0, col);
-    rg.addColorStop(1, 'rgba(0,0,0,0)');
-    g.fillStyle = rg;
-    g.fillRect(0, 0, w, h);
-  };
-  glow(1040, 170, 300, P.glow[0]);
-  glow(180, 120, 340, P.glow[1]);
-
-  const ribbon = (x0, y0, c1x, c1y, c2x, c2y, x1, y1, c4x, c4y, x2, y2, fill) => {
-    g.beginPath();
-    g.moveTo(x0 * sx, y0 * sy);
-    g.bezierCurveTo(c1x * sx, c1y * sy, c2x * sx, c2y * sy, x1 * sx, y1 * sy);
-    g.bezierCurveTo((2 * x1 - c2x) * sx, (2 * y1 - c2y) * sy, c4x * sx, c4y * sy, x2 * sx, y2 * sy);
-    g.lineTo(1360 * sx, 900 * sy);
-    g.lineTo(-60 * sx, 900 * sy);
-    g.closePath();
-    g.fillStyle = fill;
-    g.fill();
-  };
-  const hg = (stops) => {
-    const lg = g.createLinearGradient(0, 0, w, 0);
-    stops.forEach(([o, col]) => lg.addColorStop(o, col));
-    return lg;
-  };
-  ribbon(-60, 560, 200, 360, 460, 720, 760, 520, 1180, 280, 1360, 430, hg(P.r1));
-  ribbon(-60, 600, 220, 440, 520, 780, 820, 590, 1160, 400, 1360, 520, hg(P.r2));
-  ribbon(-60, 700, 260, 580, 560, 820, 900, 690, 1180, 600, 1360, 690, hg(P.r3));
-  ribbon(-60, 770, 300, 700, 620, 840, 960, 760, 1200, 730, 1360, 770, P.r4);
-}
-
 /** The macOS wallpaper as a framed art piece for the wall. */
-export function wallArtTexture(variant = 'aurora') {
+export function wallArtTexture(id = 'sunrise', hours = 12) {
   const [c, g] = canvas(1280, 832);
-  drawWallpaper(g, 1280, 832, variant);
+  drawWallpaper(g, 1280, 832, id, hours);
   return toTexture(c);
 }
 

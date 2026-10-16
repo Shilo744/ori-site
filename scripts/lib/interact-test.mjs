@@ -33,7 +33,7 @@ export async function runInteract(session, { ok, fail }) {
   }
 
   // start from a clean slate, in the room
-  await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.core.storage.remove('room:wallart'); window.__ori.core.achievements.reset(); window.__ori.interactions.reset(); window.__ori.daylight.setMode('day', { instant: true }); });
+  await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.core.wallpaper.set('sunrise'); window.__ori.core.achievements.reset(); window.__ori.interactions.reset(); window.__ori.daylight.setMode('day', { instant: true }); });
   if ((await ev(() => window.__ori.state)) !== 'overview') {
     await ev(() => window.__ori.exitScreen());
     await until(() => window.__ori.state === 'overview', null, 60000);
@@ -71,7 +71,7 @@ export async function runInteract(session, { ok, fail }) {
   const fx = await ev(() => {
     const o = window.__ori;
     return {
-      lampOverride: o.daylight.lamp.on, mode: o.daylight.mode, art: o.core.storage.get('room:wallart', null),
+      lampOverride: o.daylight.lamp.on, mode: o.daylight.mode, art: o.core.wallpaper.id,
       cat: o.core.achievements.list().find((a) => a.id === 'cat-person').progress,
       mood: o.core.achievements.list().find((a) => a.id === 'mood-lighting').progress,
       found: o.interactions.found().length, sway: o.life.debug().swayAmp, hp: o.life.homepod.active,
@@ -79,7 +79,7 @@ export async function runInteract(session, { ok, fail }) {
   });
   check(fx.lampOverride || fx.mood >= 1, 'floor lamp: the click toggled the real light (counter ' + fx.mood + ')');
   check(fx.mode !== 'day', `window: the click changed the time-of-day mode (now "${fx.mode}")`);
-  check(fx.art && fx.art !== 'aurora', `wall art: the picture changed and was remembered ("${fx.art}")`);
+  check(fx.art && fx.art !== 'sunrise' && (await ev(() => window.__ori.core.storage.get('wallpaper'))) === fx.art, `wall art: it cycled the shared wallpaper and it was remembered ("${fx.art}")`);
   check(fx.cat === 1, 'cat: one pet counted for the "Cat person" achievement');
   check(fx.found === THINGS.length, `discovery: ${fx.found}/${THINGS.length} found`);
   check((await ev(() => document.getElementById('hud-found').textContent)) === `Discovered ${THINGS.length}/${THINGS.length}`, 'the HUD tag reads "Discovered 11/11"');
@@ -127,5 +127,5 @@ export async function runInteract(session, { ok, fail }) {
   check((await ev(() => window.__ori.interactions.hoverId === null && window.__ori.interactions.tagText === '')), 'screen state: no hover, no tag');
   await ev(() => window.__ori.exitScreen());
   await until(() => window.__ori.state === 'overview', null, 60000);
-  await ev(() => { window.__ori.setView('free'); window.__ori.core.achievements.reset(); window.__ori.core.storage.remove('room:found'); window.__ori.core.storage.remove('room:wallart'); window.__ori.interactions.reset(); window.__ori.daylight.setMode('auto', { instant: true }); });
+  await ev(() => { window.__ori.setView('free'); window.__ori.core.achievements.reset(); window.__ori.core.storage.remove('room:found'); window.__ori.core.wallpaper.set('sunrise'); window.__ori.interactions.reset(); window.__ori.daylight.setMode('auto', { instant: true }); });
 }

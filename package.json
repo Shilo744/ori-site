@@ -11,11 +11,13 @@
     "shot": "node scripts/shot.mjs",
     "dom-snap": "node scripts/dom-snap.mjs",
     "stats": "node scripts/stats.mjs",
+    "theme-shots": "node scripts/theme-shots.mjs",
     "test:game": "node scripts/e2e-game.mjs",
     "test:games": "node scripts/test-games.mjs",
     "test:life": "node scripts/e2e-block.mjs life",
     "test:daylight": "node scripts/e2e-block.mjs daylight",
-    "test:interact": "node scripts/e2e-block.mjs interact"
+    "test:interact": "node scripts/e2e-block.mjs interact",
+    "test:settings": "node scripts/e2e-block.mjs settings"
   },
   "dependencies": {
     "three": "^0.170.0"

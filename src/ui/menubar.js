@@ -35,7 +35,7 @@ export function createMenubar({ root, menuLayer, appLabel, cc, wm, scale, power 
       help: [{ l: `${name} Help`, a: () => wm.open('welcome') }],
     };
     if (key === 'apple') return [
-      { l: 'About This Mac', a: () => wm.open('settings') }, { sep: 1 },
+      { l: 'About This Mac', a: () => wm.open('settings', { pane: 'general' }) }, { sep: 1 },
       { l: 'System Settings…', a: () => wm.open('settings') }, { l: 'App Store…', dis: true }, { sep: 1 },
       { l: 'Recent Items', dis: true, arrow: true }, { sep: 1 },
       { l: 'Force Quit…', k: '⌥⌘⎋', dis: true }, { sep: 1 },

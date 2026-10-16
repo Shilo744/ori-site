@@ -2,10 +2,28 @@
 .mac {
   --ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', Inter, 'Helvetica Neue', 'Segoe UI', system-ui, sans-serif;
   --mono: 'SF Mono', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
-  --blue: #007aff;
+  /* accent (set by core/theme.js) */
+  --ac: #007aff; --ac-hi: #4aa1ff; --ac-lo: #006be0; --ac-ic: #3b99fc; --ac-rgb: 0, 122, 255;
+  --blue: var(--ac);
+  /* text */
   --label: rgba(0, 0, 0, 0.85);
   --label2: rgba(60, 60, 67, 0.62);
+  --t2: rgba(0, 0, 0, 0.55);
+  --t3: rgba(0, 0, 0, 0.42);
+  --t4: rgba(0, 0, 0, 0.3);
   --sep: rgba(0, 0, 0, 0.1);
+  /* surfaces */
+  --win: #fff; --win-gray: #f2f2f6; --win-w: rgba(250, 250, 252, 0.96); --grp: #fff;
+  --bar: #f6f6f7; --bar-off: #f1f1f2;
+  --side: #e4e4e9; --side-off: #ececef; --side-nl: #f6f6f8;
+  --card: #f5f5f7; --raised: #fff; --raised-h: #f3f3f5;
+  --fill: rgba(0, 0, 0, 0.06); --fill-h: rgba(0, 0, 0, 0.07); --fill-s: rgba(0, 0, 0, 0.1); --fill-i: rgba(0, 0, 0, 0.14);
+  --menu: rgba(240, 240, 244, 0.97); --menu-fg: #1d1d1f; --pop: rgba(240, 240, 246, 0.97); --pop-tile: rgba(255, 255, 255, 0.6); --spot: rgba(246, 246, 250, 0.98);
+  --widget: rgba(255, 255, 255, 0.92); --widget-fg: #1d1d1f;
+  --light-off: #d2d2d6;
+  --note-sel: #fdd861; --note-sel-fg: rgba(0, 0, 0, 0.65); --gold: #b8860b;
+  --win-sh: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 24px 60px rgba(8, 4, 30, 0.45);
+  --win-sh-off: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 10px 28px rgba(8, 4, 30, 0.3);
   position: relative;
   width: 960px;
   height: 624px;
@@ -73,28 +91,28 @@
 .mac .menus { position: absolute; z-index: 6000; top: 28px; left: 0; right: 0; }
 .mac .menu {
   position: absolute; top: 0; min-width: 250px; padding: 6px;
-  background: rgba(240, 240, 244, 0.97); border-radius: 10px; color: #1d1d1f;
+  background: var(--menu); border-radius: 10px; color: var(--menu-fg);
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.28), 0 14px 38px rgba(0, 0, 0, 0.35);
   font-size: 14.5px;
 }
 .mac .mi { display: flex; justify-content: space-between; gap: 28px; align-items: center; padding: 5px 12px; border-radius: 5px; }
-.mac .mi kbd { font: inherit; color: rgba(0, 0, 0, 0.45); }
+.mac .mi kbd { font: inherit; color: var(--t3); }
 .mac .mi:not(.dis):hover { background: var(--blue); color: #fff; }
 .mac .mi:not(.dis):hover kbd { color: rgba(255, 255, 255, 0.8); }
-.mac .mi.dis { color: rgba(0, 0, 0, 0.3); }
-.mac .menu hr { border: 0; height: 1px; margin: 5px 9px; background: rgba(0, 0, 0, 0.12); }
+.mac .mi.dis { color: var(--t4); }
+.mac .menu hr { border: 0; height: 1px; margin: 5px 9px; background: var(--sep); }
 
 /* ───────── widgets ───────── */
 .mac .widgets { position: absolute; top: 46px; right: 16px; display: flex; flex-direction: column; gap: 14px; z-index: 1; }
 .mac .wg { width: 130px; height: 130px; border-radius: 20px; padding: 12px 13px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.18); }
-.mac .wg-cal { background: rgba(255, 255, 255, 0.92); color: #1d1d1f; }
+.mac .wg-cal { background: var(--widget); color: var(--widget-fg); }
 .mac .wg-cal .d { color: #ff3b30; font-weight: 700; font-size: 11.5px; letter-spacing: 0.04em; }
 .mac .wg-cal .n { font-size: 36px; font-weight: 300; line-height: 1.02; letter-spacing: -0.03em; margin: 1px 0 6px; }
 .mac .wg-cal .ev { display: flex; align-items: center; gap: 6px; font-size: 11px; padding: 2px 0; }
 .mac .wg-cal .ev i { width: 3px; height: 14px; border-radius: 2px; background: #ff3b30; flex: none; }
 .mac .wg-cal .ev i.b { background: #0a84ff; }
 .mac .wg-cal .ev span { flex: 1; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mac .wg-cal .ev em { color: rgba(0, 0, 0, 0.45); font-size: 10.5px; }
+.mac .wg-cal .ev em { color: var(--t3); font-size: 10.5px; }
 .mac .wg-wx { background: linear-gradient(#3a8cf0, #82c3ff); color: #fff; position: relative; }
 .mac .wg-wx .c { font-weight: 600; font-size: 13px; }
 .mac .wg-wx .t { font-size: 36px; font-weight: 300; line-height: 1.05; letter-spacing: -0.03em; }
@@ -105,13 +123,13 @@
 /* ───────── windows ───────── */
 .mac .wins { position: absolute; inset: 0; z-index: 10; }
 .mac .win {
-  position: absolute; display: flex; overflow: hidden; background: #fff; border-radius: 11px;
-  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 24px 60px rgba(8, 4, 30, 0.45);
+  position: absolute; display: flex; overflow: hidden; background: var(--win); border-radius: 11px;
+  box-shadow: var(--win-sh);
   animation: win-in 0.2s cubic-bezier(.2, .9, .3, 1.15);
   transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.2s;
   transform-origin: 50% 50%;
 }
-.mac .win:not(.active) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 10px 28px rgba(8, 4, 30, 0.3); }
+.mac .win:not(.active) { box-shadow: var(--win-sh-off); }
 .mac .win.closing { opacity: 0; transform: scale(0.94); }
 @keyframes win-in { from { opacity: 0; transform: scale(0.94); } }
 
@@ -124,7 +142,7 @@
 .mac .lights .r { background: #ff5f57; }
 .mac .lights .y { background: #febc2e; }
 .mac .lights .g { background: #28c840; }
-.mac .win:not(.active) .lights i { background: #d2d2d6; box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15); }
+.mac .win:not(.active) .lights i { background: var(--light-off); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.15); }
 .mac .lights:hover i::after {
   content: ''; position: absolute; inset: 3.5px; background-repeat: no-repeat; background-position: center; background-size: 100% 100%; opacity: 0.62;
 }
@@ -133,15 +151,15 @@
 .mac .lights .g::after { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M1 3.5h5M3.5 1v5' stroke='%23003d0a' stroke-width='1.1' stroke-linecap='round'/%3E%3C/svg%3E"); }
 
 /* toolbar + generic pane */
-.mac .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; background: #fff; }
-.mac .pane.gray { background: #f2f2f6; }
+.mac .pane { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--win); }
+.mac .pane.gray { background: var(--win-gray); }
 .mac .tb {
   position: relative; flex: none; height: 54px; display: flex; align-items: center; gap: 12px; padding: 0 14px;
-  background: #f6f6f7; border-bottom: 1px solid var(--sep); color: rgba(0, 0, 0, 0.62);
+  background: var(--bar); border-bottom: 1px solid var(--sep); color: var(--label2);
 }
-.mac .win:not(.active) .tb { background: #f1f1f2; }
+.mac .win:not(.active) .tb { background: var(--bar-off); }
 .mac .tb .tt { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; color: var(--label); }
-.mac .tb .tt i { width: 19px; height: 19px; color: #3b99fc; display: inline-flex; }
+.mac .tb .tt i { width: 19px; height: 19px; color: var(--ac-ic); display: inline-flex; }
 .mac .tb .tt i svg { width: 100%; height: 100%; }
 .mac .tb .tt.c { position: absolute; left: 0; right: 0; justify-content: center; pointer-events: none; }
 .mac .tb .sp { flex: 1; }
@@ -150,14 +168,14 @@
 .mac .tb .nav i svg, .mac .tb .ic svg { width: 19px; height: 19px; }
 .mac .tb .nav i.dim { opacity: 0.35; }
 .mac .tb .ic { width: 36px; height: 32px; display: grid; place-items: center; border-radius: 7px; }
-.mac .tb .ic:hover, .mac .tb .nav i:not(.dim):hover { background: rgba(0, 0, 0, 0.07); }
-.mac .tb .seg { display: flex; background: rgba(0, 0, 0, 0.06); border-radius: 7px; padding: 2px; }
+.mac .tb .ic:hover, .mac .tb .nav i:not(.dim):hover { background: var(--fill-h); }
+.mac .tb .seg { display: flex; background: var(--fill); border-radius: 7px; padding: 2px; }
 .mac .tb .seg i { width: 36px; height: 26px; display: grid; place-items: center; border-radius: 5px; }
-.mac .tb .seg i.on { background: #fff; box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.2); }
+.mac .tb .seg i.on { background: var(--raised); box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.2); }
 .mac .tb .seg svg { width: 16px; height: 16px; }
 .mac .tb .search {
   display: flex; align-items: center; gap: 7px; width: 168px; height: 32px; padding: 0 10px; border-radius: 8px;
-  background: rgba(0, 0, 0, 0.055); color: rgba(0, 0, 0, 0.4);
+  background: var(--fill); color: var(--t3);
 }
 .mac .tb .search i { width: 16px; height: 16px; display: inline-flex; }
 .mac .tb .search svg { width: 100%; height: 100%; }
@@ -169,17 +187,17 @@
 /* sidebar */
 .mac .sb {
   position: relative; flex: none; width: 184px; padding: 54px 9px 10px; overflow: hidden;
-  background: #e4e4e9; border-right: 1px solid rgba(0, 0, 0, 0.1);
+  background: var(--side); border-right: 1px solid var(--sep);
 }
-.mac .win:not(.active) .sb { background: #ececef; }
+.mac .win:not(.active) .sb { background: var(--side-off); }
 .mac .dragzone { position: absolute; left: 0; right: 0; top: 0; height: 54px; z-index: 2; }
-.mac .sb-sec { margin: 16px 8px 5px; font-size: 12px; font-weight: 700; color: rgba(0, 0, 0, 0.4); }
+.mac .sb-sec { margin: 16px 8px 5px; font-size: 12px; font-weight: 700; color: var(--t3); }
 .mac .sbi { display: flex; align-items: center; gap: 9px; height: 31px; padding: 0 9px; border-radius: 7px; font-size: 14.5px; }
-.mac .sbi i { width: 19px; height: 19px; color: #3b99fc; display: inline-flex; flex: none; }
+.mac .sbi i { width: 19px; height: 19px; color: var(--ac-ic); display: inline-flex; flex: none; }
 .mac .sbi i svg { width: 100%; height: 100%; }
 .mac .sbi i.sqi { width: 23px; height: 23px; border-radius: 6px; color: #fff; }
-.mac .sbi.on { background: rgba(0, 0, 0, 0.1); }
-.mac .sb-search { display: flex; align-items: center; gap: 7px; height: 32px; margin-bottom: 10px; padding: 0 8px; border-radius: 7px; background: rgba(0, 0, 0, 0.06); color: rgba(0, 0, 0, 0.4); }
+.mac .sbi.on { background: var(--fill-s); }
+.mac .sb-search { display: flex; align-items: center; gap: 7px; height: 32px; margin-bottom: 10px; padding: 0 8px; border-radius: 7px; background: var(--fill); color: var(--t3); }
 .mac .sb-search i { width: 16px; height: 16px; display: inline-flex; }
 .mac .sb-search svg { width: 100%; height: 100%; }
 
@@ -190,87 +208,87 @@
 .mac .fic svg { width: 54px; height: 68px; }
 .mac .fic.folder svg { width: 72px; height: 61px; }
 .mac .fitem span { padding: 1px 6px; border-radius: 4px; line-height: 1.25; }
-.mac .fitem.sel .fic { background: rgba(0, 0, 0, 0.1); border-radius: 8px; }
+.mac .fitem.sel .fic { background: var(--fill-s); border-radius: 8px; }
 .mac .fitem.sel span { background: var(--blue); color: #fff; }
-.mac .fstat { flex: none; height: 28px; display: grid; place-items: center; font-size: 12.5px; color: rgba(0, 0, 0, 0.5); border-top: 1px solid var(--sep); background: #fafafa; }
+.mac .fstat { flex: none; height: 28px; display: grid; place-items: center; font-size: 12.5px; color: var(--t2); border-top: 1px solid var(--sep); background: var(--win); }
 
 /* ── Safari ── */
 .mac .win-safari { flex-direction: column; }
 .mac .stb { padding-left: 104px; }
 .mac .stb .addr {
   display: flex; align-items: center; justify-content: center; gap: 6px; width: 300px; height: 32px; border-radius: 9px;
-  background: rgba(0, 0, 0, 0.06); color: rgba(0, 0, 0, 0.75); font-size: 14px; font-weight: 500;
+  background: var(--fill); color: var(--label); font-size: 14px; font-weight: 500;
 }
-.mac .stb .addr i { width: 11px; height: 11px; display: inline-flex; color: rgba(0, 0, 0, 0.4); }
+.mac .stb .addr i { width: 11px; height: 11px; display: inline-flex; color: var(--t3); }
 .mac .stb .addr svg { width: 100%; height: 100%; }
-.mac .web { flex: 1; overflow: auto; background: #fff; user-select: text; scrollbar-width: thin; }
+.mac .web { flex: 1; overflow: auto; background: var(--win); user-select: text; scrollbar-width: thin; }
 .mac .web-hero { padding: 28px 34px 4px; }
-.mac .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #6e6e73; }
+.mac .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--t2); }
 .mac .web h1 { margin: 4px 0 4px; font-size: 34px; line-height: 1.08; font-weight: 700; letter-spacing: -0.035em; }
-.mac .web-hero p { margin: 0; font-size: 15px; color: #6e6e73; }
+.mac .web-hero p { margin: 0; font-size: 15px; color: var(--t2); }
 .mac .web-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 20px 34px 30px; }
-.mac .card { display: block; border-radius: 16px; overflow: hidden; background: #f5f5f7; transition: transform 0.2s, box-shadow 0.2s; }
+.mac .card { display: block; border-radius: 16px; overflow: hidden; background: var(--card); transition: transform 0.2s, box-shadow 0.2s; }
 .mac .card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(30, 30, 80, 0.16); }
 .mac .cover { height: 124px; overflow: hidden; }
 .mac .cover svg { width: 100%; height: 100%; display: block; }
 .mac .card .meta { padding: 14px 18px 18px; }
 .mac .card .row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3px; }
 .mac .card .row b { font-size: 19px; letter-spacing: -0.02em; }
-.mac .card .row span { font-size: 12.5px; color: #86868b; }
-.mac .card p { margin: 0 0 10px; font-size: 14px; color: #515154; }
+.mac .card .row span { font-size: 12.5px; color: var(--t3); }
+.mac .card p { margin: 0 0 10px; font-size: 14px; color: var(--t2); }
 .mac .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.mac .chips span { padding: 3px 10px; border-radius: 99px; background: rgba(0, 0, 0, 0.07); color: #3a3a3c; font-size: 12px; font-weight: 500; }
+.mac .chips span { padding: 3px 10px; border-radius: 99px; background: var(--fill-h); color: var(--label2); font-size: 12px; font-weight: 500; }
 
 /* ── Notes ── */
-.mac .sb.nl { width: 224px; padding: 54px 0 0; background: #f6f6f8; }
+.mac .sb.nl { width: 224px; padding: 54px 0 0; background: var(--side-nl); }
 .mac .nl-head { padding: 4px 18px 8px; display: flex; flex-direction: column; }
 .mac .nl-head b { font-size: 22px; letter-spacing: -0.02em; }
-.mac .nl-head span { font-size: 12px; color: rgba(0, 0, 0, 0.45); }
-.mac .nl-sec { padding: 6px 18px 4px; font-size: 12px; font-weight: 700; color: rgba(0, 0, 0, 0.5); }
+.mac .nl-head span { font-size: 12px; color: var(--t3); }
+.mac .nl-sec { padding: 6px 18px 4px; font-size: 12px; font-weight: 700; color: var(--t2); }
 .mac .nli { display: block; width: calc(100% - 16px); margin: 0 8px 3px; padding: 10px 11px; border-radius: 8px; text-align: left; }
 .mac .nli b { display: block; font-size: 14.5px; font-weight: 600; }
-.mac .nli span { display: block; font-size: 12.5px; color: rgba(0, 0, 0, 0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mac .nli em { color: rgba(0, 0, 0, 0.75); margin-right: 4px; }
-.mac .nli.on { background: #fdd861; }
-.mac .nli.on span, .mac .nli.on em { color: rgba(0, 0, 0, 0.65); }
+.mac .nli span { display: block; font-size: 12.5px; color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mac .nli em { color: var(--label2); margin-right: 4px; }
+.mac .nli.on { background: var(--note-sel); }
+.mac .nli.on span, .mac .nli.on em { color: var(--note-sel-fg); }
 .mac .note { flex: 1; overflow: auto; padding: 20px 30px 26px; user-select: text; scrollbar-width: thin; position: relative; }
-.mac .note-date { text-align: center; font-size: 12px; color: rgba(0, 0, 0, 0.35); margin-bottom: 14px; order: -1; }
+.mac .note-date { text-align: center; font-size: 12px; color: var(--t3); margin-bottom: 14px; order: -1; }
 .mac .note h1 { font-size: 26px; letter-spacing: -0.025em; margin: 0 0 12px; }
 .mac .note h2 { font-size: 17px; margin: 22px 0 6px; }
-.mac .note p, .mac .note li { font-size: 15.5px; line-height: 1.5; color: rgba(0, 0, 0, 0.82); margin: 0 0 11px; }
+.mac .note p, .mac .note li { font-size: 15.5px; line-height: 1.5; color: var(--label); margin: 0 0 11px; }
 .mac .note ul { padding-left: 20px; margin: 0; }
 .mac .note .xp { padding: 12px 0; border-top: 1px solid var(--sep); }
 .mac .note .xp:first-of-type { border-top: 0; }
 .mac .note .xp-h { display: flex; justify-content: space-between; align-items: baseline; }
 .mac .note .xp-h b { font-size: 16px; }
-.mac .note .xp-h span { font-size: 12.5px; color: rgba(0, 0, 0, 0.45); }
-.mac .note .xp-c { color: #b8860b; font-weight: 600; font-size: 13.5px; }
+.mac .note .xp-h span { font-size: 12.5px; color: var(--t3); }
+.mac .note .xp-c { color: var(--gold); font-weight: 600; font-size: 13.5px; }
 .mac .note .xp p { margin: 4px 0 0; }
 
 /* ── Mail ── */
 .mac .win-mail { flex-direction: column; }
-.mac .compose { flex: 1; display: flex; flex-direction: column; background: #fff; }
+.mac .compose { flex: 1; display: flex; flex-direction: column; background: var(--win); }
 .mac .rw { display: flex; align-items: center; gap: 8px; padding: 0 16px; height: 42px; border-bottom: 1px solid var(--sep); font-size: 15px; }
-.mac .rw span { width: 60px; text-align: right; color: rgba(0, 0, 0, 0.4); }
+.mac .rw span { width: 60px; text-align: right; color: var(--t3); }
 .mac .rw input { flex: 1; border: 0; outline: 0; font: inherit; background: none; color: var(--label); user-select: text; }
-.mac .compose textarea { flex: 1; border: 0; outline: 0; resize: none; padding: 16px 20px; font: inherit; font-size: 15px; line-height: 1.5; user-select: text; }
-.mac .tb .ic.send { position: absolute; right: 12px; width: 40px; height: 34px; color: rgba(0, 0, 0, 0.55); }
-.mac .tb .ic.send:hover { background: rgba(0, 0, 0, 0.07); }
+.mac .compose textarea { flex: 1; border: 0; outline: 0; resize: none; background: transparent; color: var(--label); padding: 16px 20px; font: inherit; font-size: 15px; line-height: 1.5; user-select: text; }
+.mac .tb .ic.send { position: absolute; right: 12px; width: 40px; height: 34px; color: var(--t2); }
+.mac .tb .ic.send:hover { background: var(--fill-h); }
 
 /* ── System Settings ── */
 .mac .set { flex: 1; overflow: auto; padding: 6px 26px 24px; }
 .mac .set-hero { text-align: center; padding: 14px 0 16px; }
 .mac .set-hero svg { width: 150px; height: auto; }
 .mac .set-hero h2 { margin: 6px 0 0; font-size: 22px; letter-spacing: -0.02em; }
-.mac .set-hero p { margin: 2px 0 0; color: rgba(0, 0, 0, 0.5); }
-.mac .grp { background: #fff; border-radius: 10px; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.1); }
+.mac .set-hero p { margin: 2px 0 0; color: var(--t2); }
+.mac .grp { background: var(--grp); border-radius: 10px; box-shadow: 0 0 0 0.5px var(--sep); }
 .mac .kv { display: flex; justify-content: space-between; padding: 10px 14px; border-top: 1px solid var(--sep); font-size: 13.5px; }
 .mac .kv:first-child { border-top: 0; }
-.mac .kv span { color: rgba(0, 0, 0, 0.55); }
+.mac .kv span { color: var(--t2); }
 .mac .kv b { font-weight: 500; user-select: text; }
 
 /* ── Welcome ── */
-.mac .win-welcome { background: rgba(250, 250, 252, 0.96); }
+.mac .win-welcome { background: var(--win-w); }
 .mac .welcome { position: relative; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 40px 28px; text-align: center; }
 .mac .wl-av {
   width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 14px;
@@ -278,16 +296,16 @@
   box-shadow: 0 8px 22px rgba(70, 60, 160, 0.35);
 }
 .mac .welcome h1 { margin: 0; font-size: 34px; line-height: 1.1; font-weight: 700; letter-spacing: -0.035em; }
-.mac .welcome .role { margin: 4px 0 0; font-size: 16px; color: rgba(0, 0, 0, 0.55); font-weight: 500; }
-.mac .welcome .tagline { margin: 12px 0 22px; font-size: 14px; color: rgba(0, 0, 0, 0.6); max-width: 360px; }
+.mac .welcome .role { margin: 4px 0 0; font-size: 16px; color: var(--t2); font-weight: 500; }
+.mac .welcome .tagline { margin: 12px 0 22px; font-size: 14px; color: var(--t2); max-width: 360px; }
 .mac .wl-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
 .mac .btn {
-  padding: 8px 18px; border-radius: 8px; font-size: 14.5px; font-weight: 500; background: #fff; color: var(--label);
+  padding: 8px 18px; border-radius: 8px; font-size: 14.5px; font-weight: 500; background: var(--raised); color: var(--label);
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.18), 0 1px 1.5px rgba(0, 0, 0, 0.12);
 }
-.mac .btn:hover { background: #f3f3f5; }
-.mac .btn.def { background: linear-gradient(#4aa1ff, #007aff); color: #fff; box-shadow: 0 0 0 0.5px rgba(0, 60, 160, 0.5), 0 1px 1.5px rgba(0, 0, 0, 0.2); }
-.mac .btn.def:hover { background: linear-gradient(#5aa9ff, #1a86ff); }
+.mac .btn:hover { background: var(--raised-h); }
+.mac .btn.def { background: linear-gradient(var(--ac-hi), var(--ac)); color: #fff; box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 1px 1.5px rgba(0, 0, 0, 0.2); }
+.mac .btn.def:hover { background: linear-gradient(var(--ac-hi), var(--ac-hi)); }
 
 /* ── Terminal ── */
 .mac .win-terminal { flex-direction: column; background: #1b1c20; }
@@ -330,47 +348,47 @@
 /* ───────── control center ───────── */
 .mac .cc {
   position: absolute; z-index: 6000; top: 38px; right: 8px; width: 300px; padding: 12px; border-radius: 18px;
-  background: rgba(240, 240, 246, 0.97); color: #1d1d1f;
+  background: var(--pop); color: var(--menu-fg);
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 16px 44px rgba(0, 0, 0, 0.35);
 }
 .mac .cc[hidden], .mac .spot[hidden], .mac .dimmer[hidden], .mac .cur[hidden] { display: none; }
 .mac .cc-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
-.mac .cc-box { background: rgba(255, 255, 255, 0.6); border-radius: 14px; padding: 8px 10px; display: grid; gap: 8px; }
+.mac .cc-box { background: var(--pop-tile); border-radius: 14px; padding: 8px 10px; display: grid; gap: 8px; }
 .mac .cc-row { display: flex; align-items: center; gap: 8px; }
 .mac .cc-row b { display: block; font-size: 12.5px; }
-.mac .cc-row span { font-size: 11px; color: rgba(0, 0, 0, 0.5); }
-.mac .cc-ic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgba(0, 0, 0, 0.14); color: #fff; flex: none; }
-.mac .cc-ic.on { background: var(--blue); }
+.mac .cc-row span { font-size: 11px; color: var(--t2); }
+.mac .cc-ic { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--fill-i); color: #fff; flex: none; }
+.mac .cc-ic.on { background: var(--ac); }
 .mac .cc-ic svg { width: 15px; height: 15px; }
 .mac .cc-side { display: grid; gap: 10px; }
-.mac .cc-tile { background: rgba(255, 255, 255, 0.6); border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: center; gap: 4px; font-size: 12px; line-height: 1.2; }
-.mac .cc-sl { margin-top: 10px; background: rgba(255, 255, 255, 0.6); border-radius: 14px; padding: 8px 12px 10px; }
+.mac .cc-tile { background: var(--pop-tile); border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; justify-content: center; gap: 4px; font-size: 12px; line-height: 1.2; }
+.mac .cc-sl { margin-top: 10px; background: var(--pop-tile); border-radius: 14px; padding: 8px 12px 10px; }
 .mac .cc-sl b { display: block; font-size: 12px; margin-bottom: 6px; }
 .mac .cc-sl input { width: 100%; height: 22px; -webkit-appearance: none; appearance: none; background: transparent; margin: 0; }
 .mac .cc-sl input { --v: 100%; }
-.mac .cc-sl input::-webkit-slider-runnable-track { height: 22px; border-radius: 11px; background: linear-gradient(to right, #fff var(--v), rgba(0, 0, 0, 0.14) var(--v)); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12); }
+.mac .cc-sl input::-webkit-slider-runnable-track { height: 22px; border-radius: 11px; background: linear-gradient(to right, #fff var(--v), var(--fill-i) var(--v)); box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12); }
 .mac .cc-sl input::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
 
 /* ───────── spotlight ───────── */
 .mac .spot { position: absolute; inset: 32px 0 0; z-index: 7000; display: flex; justify-content: center; padding-top: 96px; background: rgba(0, 0, 0, 0.08); }
 .mac .spot-box {
   width: 540px; height: max-content; border-radius: 16px; overflow: hidden;
-  background: rgba(246, 246, 250, 0.98); color: #1d1d1f;
+  background: var(--spot); color: var(--menu-fg);
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 24px 70px rgba(0, 0, 0, 0.4);
 }
-.mac .spot-in { display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 18px; color: rgba(0, 0, 0, 0.45); }
-.mac .spot-in input { flex: 1; border: 0; outline: 0; background: none; font: inherit; font-size: 22px; font-weight: 300; color: #1d1d1f; user-select: text; }
-.mac .spot-res { border-top: 1px solid rgba(0, 0, 0, 0.1); }
+.mac .spot-in { display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 18px; color: var(--t3); }
+.mac .spot-in input { flex: 1; border: 0; outline: 0; background: none; font: inherit; font-size: 22px; font-weight: 300; color: var(--menu-fg); user-select: text; }
+.mac .spot-res { border-top: 1px solid var(--sep); }
 .mac .spot:not(.has) .spot-res { display: none; }
-.mac .sr-h { padding: 8px 18px 4px; font-size: 11.5px; font-weight: 600; color: rgba(0, 0, 0, 0.45); }
+.mac .sr-h { padding: 8px 18px 4px; font-size: 11.5px; font-weight: 600; color: var(--t3); }
 .mac .sr { display: flex; align-items: center; gap: 12px; margin: 0 8px; height: 44px; padding: 0 10px; border-radius: 9px; font-size: 15.5px; }
 .mac .sr b { flex: 1; font-weight: 500; }
-.mac .sr em { font-size: 12.5px; color: rgba(0, 0, 0, 0.45); }
+.mac .sr em { font-size: 12.5px; color: var(--t3); }
 .mac .sr.on { background: var(--blue); color: #fff; }
 .mac .sr.on em { color: rgba(255, 255, 255, 0.8); }
 .mac .sri { width: 30px; height: 30px; display: block; }
 .mac .sri svg { width: 100%; height: 100%; display: block; }
-.mac .sr-none { padding: 14px 18px; color: rgba(0, 0, 0, 0.5); }
+.mac .sr-none { padding: 14px 18px; color: var(--t2); }
 
 /* ───────── boot / power ───────── */
 .mac .boot {
@@ -419,3 +437,47 @@
 .mac.compact .cc { right: 4px; width: min(314px, calc(100% - 8px)); }
 .mac.compact .spot-box { width: calc(100% - 24px); }
 .mac.compact .set { padding: 8px 14px 20px; }
+
+/* ───────── dark appearance (core/theme.js sets data-theme) ───────── */
+.mac[data-theme='dark'] {
+  color-scheme: dark;
+  --label: rgba(255, 255, 255, 0.92);
+  --label2: rgba(235, 235, 245, 0.62);
+  --t2: rgba(255, 255, 255, 0.6);
+  --t3: rgba(255, 255, 255, 0.42);
+  --t4: rgba(255, 255, 255, 0.26);
+  --sep: rgba(255, 255, 255, 0.1);
+  --win: #1e1e20; --win-gray: #161618; --win-w: rgba(30, 30, 34, 0.96); --grp: #2a2a2d;
+  --bar: #2b2b2e; --bar-off: #232326;
+  --side: #2a2a2d; --side-off: #232326; --side-nl: #232326;
+  --card: #2a2a2e; --raised: #3a3a3e; --raised-h: #47474c;
+  --fill: rgba(255, 255, 255, 0.09); --fill-h: rgba(255, 255, 255, 0.1); --fill-s: rgba(255, 255, 255, 0.14); --fill-i: rgba(255, 255, 255, 0.2);
+  --menu: rgba(44, 44, 48, 0.97); --menu-fg: #f2f2f5; --pop: rgba(40, 40, 44, 0.97); --pop-tile: rgba(255, 255, 255, 0.09); --spot: rgba(38, 38, 42, 0.98);
+  --widget: rgba(44, 44, 48, 0.92); --widget-fg: #f2f2f5;
+  --light-off: #4a4a4e;
+  --note-sel: #6b5a14; --note-sel-fg: rgba(255, 255, 255, 0.82); --gold: #e8b84a;
+  --win-sh: 0 0 0 0.5px rgba(255, 255, 255, 0.16), 0 24px 60px rgba(0, 0, 0, 0.65);
+  --win-sh-off: 0 0 0 0.5px rgba(255, 255, 255, 0.1), 0 10px 28px rgba(0, 0, 0, 0.5);
+}
+.mac[data-theme='dark'] .dock { background: rgba(24, 24, 28, 0.42); box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.18), 0 10px 32px rgba(0, 0, 0, 0.45); }
+.mac[data-theme='dark'] .mb { background: rgba(10, 8, 22, 0.5); }
+.mac[data-theme='dark'] .mac .win-welcome, .mac[data-theme='dark'] .win-welcome { background: var(--win-w); }
+.mac[data-theme='dark'] .card:hover { box-shadow: 0 16px 34px rgba(0, 0, 0, 0.45); }
+.mac[data-theme='dark'] .set-hero svg { filter: brightness(0.92); }
+.mac[data-theme='dark'] .win::after { background: rgba(0, 0, 0, 0.14); }
+
+/* ───────── wallpaper canvas, Night Shift, Reduce motion ───────── */
+.mac .wall canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mac .shift { position: absolute; inset: 0; z-index: 9300; pointer-events: none; background: rgba(255, 140, 40, 0.15); opacity: 0; transition: opacity 0.6s ease; }
+.mac.night-shift .shift { opacity: 1; }
+.mac.wifi-off .mbi.wifi { opacity: 0.4; }
+.mac.reduce-motion .win, .mac.reduce-motion .win.geo, .mac.reduce-motion .win.min, .mac.reduce-motion .win.restoring, .mac.reduce-motion .snap-prev, .mac.reduce-motion .dk.mini { animation: none !important; transition-duration: 0s !important; }
+.mac.reduce-motion .dk.bounce .dki, .mac.reduce-motion .dk .dki { animation: none !important; transition: none !important; }
+.mac.reduce-motion .card, .mac.reduce-motion .arc-card, .mac.reduce-motion .arc-hero-bg, .mac.reduce-motion .arc-hero-bg i { animation: none !important; transition: none !important; }
+
+/* Control Center controls are real buttons now */
+.mac .cc-row, .mac .cc-tile { text-align: left; width: 100%; color: inherit; }
+.mac .cc-tile { flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; padding: 6px 8px; }
+.mac .cc-tile b { font-weight: 600; line-height: 1.15; }
+.mac .cc-side { gap: 6px; }
+.mac .cc-ic { transition: background 0.15s; }

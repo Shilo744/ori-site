@@ -195,7 +195,7 @@ export function createDaylight({ scene, renderer, sun, hemi, fill, mats, skyMat,
     mode = next;
     manualHours = null;
     storage.set('daylight:mode', mode);
-    if (instant) { trans = null; } else begin();
+    if (instant) { trans = null; appliedHours = -99; } else begin(); // instant: re-apply the exact state even if a cross-fade was mid-way
     bus.emit('daylight:change', info());
   }
 
@@ -204,7 +204,7 @@ export function createDaylight({ scene, renderer, sun, hemi, fill, mats, skyMat,
   /** Test hook: jump to an hour (no cross-fade unless `ms` is given). */
   function setHours(h, ms = 0) {
     manualHours = ((+h % 24) + 24) % 24;
-    if (ms > 0) begin(); else { trans = null; snapLamp = true; }
+    if (ms > 0) begin(); else { trans = null; appliedHours = -99; snapLamp = true; }
     bus.emit('daylight:change', info());
   }
 
@@ -234,6 +234,8 @@ export function createDaylight({ scene, renderer, sun, hemi, fill, mats, skyMat,
     get transitionSeconds() { return transitionS; },
     set transitionSeconds(v) { transitionS = Math.max(0.01, +v || 1.5); },
     get hours() { return shown.hours; },
+    /** The hour the light is heading for (differs from `hours` during a cross-fade; changes the moment setHours / setMode is called). */
+    get targetHours() { return targetHours(); },
     /** true while a fixed hour was set by hand (the test harness) instead of following the real clock */
     get manual() { return manualHours != null; },
     setMode,

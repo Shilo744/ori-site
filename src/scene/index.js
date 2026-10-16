@@ -25,7 +25,7 @@ import { createLife } from './life.js';
 const ROOM = { x0: -270, x1: 270, z0: -220, z1: 220, h: 290, t: 12 };
 const DESK_TOP = 76.6;
 
-export function createScene({ renderer, screenElement, wallArt = 'aurora' }) {
+export function createScene({ renderer, screenElement, wallArt = 'sunrise', wallHours = 12 }) {
   const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const scene = new THREE.Scene();
 
@@ -216,7 +216,7 @@ export function createScene({ renderer, screenElement, wallArt = 'aurora' }) {
 
   // felt panel with the macOS wallpaper as art
   add(createPanel(m, { w: 236, h: 126, r: 30 }), deskX, 146, z0 + 1.2);
-  const frame = add(createFrame(m, { w: 124, h: 82, tex: wallArtTexture(wallArt) }), deskX, 146, z0 + 3.9);
+  const frame = add(createFrame(m, { w: 124, h: 82, tex: wallArtTexture(wallArt, wallHours) }), deskX, 146, z0 + 3.9);
 
   // floating oak shelf with a few objects, to the left of the panel
   const shelf = add(createShelf(m, { length: 112, depth: 20 }), -200, 132, z0 + 10.2);
@@ -329,7 +329,18 @@ export function createScene({ renderer, screenElement, wallArt = 'aurora' }) {
     mac.update(dt);
     life.update(dt, t, state);
   };
+  // the framed wallpaper follows the chosen wallpaper (and the hour, for Dynamic)
+  let artMesh = null;
+  frame.traverse((o) => { if (o.isMesh && o.material && o.material.map) artMesh = o; });
+  const setWallArt = (id, hours) => {
+    const tex = wallArtTexture(id, hours);
+    const old = artMesh.material.map;
+    artMesh.material.map = artMesh.material.emissiveMap = tex;
+    artMesh.material.needsUpdate = true;
+    if (old) old.dispose();
+  };
+
   // handles for the interaction layer (T14)
   const parts = { lamp: floorLamp, homepod, mug, plant, bench, iphone, ipad, frame, windowParts, windowRect: win, clock: life.clock.group };
-  return { scene, mac, update, daylight, life, parts, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
+  return { scene, mac, update, daylight, life, parts, setWallArt, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
 }

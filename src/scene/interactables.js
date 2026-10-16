@@ -3,7 +3,8 @@
 import * as THREE from 'three';
 import * as audio from '../audio.js';
 import { roomSounds as sfx } from './room-sounds.js';
-import { wallArtTexture, WALLPAPERS } from './textures.js';
+import { wallpaper } from '../core/wallpaper.js';
+import { wallpaperName } from '../core/wallpapers.js';
 
 const mk = (geo, x = 0, y = 0, z = 0) => { const m = new THREE.Mesh(geo); m.position.set(x, y, z); return m; };
 const box = (w, h, d, x, y, z) => mk(new THREE.BoxGeometry(w, h, d), x, y, z);
@@ -12,7 +13,6 @@ const sph = (r, x, y, z, sx = 1, sy = 1, sz = 1) => { const m = mk(new THREE.Sph
 const on = (parent, ...proxies) => { proxies.forEach((p) => parent.add(p)); return proxies; };
 
 const pad2 = (n) => String(n).padStart(2, '0');
-const WALLART_NAME = { aurora: 'Aurora', dune: 'Dune', lagoon: 'Lagoon' };
 
 const ICON = {
   eye: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5C6.5 5 2.5 9.5 1.5 12c1 2.5 5 7 10.5 7s9.5-4.5 10.5-7C21.5 9.5 17.5 5 12 5zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm0-2a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/></svg>',
@@ -27,9 +27,9 @@ const ICON = {
  * @param {ReturnType<import('./interactions.js').createInteractions>} o.it
  * @param {object} o.world       createScene() result (parts, life, daylight, scene, mac)
  * @param {HTMLElement} o.screenEl  the MacBook screen DOM root
- * @param {{cycleTime: () => string, enterScreen: () => void, setWallArt?: (v: string) => void}} o.hooks
+ * @param {{cycleTime: () => string, enterScreen: () => void}} o.hooks
  */
-export function registerRoom({ it, world, screenEl, achievements, storage, bus, hooks }) {
+export function registerRoom({ it, world, screenEl, achievements, hooks }) {
   const { parts, life, daylight, ROOM } = world;
 
   // ── floor lamp: toggles the real warm light ──
@@ -103,31 +103,16 @@ export function registerRoom({ it, world, screenEl, achievements, storage, bus, 
     onClick() { sfx.window(); return `Window · ${hooks.cycleTime()}`; },
   });
 
-  // ── wall art: cycles the wallpaper (the macOS desktop follows in T11 via `wallart:change`) ──
+  // ── wall art: it IS the desktop wallpaper — clicking cycles it for the whole screen (Settings → Wallpaper) ──
   const fr = on(parts.frame, box(124, 82, 6, 0, 0, 1.5));
-  let artMesh = null;
-  parts.frame.traverse((o) => { if (o.isMesh && o.material && o.material.map) artMesh = o; });
-  let variant = Math.max(0, WALLPAPERS.indexOf(storage.get('room:wallart', 'aurora')));
-  const setArt = (name) => {
-    const tex = wallArtTexture(name);
-    const old = artMesh.material.map;
-    artMesh.material.map = artMesh.material.emissiveMap = tex;
-    artMesh.material.needsUpdate = true;
-    if (old) old.dispose();
-  };
   it.register({
     id: 'art', name: 'Wall art', proxies: fr, outline: parts.frame,
-    label: 'Wall art · click to change the picture',
+    label: () => `Wall art · ${wallpaperName(wallpaper.id)} · click for the next one`,
     onClick({ engine }) {
-      variant = (variant + 1) % WALLPAPERS.length;
-      const name = WALLPAPERS[variant];
-      setArt(name);
-      storage.set('room:wallart', name);
+      wallpaper.cycle();
       engine.fx.wobble(parts.frame, 0.05, 0.95);
       sfx.art();
-      bus.emit('wallart:change', { variant: name });
-      if (hooks.setWallArt) hooks.setWallArt(name);
-      return `Wall art · ${WALLART_NAME[name]}`;
+      return `Wall art · ${wallpaperName(wallpaper.id)}`;
     },
   });
 
