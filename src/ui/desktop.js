@@ -2,7 +2,6 @@
 // This file wires the pieces together: shell markup, window manager (wm.js), menubar, overlays and power.
 // The apps themselves live in ./apps/ and register through apps/registry.js.
 import * as sound from '../audio.js';
-import { SCREEN_PX } from '../screen-size.js';
 import { listApps, listAliases } from './apps/registry.js';
 import './apps/index.js';
 import { shellHTML } from './shell.js';
@@ -11,12 +10,13 @@ import { createMenubar } from './menubar.js';
 import { createOverlays } from './overlays.js';
 import { createNotificationCenter } from './notification-center.js';
 import { esc } from './apps/shared.js';
-import { cursorForEdge } from './wm-interact.js';
+import { installCursors } from './cursors.js';
 import { wallpaper } from '../core/wallpaper.js';
 import { theme } from '../core/theme.js';
 import { createSystemFx } from './system-fx.js';
 
 export function createDesktop(opts = {}) {
+  installCursors(); // the macOS pointer is a set of real CSS cursors (T49)
   const root = document.createElement('div');
   root.className = 'mac locked';
   root.innerHTML = shellHTML();
@@ -225,33 +225,10 @@ export function createDesktop(opts = {}) {
     dock.querySelectorAll('.dk').forEach((b) => b.style.removeProperty('--s'));
   });
 
-  // ── cursor (drawn inside the screen so it has the right size & perspective) ──
-  const cur = q('.cur');
-  cur.dataset.k = 'arrow';
-  let cursorKindLock = null; // while dragging / resizing a window the cursor keeps that shape
-  let lastProbe = null;
+  // ── cursor: real CSS cursors (cursors.js + desktop.css). A window drag / resize pins its shape on the root while it lasts ──
   function lockCursor(kind) {
-    cursorKindLock = kind;
-    if (kind) { cur.dataset.k = kind; return; }
-    // released (pointerup / pointercancel / lost capture): drop the drag shape now and re-read what is under the pointer
-    // once the window has moved or snapped, so a stale grab / resize glyph can never stay behind
-    cur.dataset.k = 'arrow';
-    requestAnimationFrame(() => { if (lastProbe && !cursorKindLock) probeCursor(lastProbe.x, lastProbe.y); });
-  }
-  function probeCursor(cx, cy) {
-    lastProbe = { x: cx, y: cy };
-    let kind = 'arrow';
-    if (cursorKindLock) kind = cursorKindLock;
-    else {
-      const el = document.elementFromPoint(cx, cy);
-      if (el && root.contains(el)) {
-        const rz = el.closest('[data-rz]');
-        if (rz && !isCompact()) kind = cursorForEdge(rz.dataset.rz);
-        else if (el.closest('input, textarea')) kind = 'text';
-        else if (el.closest('a[href]')) kind = 'hand';
-      }
-    }
-    if (cur.dataset.k !== kind) cur.dataset.k = kind;
+    if (kind) root.dataset.cl = kind;
+    else delete root.dataset.cl;
   }
 
   const api = {
@@ -281,14 +258,6 @@ export function createDesktop(opts = {}) {
     shutdown,
     powerOn,
     get isOff() { return boot.dataset.wake === 'off'; },
-    moveCursor(x, y) {
-      if (isLocked() || isCompact()) { cur.hidden = true; return; }
-      const inside = x >= 0 && y >= 0 && x <= SCREEN_PX.w && y <= SCREEN_PX.h;
-      cur.hidden = !inside;
-      if (inside) cur.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
-    },
-    hideCursor() { cur.hidden = true; },
-    probeCursor,
     openSpotlight: () => overlays.openSpot(),
     notificationCenter: nc,
     /** Closes menus / Spotlight / Control Center. Returns true if something was open. */

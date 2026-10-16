@@ -270,8 +270,10 @@ function exitScreen() {
 }
 
 // ── resize ─────────────────────────────────────────────────────────────
+let cssForce = true; // the CSS3D transform is rewritten only when it changed; a resize / state change forces one
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
+  cssForce = true;
   renderer.setSize(w, h);
   css3d.setSize(w, h);
   camera.aspect = w / h;
@@ -536,16 +538,6 @@ function tick() {
 tick();
 setInterval(tick, 1000);
 
-// ── macOS cursor drawn inside the screen (so it has the right size & perspective) ──
-const pointerPx = { x: -1, y: -1, has: false };
-window.addEventListener('pointermove', (e) => {
-  pointerPx.x = e.clientX;
-  pointerPx.y = e.clientY;
-  pointerPx.has = true;
-  if (state === 'screen') desktop.probeCursor(e.clientX, e.clientY);
-});
-window.addEventListener('pointerleave', () => { pointerPx.has = false; desktop.hideCursor(); });
-
 const ray = new THREE.Raycaster();
 const ndc = new THREE.Vector2();
 
@@ -555,26 +547,6 @@ function hitsMac(cx, cy) {
   ray.setFromCamera(ndc, camera);
   return ray.intersectObject(mac.group, true).length > 0;
 }
-const plane = new THREE.Plane();
-const hitP = new THREE.Vector3();
-const nrm = new THREE.Vector3();
-const org = new THREE.Vector3();
-const inv = new THREE.Matrix4();
-
-function updateCursor() {
-  if (state !== 'screen' || !pointerPx.has) { desktop.hideCursor(); return; }
-  ndc.set((pointerPx.x / window.innerWidth) * 2 - 1, -(pointerPx.y / window.innerHeight) * 2 + 1);
-  ray.setFromCamera(ndc, camera);
-  const m = mac.screen.matrixWorld;
-  nrm.set(0, 0, 1).transformDirection(m);
-  org.setFromMatrixPosition(m);
-  plane.setFromNormalAndCoplanarPoint(nrm, org);
-  if (!ray.ray.intersectPlane(plane, hitP)) { desktop.hideCursor(); return; }
-  inv.copy(m).invert();
-  hitP.applyMatrix4(inv); // px units, origin at the screen centre, +y up
-  desktop.moveCursor(hitP.x + SCREEN_PX.w / 2, SCREEN_PX.h / 2 - hitP.y);
-}
-
 // ── render loop ────────────────────────────────────────────────────────
 const tmp = new THREE.Vector3();
 const right = new THREE.Vector3();
@@ -615,9 +587,34 @@ initGame3D({
   achievements,
 });
 
+// On the laptop screen the camera is locked and the room is only a backdrop: the WebGL room is drawn at ~30 fps and the CSS3D transform
+// is rewritten only when the camera / screen matrices really change, so hover, drag and typing in the DOM get the whole frame (T49).
+const SCREEN_STEP = 1 / 31;
+let screenAcc = 0;
+const cssPrev = new Float32Array(48);
+function cssChanged() {
+  const sets = [camera.matrixWorldInverse.elements, camera.projectionMatrix.elements, mac.screen.matrixWorld.elements];
+  let changed = cssForce;
+  cssForce = false;
+  for (let k = 0; k < 3; k++) {
+    const a = sets[k];
+    for (let i = 0; i < 16; i++) {
+      if (Math.abs(a[i] - cssPrev[k * 16 + i]) > 1e-6) changed = true;
+      cssPrev[k * 16 + i] = a[i];
+    }
+  }
+  return changed;
+}
+
 function frame() {
   if (roomPaused) { roomLoopAlive = false; return; }
-  const rawDt = clock.getDelta();
+  let rawDt = clock.getDelta();
+  if (state === 'screen' && !tween && !camOverride) {
+    screenAcc += rawDt;
+    if (screenAcc < SCREEN_STEP) { requestAnimationFrame(frame); return; }
+    rawDt = screenAcc;
+    screenAcc = 0;
+  } else screenAcc = 0;
   const dt = Math.min(rawDt, 0.05);
   const t = clock.elapsedTime;
 
@@ -679,8 +676,7 @@ function frame() {
 
   if (state !== 'flat') {
     renderer.render(scene, camera);
-    css3d.render(scene, camera);
-    updateCursor();
+    if (cssChanged() || state !== 'screen') css3d.render(scene, camera);
   }
   interactions.update(dt, t);
 

@@ -43,7 +43,21 @@
 .mac .scr { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
 .mac.locked { cursor: pointer; }
 .mac.locked * { pointer-events: none !important; }
-.mac:not(.locked):not(.compact), .mac:not(.locked):not(.compact) * { cursor: none !important; }
+/* The pointer (T49): REAL CSS cursors (ui/cursors.js sets the variables) — zero latency, exactly where the hit-testing happens.
+   macOS keeps the arrow over buttons; links get the hand, text fields the I-beam, window edges the resize arrows. */
+.mac:not(.locked):not(.compact), .mac:not(.locked):not(.compact) * { cursor: var(--cur-arrow, default) !important; }
+.mac:not(.locked):not(.compact) a[href], .mac:not(.locked):not(.compact) a[href] * { cursor: var(--cur-hand, pointer) !important; }
+.mac:not(.locked):not(.compact) textarea, .mac:not(.locked):not(.compact) input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']) { cursor: var(--cur-text, text) !important; }
+.mac:not(.locked):not(.compact) [data-rz='n'], .mac:not(.locked):not(.compact) [data-rz='s'] { cursor: ns-resize !important; }
+.mac:not(.locked):not(.compact) [data-rz='e'], .mac:not(.locked):not(.compact) [data-rz='w'] { cursor: ew-resize !important; }
+.mac:not(.locked):not(.compact) [data-rz='ne'], .mac:not(.locked):not(.compact) [data-rz='sw'] { cursor: nesw-resize !important; }
+.mac:not(.locked):not(.compact) [data-rz='nw'], .mac:not(.locked):not(.compact) [data-rz='se'] { cursor: nwse-resize !important; }
+/* while a window is dragged / resized the shape is pinned on the root (desktop.js lockCursor), whatever is under the pointer */
+.mac[data-cl='grab']:not(.locked):not(.compact), .mac[data-cl='grab']:not(.locked):not(.compact) * { cursor: grabbing !important; }
+.mac[data-cl='ns']:not(.locked):not(.compact), .mac[data-cl='ns']:not(.locked):not(.compact) * { cursor: ns-resize !important; }
+.mac[data-cl='ew']:not(.locked):not(.compact), .mac[data-cl='ew']:not(.locked):not(.compact) * { cursor: ew-resize !important; }
+.mac[data-cl='nesw']:not(.locked):not(.compact), .mac[data-cl='nesw']:not(.locked):not(.compact) * { cursor: nesw-resize !important; }
+.mac[data-cl='nwse']:not(.locked):not(.compact), .mac[data-cl='nwse']:not(.locked):not(.compact) * { cursor: nwse-resize !important; }
 .mac * { box-sizing: border-box; }
 .mac button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
 .mac a { color: inherit; text-decoration: none; }
@@ -351,7 +365,7 @@
   background: var(--pop); color: var(--menu-fg);
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 16px 44px rgba(0, 0, 0, 0.35);
 }
-.mac .cc[hidden], .mac .spot[hidden], .mac .dimmer[hidden], .mac .cur[hidden] { display: none; }
+.mac .cc[hidden], .mac .spot[hidden], .mac .dimmer[hidden] { display: none; }
 .mac .cc-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
 .mac .cc-box { background: var(--pop-tile); border-radius: 14px; padding: 8px 10px; display: grid; gap: 8px; }
 .mac .cc-row { display: flex; align-items: center; gap: 8px; }
@@ -404,17 +418,6 @@
 .mac .boot .bar i { display: block; height: 100%; width: 0; background: #fff; border-radius: 3px; }
 .mac .boot.run .bar i { animation: boot-bar 2.3s cubic-bezier(.4, 0, .2, 1) forwards; }
 @keyframes boot-bar { to { width: 100%; } }
-
-/* ───────── the macOS pointer ───────── */
-.mac .cur { position: absolute; left: 0; top: 0; z-index: 99999; pointer-events: none; will-change: transform; }
-.mac .cu { position: absolute; display: none; }
-.mac .cur[data-k='arrow'] .cu-arrow { display: block; width: 12.5px; height: 18.75px; left: -1.1px; top: -1px; }
-.mac .cur[data-k='hand'] .cu-hand { display: block; width: 18px; height: 19.8px; left: -6.6px; top: -1px; }
-.mac .cur[data-k='text'] .cu-text { display: block; width: 8px; height: 17px; left: -4px; top: -8.5px; }
-.mac .cur[data-k='ew'] .cu-ew { display: block; width: 20px; height: 14px; left: -10px; top: -7px; }
-.mac .cur[data-k='ns'] .cu-ns { display: block; width: 14px; height: 20px; left: -7px; top: -10px; }
-.mac .cur[data-k='nwse'] .cu-nwse, .mac .cur[data-k='nesw'] .cu-nesw { display: block; width: 16px; height: 16px; left: -8px; top: -8px; }
-.mac .cur[data-k='grab'] .cu-grab { display: block; width: 20px; height: 20px; left: -10px; top: -9px; }
 
 /* ───────── compact / phone layout ───────── */
 .mac.compact { font-size: 14px; }

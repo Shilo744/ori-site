@@ -1,21 +1,9 @@
-// Markup of the macOS desktop (wallpaper, widgets, menubar, Dock, Control Center, Spotlight, boot overlay, cursor).
+// Markup of the macOS desktop (wallpaper, widgets, menubar, Dock, Control Center, Spotlight, boot overlay).
 // The Dock is generated from the app registry; windows are added at runtime by the window manager.
 import { content as C } from '../content.js';
 import { listApps } from './apps/registry.js';
 import { APPLE, I, ICON } from './apps/icons.js';
 import { esc } from './apps/shared.js';
-
-const arrowPair = (cls, vb, d) => `<svg class="cu ${cls}" viewBox="${vb}" aria-hidden="true"><g fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="${d}" stroke="#fff" stroke-width="4"/><path d="${d}" stroke="#000" stroke-width="1.7"/></g></svg>`;
-
-export const CURSORS = `
-  <svg class="cu cu-arrow" viewBox="0 0 14 21" aria-hidden="true"><path d="M1.2 1.1v15.4l3.5-3.2 2.5 6 2.5-1.1-2.4-5.9h5L1.2 1.1z" fill="#000" stroke="#fff" stroke-width="1.15" stroke-linejoin="round"/></svg>
-  <svg class="cu cu-hand" viewBox="0 0 20 22" aria-hidden="true"><path d="M7.4 1.2c-.9 0-1.6.7-1.6 1.6v8.2L4.6 9.8a1.7 1.7 0 0 0-2.5.1 1.6 1.6 0 0 0-.1 2.1l4 5.1c.8 1 1.9 1.6 3.2 1.6h4.1c1.8 0 3.2-1.4 3.2-3.2v-4.6c0-.8-.6-1.4-1.4-1.4-.3 0-.5.1-.7.2-.2-.5-.7-.8-1.3-.8-.4 0-.7.1-1 .4-.3-.4-.7-.6-1.2-.6-.2 0-.4 0-.6.1V2.8c0-.9-.7-1.6-1.6-1.6z" fill="#fff" stroke="#000" stroke-width="1" stroke-linejoin="round"/></svg>
-  <svg class="cu cu-text" viewBox="0 0 9 19" aria-hidden="true"><g stroke="#fff" stroke-width="3.2" stroke-linecap="round"><path d="M1.7 1.7h5.6M1.7 17.3h5.6M4.5 1.7v15.6"/></g><g stroke="#000" stroke-width="1.3" stroke-linecap="round"><path d="M1.7 1.7h5.6M1.7 17.3h5.6M4.5 1.7v15.6"/></g></svg>
-  ${arrowPair('cu-ew', '0 0 20 14', 'M2.5 7h15M2.5 7l4-4M2.5 7l4 4M17.5 7l-4-4M17.5 7l-4 4')}
-  ${arrowPair('cu-ns', '0 0 14 20', 'M7 2.5v15M7 2.5l-4 4M7 2.5l4 4M7 17.5l-4-4M7 17.5l4-4')}
-  ${arrowPair('cu-nwse', '0 0 16 16', 'M3 3l10 10M3 3v5M3 3h5M13 13v-5M13 13h-5')}
-  ${arrowPair('cu-nesw', '0 0 16 16', 'M13 3L3 13M13 3v5M13 3h-5M3 13v-5M3 13h5')}
-  <svg class="cu cu-grab" viewBox="0 0 20 20" aria-hidden="true"><path d="M5 8.5V7.2c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v-.5c0-.9.7-1.6 1.6-1.6s1.6.7 1.6 1.6v.4c0-.8.7-1.5 1.5-1.5s1.5.7 1.5 1.5v4.6c0 2.6-2 4.6-4.6 4.6H9.1c-1.3 0-2.4-.6-3.2-1.6L3.2 11.9c-.5-.6-.4-1.5.2-1.9.6-.5 1.4-.4 1.9.1z" fill="#fff" stroke="#000" stroke-width="1" stroke-linejoin="round"/></svg>`;
 
 const WIDGETS = `
       <div class="wg wg-cal"><div class="d" id="wg-day">THURSDAY</div><div class="n" id="wg-date">15</div><div class="ev"><i></i><span>Coffee &amp; code</span><em>10:30</em></div><div class="ev"><i class="b"></i><span>Portfolio review</span><em>16:00</em></div></div>
@@ -100,6 +88,5 @@ export function shellHTML() {
     <div class="dimmer" hidden></div>
     <div class="boot"><div class="boot-in">${APPLE}<div class="bar"><i></i></div></div></div>
     <div class="glare"></div>
-    <div class="cur" hidden>${CURSORS}</div>
   </div>`;
 }
