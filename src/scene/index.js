@@ -25,7 +25,7 @@ import { createLife } from './life.js';
 const ROOM = { x0: -270, x1: 270, z0: -220, z1: 220, h: 290, t: 12 };
 const DESK_TOP = 76.6;
 
-export function createScene({ renderer, screenElement }) {
+export function createScene({ renderer, screenElement, wallArt = 'aurora' }) {
   const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
   const scene = new THREE.Scene();
 
@@ -141,6 +141,7 @@ export function createScene({ renderer, screenElement }) {
 
   // thin graphite window frame (rounded ring) + a single mullion
   const wcz = win.cz, wcy = win.cy;
+  const windowParts = []; // the frame + mullion meshes (hover outline in T14)
   {
     const fwid = 4.2, fdepth = 3.2;
     const ring = roundedRectShape(win.w + 2.4, win.h + 2.4, win.r + 1.2, wcz, wcy);
@@ -150,8 +151,8 @@ export function createScene({ renderer, screenElement }) {
     });
     geo.rotateY(-Math.PI / 2);
     geo.translate(x0 - 4.0, 0, 0);
-    solid(smooth(geo), m.metal, 0, 0, 0, false);
-    solid(rbox(2.4, win.h - 2 * fwid + 1, 2.2, 0.7), m.metal, x0 - 4.8, wcy, wcz, false);
+    windowParts.push(solid(smooth(geo), m.metal, 0, 0, 0, false));
+    windowParts.push(solid(rbox(2.4, win.h - 2 * fwid + 1, 2.2, 0.7), m.metal, x0 - 4.8, wcy, wcz, false));
   }
 
   // what you see outside
@@ -215,7 +216,7 @@ export function createScene({ renderer, screenElement }) {
 
   // felt panel with the macOS wallpaper as art
   add(createPanel(m, { w: 236, h: 126, r: 30 }), deskX, 146, z0 + 1.2);
-  add(createFrame(m, { w: 124, h: 82, tex: wallArtTexture() }), deskX, 146, z0 + 3.9);
+  const frame = add(createFrame(m, { w: 124, h: 82, tex: wallArtTexture(wallArt) }), deskX, 146, z0 + 3.9);
 
   // floating oak shelf with a few objects, to the left of the panel
   const shelf = add(createShelf(m, { length: 112, depth: 20 }), -200, 132, z0 + 10.2);
@@ -223,8 +224,8 @@ export function createScene({ renderer, screenElement }) {
   // ── desk: the ecosystem, arranged calmly ──
   const MAT_T = 0.34; // desk-mat thickness
   add(createDeskMat(m), deskX + 22, DESK_TOP, deskZ + 16, 0.08);
-  add(createIPad(m, padScreenTexture()), deskX - 54, DESK_TOP, deskZ - 2, 0.3);
-  add(createIPhone(m, phoneScreenTexture()), deskX - 24, DESK_TOP, deskZ + 24, -0.32);
+  const ipad = add(createIPad(m, padScreenTexture()), deskX - 54, DESK_TOP, deskZ - 2, 0.3);
+  const iphone = add(createIPhone(m, phoneScreenTexture()), deskX - 24, DESK_TOP, deskZ + 24, -0.32);
   add(createAirPods(m), deskX - 5, DESK_TOP, deskZ + 32, 0.5);
   add(createMouse(), deskX + 40, DESK_TOP + MAT_T, deskZ + 22, 0.1);
   const mug = add(createMug(m), deskX + 72, DESK_TOP, deskZ + 20);
@@ -328,5 +329,7 @@ export function createScene({ renderer, screenElement }) {
     mac.update(dt);
     life.update(dt, t, state);
   };
-  return { scene, mac, update, daylight, life, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
+  // handles for the interaction layer (T14)
+  const parts = { lamp: floorLamp, homepod, mug, plant, bench, iphone, ipad, frame, windowParts, windowRect: win, clock: life.clock.group };
+  return { scene, mac, update, daylight, life, parts, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
 }

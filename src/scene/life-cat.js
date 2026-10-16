@@ -193,6 +193,8 @@ export function createCat() {
     group: root,
     /** Cat wakes up for a moment: head lifts, ears perk, tail swishes, a purr tremor (T14 calls this on click). */
     pet() { awake = 1; purr = 1; tail = { k: 0, dur: 1.8 }; },
+    /** The cat hears you: one ear flick (hover). */
+    notice() { if (!ear) ear = { k: 0, side: rnd() < 0.5 ? 0 : 1, dur: 0.5 }; },
     update(dt, t) {
       const b = Math.sin(t * 2.3 + 0.4);
       const inh = 0.5 + 0.5 * b; // 0..1 inhale

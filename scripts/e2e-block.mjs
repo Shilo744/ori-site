@@ -1,10 +1,11 @@
-// Runs ONE browser check block of the smoke suite on its own:  npm run test:life | test:daylight | wm2   (or  node scripts/e2e-block.mjs <life|daylight|wm2> [--size=WxH] [--no-build])
+// Runs ONE browser check block of the smoke suite on its own:  npm run test:life | test:daylight | test:interact | wm2   (or  node scripts/e2e-block.mjs <life|daylight|wm2|interact> [--size=WxH] [--no-build])
 import { build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, parseSize } from './lib/harness.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
 import { runWm2 } from './lib/wm2-test.mjs';
+import { runInteract } from './lib/interact-test.mjs';
 
-const BLOCKS = { life: runLife, daylight: runDaylight, wm2: runWm2 };
+const BLOCKS = { life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract };
 const args = process.argv.slice(2);
 const name = args.find((a) => !a.startsWith('--'));
 const flag = (n) => args.includes(`--${n}`);

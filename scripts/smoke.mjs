@@ -13,6 +13,7 @@ import { runLid } from './lib/lid-test.mjs';
 import { runWm2 } from './lib/wm2-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
 import { runLife } from './lib/life-test.mjs';
+import { runInteract } from './lib/interact-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -111,6 +112,9 @@ try {
 
     // ambient life: clock, cat, vacuum, steam, light shaft, HomePod ring, flat-mode / screen-state throttling
     await runLife(s, { ok, fail });
+
+    // 3D room interactions: hover outline + tag, clicks, discovery counter, achievements
+    await runInteract(s, { ok, fail });
 
     // core services (reloads the page to prove persistence, so it runs last)
     await runCoreContract(s, { ok, fail });

@@ -14,7 +14,8 @@
     "test:game": "node scripts/e2e-game.mjs",
     "test:games": "node scripts/test-games.mjs",
     "test:life": "node scripts/e2e-block.mjs life",
-    "test:daylight": "node scripts/e2e-block.mjs daylight"
+    "test:daylight": "node scripts/e2e-block.mjs daylight",
+    "test:interact": "node scripts/e2e-block.mjs interact"
   },
   "dependencies": {
     "three": "^0.170.0"

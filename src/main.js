@@ -14,6 +14,8 @@ import { storage } from './core/storage.js';
 import { bus } from './core/bus.js';
 import { achievements } from './core/achievements.js';
 import { notifications } from './core/notify.js';
+import { createInteractions } from './scene/interactions.js';
+import { registerRoom } from './scene/interactables.js';
 
 // `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
 const FAST = new URLSearchParams(window.location.search).has('fast');
@@ -77,7 +79,7 @@ const desktop = createDesktop({
     soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff;
   },
 });
-const world = createScene({ renderer, screenElement: desktop.root });
+const world = createScene({ renderer, screenElement: desktop.root, wallArt: storage.get('room:wallart', 'aurora') });
 const { scene, mac } = world;
 mac.setLid(false, 0); // the laptop starts shut; START opens it
 const daylight = world.daylight;
@@ -319,6 +321,20 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
+// ── interactive things in the room: hover outline + tag, click actions, "Discovered n/N" (T14) ──
+const interactions = createInteractions({
+  camera, canvas: renderer.domElement, getState: () => state,
+  tagEl: document.getElementById('room-tag'), counterEl: document.getElementById('hud-found'),
+  storage, achievements, bus,
+});
+registerRoom({
+  it: interactions, world, screenEl: desktop.root, achievements, storage, bus,
+  hooks: {
+    cycleTime() { sound.click(); daylight.cycleMode(); syncTimeBtn(); return TIME_LABEL[daylight.mode]; },
+    enterScreen,
+  },
+});
+
 // ── intro sequence ─────────────────────────────────────────────────────
 const introLines = [`${content.name} Portfolio Showcase ${content.year}`, 'Click start to begin'];
 
@@ -480,6 +496,7 @@ function frame() {
   const near = THREE.MathUtils.clamp(1 - (dist - 40) / 400, 0, 1);
   mac.glow.intensity = near * 1800 * mac.openness * daylight.state.screen * world.life.flicker;
 
+  if (world.life.homepod.active && sound.padOn()) world.life.homepod.setLevel(sound.padLevel()); // the HomePod ring follows the music
   world.update(dt, t, state);
 
   if (state !== 'flat') {
@@ -487,6 +504,7 @@ function frame() {
     css3d.render(scene, camera);
     updateCursor();
   }
+  interactions.update(dt, t);
 
   // fps estimate over ~0.5 s windows (no allocations)
   fpsFrames++;
@@ -545,6 +563,8 @@ window.__ori = {
   daylight,
   /** The room's ambient life (cat, clock, steam, vacuum…): handles for T14 and the tests. */
   life: world.life,
+  /** Room interactions (hover / click / discovery): ids(), found(), screenPos(id), activate(id), hoverId, reset(). */
+  interactions,
   /** Time of day in hours (0–24): jumps there instantly (mode stays whatever it was; the clock override wins until setMode). */
   setTime(hours) {
     timeOfDay = hours;

@@ -12,6 +12,7 @@ const PRESETS = {
   plant:  { pos: P(285, 118, 4),    target: P(160, 94, -186),  fov: 44 },
   iphone: { pos: P(-2, 100, -112),  target: P(-14, 77, -152),  fov: 24 },
   ipad:   { pos: P(-16, 118, -108), target: P(-44, 77, -178),  fov: 26 },
+  art:    { pos: P(70, 150, -60),   target: P(10, 146, -216),  fov: 38 },
   mug:    { pos: P(112, 104, -120),  target: P(84, 84, -156),   fov: 22 },
   homepod: { pos: P(122, 110, -150), target: P(86, 82, -196),   fov: 22 },
   clock:  { pos: P(150, 178, -70),  target: P(226, 190, -220), fov: 36 },
@@ -37,4 +38,4 @@ export function getView(name, world) {
   return PRESETS[name] || null;
 }
 
-export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'mac-side', 'iphone', 'ipad', 'mug', 'homepod', 'clock', 'floor', 'shaft'];
+export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'mac-side', 'iphone', 'ipad', 'mug', 'homepod', 'clock', 'floor', 'shaft', 'art'];

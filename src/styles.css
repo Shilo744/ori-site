@@ -61,6 +61,18 @@ html, body {
 #hud .btn:hover { background: #3a46e0; }
 #hud .btn[hidden] { display: none; }
 
+/* hover label for the objects in the room (T14) + the discovery counter */
+#room-tag {
+  position: fixed; left: 0; top: 0; z-index: 24; pointer-events: none; white-space: nowrap;
+  opacity: 0; transition: opacity 0.14s ease; will-change: transform;
+  font-size: clamp(11px, 0.5vw + 6px, 14px); padding: 7px 10px;
+}
+#room-tag.on { opacity: 1; }
+#hud-found { font-size: clamp(10px, 0.4vw + 5px, 12px); padding: 6px 9px; opacity: 0.8; }
+#hud-found.pop { animation: foundPop 0.7s ease; }
+@keyframes foundPop { 0% { transform: scale(1); } 30% { transform: scale(1.1); background: #3a46e0; opacity: 1; } 100% { transform: scale(1); } }
+body.in-screen #hud-found, body.flat-mode #hud-found { display: none; }
+
 #prompt, #hint {
   position: fixed;
   left: 50%;

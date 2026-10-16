@@ -250,5 +250,126 @@ export function arp(freqs, step = 0.07, type = 'square', vol = 0.09) {
   freqs.forEach((f, i) => blip(f, step * 1.6, type, vol, i * step));
 }
 
+// ── room sounds that need the audio graph itself (T14) ──
+
+/** A cat's purr: brown noise through a low-pass, amplitude-modulated at ~25 Hz, with a swell in and out. */
+export function purr(sec = 2.4) {
+  const c = ensure();
+  if (!c || !live()) return;
+  const t = c.currentTime;
+  const src = c.createBufferSource();
+  src.buffer = noiseBuffer(c, sec + 0.6, true);
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 300;
+  const am = c.createGain();
+  am.gain.value = 0.55;
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 24;
+  const lfoDepth = c.createGain();
+  lfoDepth.gain.value = 0.45;
+  lfo.connect(lfoDepth).connect(am.gain);
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.0001, t);
+  env.gain.exponentialRampToValueAtTime(0.32, t + 0.4);
+  env.gain.setValueAtTime(0.32, t + Math.max(0.5, sec - 0.7));
+  env.gain.exponentialRampToValueAtTime(0.0001, t + sec);
+  src.connect(lp).connect(am).connect(env).connect(master);
+  src.start(t);
+  lfo.start(t);
+  src.stop(t + sec + 0.1);
+  lfo.stop(t + sec + 0.1);
+}
+
+// HomePod ambient pad: a slow generative chord loop (sine + detuned triangle voices, low-passed, with a soft echo).
+// T19 replaces this with the full music engine; the analyser feeds the 3D HomePod ring (padLevel()).
+let pad = null;
+const PAD_CHORDS = [[48, 55, 59, 64, 67], [45, 52, 57, 60, 64], [41, 48, 52, 57, 60], [43, 50, 55, 59, 62]]; // C△9 · Am7 · F△7 · G6
+const SPARKLE = [72, 74, 76, 79, 81, 84];
+const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
+
+export const padOn = () => !!pad;
+
+export function padStart() {
+  const c = ensure();
+  if (!c || pad) return !!pad;
+  const t0 = c.currentTime;
+  const bus = c.createGain();
+  bus.gain.setValueAtTime(0.0001, t0);
+  bus.gain.exponentialRampToValueAtTime(0.5, t0 + 2.2);
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 1150;
+  lp.Q.value = 0.4;
+  const an = c.createAnalyser();
+  an.fftSize = 256;
+  const echo = c.createDelay(1);
+  echo.delayTime.value = 0.42;
+  const fb = c.createGain();
+  fb.gain.value = 0.36;
+  const wet = c.createGain();
+  wet.gain.value = 0.3;
+  bus.connect(lp);
+  lp.connect(an);
+  an.connect(master);
+  lp.connect(echo);
+  echo.connect(fb).connect(echo);
+  echo.connect(wet).connect(master);
+  const state = { bus, an, buf: new Uint8Array(an.fftSize), level: 0, nextAt: t0 + 0.05, chord: 0, timer: 0 };
+  const voice = (f, when, dur, vol, type) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = (Math.random() - 0.5) * 12;
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.exponentialRampToValueAtTime(vol, when + Math.min(1.6, dur * 0.35));
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(g).connect(bus);
+    o.start(when);
+    o.stop(when + dur + 0.05);
+  };
+  const schedule = () => {
+    // keep ~1.2 s of the future scheduled so a busy main thread never leaves a gap
+    while (state.nextAt < c.currentTime + 1.2) {
+      const chord = PAD_CHORDS[state.chord % PAD_CHORDS.length];
+      chord.forEach((n, i) => {
+        voice(midi(n), state.nextAt + i * 0.05, 7.4, 0.07 / (1 + i * 0.12), 'sine');
+        voice(midi(n + 12) * 1.002, state.nextAt + i * 0.05, 6.2, 0.022, 'triangle');
+      });
+      for (let k = 0; k < 2; k++) voice(midi(SPARKLE[Math.floor(Math.random() * SPARKLE.length)]), state.nextAt + 1.2 + Math.random() * 4, 2.6, 0.035, 'sine');
+      state.chord++;
+      state.nextAt += 6;
+    }
+  };
+  schedule();
+  state.timer = setInterval(schedule, 500);
+  pad = state;
+  return true;
+}
+
+export function padStop() {
+  if (!pad || !ctx) { pad = null; return; }
+  const p = pad;
+  pad = null;
+  clearInterval(p.timer);
+  const t = ctx.currentTime;
+  p.bus.gain.cancelScheduledValues(t);
+  p.bus.gain.setValueAtTime(Math.max(0.0001, p.bus.gain.value), t);
+  p.bus.gain.exponentialRampToValueAtTime(0.0001, t + 1.3);
+  setTimeout(() => { try { p.bus.disconnect(); } catch { /* already gone */ } }, 1800);
+}
+
+/** Smoothed 0..1 loudness of the pad (RMS of the analyser), 0 when it is off. */
+export function padLevel() {
+  if (!pad) return 0;
+  pad.an.getByteTimeDomainData(pad.buf);
+  let sum = 0;
+  for (let i = 0; i < pad.buf.length; i++) { const v = (pad.buf[i] - 128) / 128; sum += v * v; }
+  const rms = Math.sqrt(sum / pad.buf.length);
+  pad.level += (Math.min(1, rms * 9) - pad.level) * 0.25;
+  return pad.level;
+}
+
 /** For debugging in the console: window.__ori.audio() */
-export const debugState = () => ({ ctx: ctx && ctx.state, gain: master && +master.gain.value.toFixed(2), pageActive, enabled });
+export const debugState = () => ({ ctx: ctx && ctx.state, gain: master && +master.gain.value.toFixed(2), pageActive, enabled, pad: !!pad });

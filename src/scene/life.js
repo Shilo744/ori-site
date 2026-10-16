@@ -46,6 +46,7 @@ export function createLife({ scene, renderer, ROOM, mats, daylight, sun, aniso, 
     if ([mats.leafA, mats.leafB, mats.leafC, mats.leafD, mats.leafE].includes(o.material) || o.material.color.equals(mats.trunk.color)) sway.patch(o.material);
   });
   let gust = 0;
+  let alert = 0, alertTarget = 0; // hovering the plant: the leaves stir a little
 
   // ── mug steam ──
   const steam = createSteam();
@@ -103,7 +104,8 @@ export function createLife({ scene, renderer, ROOM, mats, daylight, sun, aniso, 
     // plant: calm sway + decaying gust
     gust = Math.max(0, gust - dt / 2.6);
     sway.uniforms.uSwayTime.value = t;
-    sway.uniforms.uSwayAmp.value = 1 + 3.2 * gust * gust;
+    alert += (alertTarget - alert) * (1 - Math.exp(-dt * 5));
+    sway.uniforms.uSwayAmp.value = 1 + 0.9 * alert + 3.2 * gust * gust;
 
     // mug steam: strongest at breakfast, a little at lunch, again in the evening
     const h = s.hours;
@@ -143,7 +145,7 @@ export function createLife({ scene, renderer, ROOM, mats, daylight, sun, aniso, 
     shaft,
     /** multiplier for the laptop glow light (read by the render loop) */
     get flicker() { return flicker; },
-    plant: { object: parts.plant, rustle() { gust = 1; } },
+    plant: { object: parts.plant, rustle() { gust = 1; }, alert(on) { alertTarget = on ? 1 : 0; } },
     mug: { object: parts.mug, burst() { steam.burst(); } },
     homepod: {
       object: parts.homepod,
