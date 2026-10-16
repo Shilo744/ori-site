@@ -16,6 +16,7 @@ import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
+import { runDrift } from './lib/drift-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -123,6 +124,9 @@ try {
 
     // notifications, Notification Center, achievements UI (leaves the camera in the room)
     await runNotify(s, { ok, fail });
+
+    // NEON DRIFT (src/game3d): overlay, paused room, driving, pause menu, clean quit, no GPU leaks
+    await runDrift(s, { ok, fail });
 
     // settings persistence + first-run onboarding (both reload the page)
     await runSettingsReload(s, { ok, fail });

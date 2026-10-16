@@ -84,6 +84,8 @@ export async function runNotify(session, { ok, fail }) {
   check(await until(() => document.querySelectorAll('.mac .nb:not(.out)').length === 0, null), 'the × button dismisses a banner');
   await ev(() => { window.__ori.core.achievements.reset(); window.__ori.core.achievements.unlock('dark-side'); }); // (an earlier block may have unlocked it already)
   check(await until(() => /Achievement unlocked/.test(document.querySelector('.mac .nb:not(.out) strong')?.textContent || ''), null), 'unlocking an achievement shows a banner');
+  await until(() => !!document.querySelector('.mac .nb.in:not(.out)'), null);
+  await sleep(600); // the slide-in must be over before we aim at it (the rect is still off to the right while it moves)
   await click('.mac .nb:not(.out)');
   check(await until(() => !!document.querySelector('.mac .win-arcade') && document.querySelector('.mac .win-arcade .arc-tab.on')?.dataset.tab === 'trophies', null), 'clicking it opens the Arcade on the Achievements tab');
   await shot('trophies');

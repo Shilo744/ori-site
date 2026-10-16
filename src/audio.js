@@ -5,9 +5,10 @@ let enabled = true;      // the user's own on/off choice (HUD button / Control C
 let pageActive = true;  // false while the tab is hidden or the window is not focused
 let ambient = null;
 let volume = 0.7; // 0..1, System Settings / Control Center (0.7 = the original loudness)
+let duck = 1; // 0..1: the room is ducked (0 = silent) while a full-screen game runs on top of it
 
 const live = () => enabled && pageActive;
-const level = () => (live() ? 1.286 * volume : 0);
+const level = () => (live() ? 1.286 * volume * duck : 0);
 
 function ensure() {
   if (ctx) return ctx;
@@ -47,6 +48,14 @@ export function setVolume(v) {
   applyGain();
 }
 export const getVolume = () => volume;
+
+/** Scales the room audio for a full-screen game on top (0 = muted, 1 = normal); smooth. */
+export function setDuck(v) {
+  duck = Math.max(0, Math.min(1, +v || 0));
+  applyGain();
+}
+/** The shared AudioContext (null before the first user gesture) — the game builds its own graph on it. */
+export const getContext = () => ctx;
 
 export function setEnabled(v) {
   enabled = v;

@@ -27,6 +27,7 @@ import { listApps as listRegisteredApps } from './ui/apps/registry.js';
 import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from './scene/stations.js';
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
+import { initGame3D, launchGame3D, game3dDebug } from './game3d/host.js';
 
 // `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
 const FAST = new URLSearchParams(window.location.search).has('fast');
@@ -594,7 +595,24 @@ let resolveReady;
 const readyPromise = new Promise((res) => { resolveReady = res; });
 let fps = 0, fpsFrames = 0, fpsT0 = performance.now();
 
+// While a full-screen game (NEON DRIFT, src/game3d) is open the room loop is stopped completely: ~0 GPU and CPU for the room.
+let roomPaused = false;
+let roomLoopAlive = true;
+function pauseRoom() { roomPaused = true; }
+function resumeRoom() {
+  if (!roomPaused) return;
+  roomPaused = false;
+  if (!roomLoopAlive) { roomLoopAlive = true; clock.getDelta(); requestAnimationFrame(frame); } // drop the time spent away
+}
+initGame3D({
+  pauseRoom,
+  resumeRoom,
+  duck: (v) => sound.setDuck(v),
+  emit: (name, data) => bus.emit(name, data),
+});
+
 function frame() {
+  if (roomPaused) { roomLoopAlive = false; return; }
   const rawDt = clock.getDelta();
   const dt = Math.min(rawDt, 0.05);
   const t = clock.elapsedTime;
@@ -714,6 +732,9 @@ window.__ori = {
   kit,
   /** ids of the game windows whose render loop is running (tests: only the active one may be). */
   loops: () => kit.loopsRunning(),
+  /** NEON DRIFT (src/game3d): { running, fps, stats(), state(), step(n), setSeed(n), launch(), quit(), autopilot(on) … } */
+  game3d: game3dDebug,
+  launchGame3D,
   /** Look-around stations: ids, current index, badges. `setStation('window' | 'desk' | 'plant', instant = true)`. */
   stations: () => ({ ids: STATIONS.map((s) => s.id), index: stationIdx, id: STATIONS[stationIdx].id, badges: badges(stationIdx, interactions.found()), things: STATIONS.map((s) => s.things) }),
   setStation: (name, instant = true) => goStation(typeof name === 'number' ? name : STATIONS.findIndex((s) => s.id === name), { instant }),

@@ -60,8 +60,11 @@ export function createRuntime(ctx, { id = '', update, render, onSuspend, onResum
   // tab hidden → stop; tab visible again → only the ACTIVE window's loop restarts (an inactive game stays stopped)
   const vis = () => { if (document.hidden) hooks.pause(); else if (ctx.isActive()) hooks.resume(); };
   document.addEventListener('visibilitychange', vis);
+  // a full-screen overlay (NEON DRIFT) covers the desktop: window games stop, and the active one restarts when it closes
+  const ovl = (e) => { if (e.detail && e.detail.open) hooks.pause(); else if (ctx.isActive()) hooks.resume(); };
+  window.addEventListener('ori:overlay', ovl);
   const origDestroy = hooks.destroy;
-  hooks.destroy = () => { document.removeEventListener('visibilitychange', vis); runtimes.delete(rt); origDestroy(); };
+  hooks.destroy = () => { document.removeEventListener('visibilitychange', vis); window.removeEventListener('ori:overlay', ovl); runtimes.delete(rt); origDestroy(); };
   const rt = { id, loop };
   runtimes.add(rt);
   return { loop, hooks };

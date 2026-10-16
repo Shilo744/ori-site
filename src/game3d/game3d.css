@@ -1,0 +1,86 @@
+/* NEON DRIFT overlay (T41). Full viewport, above everything on the page (HUD, prompt, toasts, the CSS3D screen). */
+.g3d {
+  position: fixed; inset: 0; z-index: 100000; background: #07030f; color: #fff;
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; overflow: hidden;
+  user-select: none; -webkit-user-select: none; touch-action: none; overscroll-behavior: none;
+  opacity: 0; transition: opacity .28s ease;
+}
+.g3d.in { opacity: 1; }
+.g3d-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+body.g3d-open { overflow: hidden; }
+body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open #intro { visibility: hidden; }
+
+.g3d-hud { position: absolute; inset: 0; pointer-events: none; transition: filter .25s ease, opacity .25s ease; }
+.g3d-hud.dim { filter: blur(2px) brightness(.55); }
+.g3d-top {
+  position: absolute; top: max(16px, env(safe-area-inset-top)); left: max(18px, env(safe-area-inset-left)); right: max(18px, env(safe-area-inset-right));
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.g3d-brand { display: flex; align-items: center; gap: 9px; font-weight: 800; font-style: italic; letter-spacing: .14em; font-size: 13px; color: #ffffffd9; text-shadow: 0 0 14px #19e3ff88; }
+.g3d-brand i { width: 22px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, #19e3ff, #ff3ea5); box-shadow: 0 0 12px #ff3ea588; transform: skewX(-24deg); }
+.g3d-time {
+  position: absolute; left: 50%; transform: translateX(-50%); top: 0;
+  font-variant-numeric: tabular-nums; font-weight: 700; font-size: 22px; letter-spacing: .04em; padding: 5px 16px;
+  background: #0b0618b3; border: 1px solid #ffffff1f; border-radius: 12px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.g3d-pausebtn {
+  pointer-events: auto; width: 40px; height: 40px; border-radius: 12px; border: 1px solid #ffffff2b; background: #0b0618b3; color: #fff;
+  display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.g3d-pausebtn svg { width: 18px; height: 18px; }
+.g3d-pausebtn:hover { background: #1a0f33e6; border-color: #19e3ff88; }
+
+.g3d-speed {
+  position: absolute; right: max(26px, env(safe-area-inset-right)); bottom: max(54px, env(safe-area-inset-bottom));
+  display: flex; align-items: baseline; gap: 8px; text-shadow: 0 0 22px #19e3ff66, 0 2px 0 #0007;
+}
+.g3d-speed b { font-size: clamp(54px, 9vw, 104px); line-height: .9; font-weight: 800; font-style: italic; letter-spacing: -.03em; font-variant-numeric: tabular-nums; min-width: 2.1ch; text-align: right; }
+.g3d-speed span { font-weight: 700; font-size: 14px; letter-spacing: .2em; color: #ffffffa8; }
+.g3d-gear {
+  font-style: normal; font-weight: 800; font-size: 20px; width: 36px; height: 36px; display: grid; place-items: center; align-self: center; margin-left: 4px;
+  border-radius: 10px; background: linear-gradient(160deg, #19e3ff, #7a5cff); color: #08031a; box-shadow: 0 0 18px #19e3ff66;
+}
+.g3d-boost { position: absolute; right: max(26px, env(safe-area-inset-right)); bottom: max(26px, env(safe-area-inset-bottom)); width: min(300px, 46vw); display: flex; align-items: center; gap: 10px; }
+.g3d-boostbar { flex: 1; height: 10px; border-radius: 6px; background: #ffffff1c; overflow: hidden; border: 1px solid #ffffff22; transform: skewX(-24deg); }
+.g3d-boostbar i { display: block; height: 100%; transform-origin: 0 50%; transform: scaleX(0); background: linear-gradient(90deg, #19e3ff, #ff3ea5); box-shadow: 0 0 14px #ff3ea5; transition: transform .1s linear; }
+.g3d-boost span { font-weight: 800; font-size: 11px; letter-spacing: .18em; color: #ffffffb0; white-space: nowrap; min-width: 92px; text-align: right; }
+.g3d-hud.boosting .g3d-boost span { color: #ff3ea5; text-shadow: 0 0 12px #ff3ea5; }
+.g3d-hud.drifting .g3d-boostbar { box-shadow: 0 0 18px #19e3ff88; }
+.g3d-keys {
+  position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+  font-size: 12px; color: #ffffffb3; transition: opacity .8s ease; width: max-content; max-width: 90vw;
+}
+.g3d-keys.off { opacity: 0; }
+.g3d-keys kbd { font: 700 11px Inter, sans-serif; background: #ffffff1c; border: 1px solid #ffffff33; border-bottom-width: 2px; border-radius: 6px; padding: 2px 6px; margin-right: 2px; color: #fff; }
+.g3d-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at center, transparent 55%, #ff3ea5 150%); }
+.g3d-flash.on { animation: g3d-flash .5s ease-out; }
+@keyframes g3d-flash { 0% { opacity: .9 } 100% { opacity: 0 } }
+
+.g3d-menu, .g3d-msg { position: absolute; inset: 0; display: grid; place-items: center; background: #05020cb0; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); z-index: 2; }
+.g3d-menu[hidden], .g3d-msg[hidden] { display: none; }
+.g3d-card {
+  width: min(360px, 88vw); padding: 26px 26px 20px; border-radius: 22px; text-align: center;
+  background: linear-gradient(180deg, #1a0f33f2, #0d0720f2); border: 1px solid #ffffff22; box-shadow: 0 30px 80px #000a, 0 0 60px #7a5cff33, inset 0 1px 0 #ffffff14;
+  display: flex; flex-direction: column; gap: 10px; animation: g3d-pop .28s cubic-bezier(.2, .9, .3, 1.2);
+}
+@keyframes g3d-pop { from { transform: translateY(14px) scale(.96); opacity: 0 } to { transform: none; opacity: 1 } }
+.g3d-kicker { font-weight: 800; font-style: italic; letter-spacing: .3em; font-size: 11px; color: #19e3ff; }
+.g3d-card h2 { margin: 0 0 6px; font-size: 30px; font-weight: 800; font-style: italic; letter-spacing: .02em; }
+.g3d-card p { margin: 4px 0 0; color: #ffffffa8; font-size: 13px; line-height: 1.5; }
+.g3d-small { font-size: 12px !important; }
+.g3d-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.g3d-btn {
+  font: 700 15px Inter, sans-serif; padding: 13px 18px; border-radius: 14px; border: 1px solid #ffffff26; background: #ffffff10; color: #fff; cursor: pointer;
+  transition: transform .12s ease, background .12s ease, border-color .12s ease;
+}
+.g3d-btn:hover, .g3d-btn:focus-visible { background: #ffffff1f; border-color: #19e3ff99; outline: none; transform: translateY(-1px); }
+.g3d-btn:active { transform: translateY(1px) scale(.99); }
+.g3d-btn.primary { background: linear-gradient(135deg, #19e3ff, #7a5cff 60%, #ff3ea5); border-color: transparent; color: #08031a; box-shadow: 0 8px 28px #7a5cff55; }
+.g3d-btn.quit { color: #ffb4c8; }
+@media (max-width: 640px) {
+  .g3d-keys, .g3d-brand { display: none; }
+  .g3d-speed b { font-size: 56px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .g3d, .g3d-card, .g3d-flash.on { transition: none; animation: none; }
+}
