@@ -118,44 +118,6 @@ body.in-screen .nav-chev, body.in-screen .st-dots, body.flat-mode .nav-chev, bod
 @keyframes promptNudge { 0% { transform: translateX(-50%) scale(1); } 30% { transform: translateX(-50%) scale(1.1); background: #3a46e0; } 100% { transform: translateX(-50%) scale(1); } }
 @keyframes blink { 50% { opacity: 0.55; } }
 
-/* intro */
-#intro {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  background: #000;
-  display: grid;
-  place-items: center;
-  transition: opacity 0.9s ease;
-}
-#intro.out { opacity: 0; pointer-events: none; }
-#intro .box {
-  width: min(560px, calc(100vw - 40px));
-  border: 6px solid #fff;
-  padding: 22px 22px 24px;
-  color: #fff;
-  font-family: var(--mono);
-  font-size: 15px;
-  line-height: 1.55;
-}
-#intro p { margin: 0 0 18px; min-height: 48px; white-space: pre-wrap; }
-#intro p::after { content: '_'; animation: caret 0.9s steps(1) infinite; }
-@keyframes caret { 50% { opacity: 0; } }
-#intro .start {
-  display: block;
-  margin: 0 auto;
-  background: transparent;
-  color: #fff;
-  border: 3px solid #fff;
-  font-family: var(--mono);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  padding: 10px 16px;
-  cursor: pointer;
-}
-#intro .start:hover { background: #fff; color: #000; }
-#intro .start[hidden] { display: none; }
-
 @media (max-width: 640px) {
   #hud { top: 14px; left: 14px; }
   .tag { font-size: 12px; padding: 7px 10px; }

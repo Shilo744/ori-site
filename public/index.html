@@ -12,7 +12,7 @@
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="app.css" />
 </head>
 <body>
@@ -42,11 +42,19 @@
   <div id="st-dots" class="st-dots" role="group" aria-label="Look around" hidden></div>
   <div id="toasts" aria-live="polite"></div>
 
-  <!-- Intro -->
-  <div id="intro">
-    <div class="box">
-      <p id="intro-text"></p>
-      <button id="intro-start" class="start" hidden>START</button>
+  <!-- Intro (T46): the live room behind a frosted veil; ui/intro.js runs the greeting and shows the button when the room is ready -->
+  <div id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-title" aria-describedby="intro-status">
+    <div class="iv-veil" aria-hidden="true"></div>
+    <div class="iv-blobs" aria-hidden="true"><i></i><i></i><i></i></div>
+    <button id="intro-sound" class="iv-sound" type="button" aria-pressed="true" aria-label="Sound on"></button>
+    <div class="iv-hero">
+      <h1 id="intro-title" class="iv-title"><span id="intro-greet" class="iv-greet" lang="en" aria-hidden="true"></span><span id="intro-name" class="iv-name">Ori Asher</span></h1>
+      <p id="intro-sub" class="iv-sub"></p>
+    </div>
+    <div class="iv-cta">
+      <div id="intro-wait" class="iv-wait" hidden><svg id="intro-ring" class="iv-ring" viewBox="0 0 30 30" aria-hidden="true"><circle class="bg" cx="15" cy="15" r="13"/><circle class="fg" cx="15" cy="15" r="13"/></svg><span id="intro-status" role="status" aria-live="polite">Preparing the room…</span></div>
+      <button id="intro-start" class="iv-btn" type="button" hidden>Enter</button>
+      <p id="intro-hint" class="iv-hint" hidden>or press Return</p>
     </div>
   </div>
 

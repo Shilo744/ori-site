@@ -22,7 +22,8 @@
     "test:settings": "node scripts/e2e-block.mjs settings",
     "test:notify": "node scripts/e2e-block.mjs notify",
     "test:drift3d": "node scripts/e2e-block.mjs drift",
-    "test:driftrace": "node scripts/e2e-block.mjs drift-race"
+    "test:driftrace": "node scripts/e2e-block.mjs drift-race",
+    "test:intro": "node scripts/e2e-intro.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

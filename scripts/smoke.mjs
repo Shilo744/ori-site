@@ -17,6 +17,7 @@ import { runInteract } from './lib/interact-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
+import { runIntro } from './lib/intro-test.mjs';
 import { runDriftRace } from './lib/drift-race-test.mjs';
 
 const args = process.argv.slice(2);
@@ -50,6 +51,9 @@ try {
 
     const lidBefore = await page.evaluate(() => window.__ori.mac.lidAngle);
     if (lidBefore < 1) ok('the MacBook lid starts shut'); else fail(`the lid should start shut (angle ${lidBefore})`);
+    // the opening screen itself (T46) — this also plays START with the keyboard, so the page is in `ready` afterwards
+    await runIntro(s, { ok, fail });
+    await page.evaluate(() => window.__ori.setTime(13));
     await enterScreen(s);
     const st = await page.evaluate(() => window.__ori.state);
     if (st === (size.width < 860 ? 'flat' : 'screen')) ok(`entered the screen (state: ${st})`); else fail(`unexpected state after entering: ${st}`);

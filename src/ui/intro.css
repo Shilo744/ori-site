@@ -1,0 +1,193 @@
+/* The opening screen (T46): the live room behind a frosted veil, a quiet multilingual greeting that settles on the name, one pill
+   button. Light by day, deep blue-graphite at night (data-tone). Our own type and layout - nothing borrowed from anybody's branding. */
+#intro {
+  --iv-font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', Inter, 'Segoe UI', system-ui, 'Hiragino Sans', 'Noto Sans JP', 'Noto Sans Hebrew', 'Noto Sans Arabic', sans-serif;
+  --iv-ink: #1d1d1f;
+  --iv-ink-2: rgba(40, 40, 48, 0.74);
+  --iv-veil: rgba(246, 247, 252, 0.5);
+  --iv-glass: rgba(255, 255, 255, 0.58);
+  --iv-edge: rgba(255, 255, 255, 0.7);
+  --iv-accent: #0071e3;
+  --iv-accent-glow: rgba(0, 113, 227, 0.38);
+  --iv-b1: #ffc9e2; --iv-b2: #bcd8ff; --iv-b3: #c9f2de;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: block;
+  background: none;
+  font-family: var(--iv-font);
+  color: var(--iv-ink);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+#intro[data-tone='dark'] {
+  --iv-ink: #f5f5f7;
+  --iv-ink-2: rgba(235, 235, 245, 0.62);
+  --iv-veil: rgba(14, 18, 34, 0.52);
+  --iv-glass: rgba(60, 66, 94, 0.5);
+  --iv-edge: rgba(255, 255, 255, 0.16);
+  --iv-accent: #0a84ff;
+  --iv-accent-glow: rgba(10, 132, 255, 0.45);
+  --iv-b1: #4b3a9e; --iv-b2: #1f6a99; --iv-b3: #8a2f73;
+}
+#intro[data-tone='warm'] {
+  --iv-veil: rgba(255, 244, 232, 0.5);
+  --iv-b1: #ffc7a3; --iv-b2: #ffd9a8; --iv-b3: #ffb3c8;
+}
+
+/* the frosted veil over the live room (removed with the whole element when the intro is over) */
+#intro .iv-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--iv-veil);
+  -webkit-backdrop-filter: blur(28px) saturate(1.5);
+  backdrop-filter: blur(28px) saturate(1.5);
+  transition: backdrop-filter 1.25s cubic-bezier(0.22, 1, 0.36, 1), -webkit-backdrop-filter 1.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 1.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  #intro .iv-veil { background: linear-gradient(160deg, var(--iv-b2), var(--iv-b1) 55%, var(--iv-b3)); }
+}
+#intro .iv-blobs { position: absolute; inset: 0; overflow: hidden; pointer-events: none; transition: opacity 1s ease; }
+#intro .iv-blobs i {
+  position: absolute;
+  width: 62vmax;
+  height: 62vmax;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--c) 0%, transparent 68%);
+  opacity: 0.55;
+  filter: blur(40px);
+  will-change: transform;
+}
+#intro .iv-blobs i:nth-child(1) { --c: var(--iv-b1); left: -18vmax; top: -22vmax; animation: iv-drift-a 46s ease-in-out infinite alternate; }
+#intro .iv-blobs i:nth-child(2) { --c: var(--iv-b2); right: -22vmax; top: 8vmax; animation: iv-drift-b 58s ease-in-out infinite alternate; }
+#intro .iv-blobs i:nth-child(3) { --c: var(--iv-b3); left: 14vmax; bottom: -30vmax; animation: iv-drift-c 52s ease-in-out infinite alternate; }
+@keyframes iv-drift-a { to { transform: translate(14vmax, 10vmax) scale(1.18) rotate(24deg); } }
+@keyframes iv-drift-b { to { transform: translate(-16vmax, 8vmax) scale(0.9) rotate(-18deg); } }
+@keyframes iv-drift-c { to { transform: translate(10vmax, -14vmax) scale(1.2) rotate(30deg); } }
+
+/* the greeting + the name */
+#intro .iv-hero {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 44%;
+  transform: translateY(-50%);
+  padding: 0 max(16px, env(safe-area-inset-left)) 0 max(16px, env(safe-area-inset-right));
+  text-align: center;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease, filter 0.9s ease;
+}
+#intro .iv-title { margin: 0; display: grid; place-items: center; font-weight: 600; }
+#intro .iv-greet, #intro .iv-name { grid-area: 1 / 1; display: block; letter-spacing: -0.035em; line-height: 1.04; opacity: 0; }
+#intro .iv-greet { font-size: clamp(56px, 12.5vw, 150px); font-weight: 300; color: var(--iv-ink); }
+#intro .iv-name {
+  font-size: clamp(52px, 9vw, 104px);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  background-image: linear-gradient(100deg, transparent 38%, rgba(255, 255, 255, 0.95) 50%, transparent 62%), linear-gradient(180deg, var(--iv-ink) 35%, color-mix(in srgb, var(--iv-ink) 62%, transparent) 130%);
+  background-size: 260% 100%, 100% 100%;
+  background-position: 130% 0, 0 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+#intro .iv-name.shine { animation: iv-shine 1.9s 0.35s cubic-bezier(0.4, 0, 0.2, 1) both; }
+@keyframes iv-shine { from { background-position: 130% 0, 0 0; } to { background-position: -40% 0, 0 0; } }
+#intro .iv-sub { margin: 14px 0 0; font-size: 20px; font-weight: 400; letter-spacing: -0.01em; color: var(--iv-ink-2); opacity: 0; }
+#intro .iv-sub.on { opacity: 1; transition: opacity 1s ease; }
+
+/* the one call to action */
+#intro .iv-cta { position: absolute; left: 0; right: 0; bottom: max(7vh, calc(24px + env(safe-area-inset-bottom))); display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 100px; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease, filter 0.9s ease; }
+#intro .iv-btn {
+  height: 44px;
+  min-width: 132px;
+  padding: 0 30px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--iv-accent);
+  color: #fff;
+  font: 500 17px/1 var(--iv-font);
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  box-shadow: 0 8px 26px var(--iv-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease, box-shadow 0.18s ease;
+  animation: iv-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+#intro .iv-btn:hover { filter: brightness(1.1); transform: scale(1.02); }
+#intro .iv-btn:active { transform: scale(0.97); filter: brightness(0.95); }
+#intro .iv-btn:focus-visible { outline: none; box-shadow: 0 8px 26px var(--iv-accent-glow), 0 0 0 3px color-mix(in srgb, var(--iv-accent) 26%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.28); }
+#intro .iv-btn[hidden], #intro .iv-hint[hidden] { display: none; }
+#intro .iv-hint { margin: 0; font-size: 13px; color: var(--iv-ink-2); animation: iv-rise 0.9s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes iv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+#intro .iv-wait { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--iv-ink-2); height: 44px; opacity: 0; transition: opacity 0.4s ease; }
+#intro .iv-wait.on { opacity: 1; }
+#intro .iv-wait[hidden] { display: none; }
+#intro .iv-ring { width: 26px; height: 26px; transform: rotate(-90deg); }
+#intro .iv-ring circle { fill: none; stroke-width: 2.6; }
+#intro .iv-ring .bg { stroke: color-mix(in srgb, var(--iv-ink) 14%, transparent); }
+#intro .iv-ring .fg { stroke: var(--iv-accent); stroke-linecap: round; stroke-dasharray: 81.7; stroke-dashoffset: 81.7; transition: stroke-dashoffset 0.35s ease; }
+
+/* sound toggle (top right), a small glass pill */
+#intro .iv-sound {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(16px, env(safe-area-inset-right));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px 0 11px;
+  border-radius: 999px;
+  border: 1px solid var(--iv-edge);
+  background: var(--iv-glass);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  color: var(--iv-ink);
+  font: 500 13px/1 var(--iv-font);
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease, background-color 0.15s ease, opacity 0.7s ease, filter 0.9s ease;
+}
+#intro .iv-sound:hover { transform: scale(1.03); }
+#intro .iv-sound:active { transform: scale(0.97); }
+#intro .iv-sound:focus-visible { outline: 2px solid var(--iv-accent); outline-offset: 2px; }
+#intro .iv-sound svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+
+/* leaving: the blur melts while the camera pushes in (no fade from black), the type lifts away */
+#intro.leaving { pointer-events: none; }
+#intro.leaving .iv-veil { -webkit-backdrop-filter: blur(0px) saturate(1); backdrop-filter: blur(0px) saturate(1); background-color: transparent; }
+#intro.leaving .iv-blobs { opacity: 0; }
+#intro.leaving .iv-hero, #intro.leaving .iv-cta, #intro.leaving .iv-sound { opacity: 0; transform: translateY(-12px); filter: blur(8px); }
+#intro.leaving .iv-hero { transform: translateY(calc(-50% - 12px)); }
+
+/* reduced motion: no cycling, no drifting blobs, no blur animation - a plain cross-fade */
+@media (prefers-reduced-motion: reduce) {
+  #intro .iv-blobs i { animation: none; }
+  #intro .iv-name.shine { animation: none; background-position: -40% 0, 0 0; }
+  #intro .iv-btn, #intro .iv-hint { animation: none; }
+  #intro .iv-veil, #intro.leaving .iv-veil { transition: background-color 0.5s ease; }
+  #intro.leaving .iv-hero, #intro.leaving .iv-cta, #intro.leaving .iv-sound { transform: none; filter: none; }
+  #intro.leaving .iv-hero { transform: translateY(-50%); }
+}
+#intro.calm .iv-blobs i { animation: none; }
+#intro.calm .iv-name.shine { animation: none; background-position: -40% 0, 0 0; }
+#intro.calm .iv-btn, #intro.calm .iv-hint { animation: none; }
+#intro.calm .iv-veil, #intro.calm.leaving .iv-veil { transition: background-color 0.5s ease; }
+#intro.calm.leaving .iv-hero, #intro.calm.leaving .iv-cta, #intro.calm.leaving .iv-sound { transform: none; filter: none; }
+#intro.calm.leaving .iv-hero { transform: translateY(-50%); }
+
+@media (pointer: coarse) { #intro .iv-hint { display: none; } }
+@media (max-width: 640px) {
+  #intro .iv-sub { font-size: 17px; }
+  #intro .iv-sound span { display: none; }
+  #intro .iv-sound { padding: 0 11px; }
+  #intro .iv-btn { height: 48px; min-width: 156px; }
+}
+@media (max-height: 460px) {
+  #intro .iv-hero { top: 38%; }
+  #intro .iv-greet { font-size: clamp(40px, 11vh, 80px); }
+  #intro .iv-name { font-size: clamp(38px, 10vh, 70px); }
+  #intro .iv-sub { margin-top: 6px; font-size: 15px; }
+  #intro .iv-cta { bottom: 12px; min-height: 76px; gap: 6px; }
+}

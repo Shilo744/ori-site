@@ -22,6 +22,7 @@ import { defineCatalog } from './core/achievements-catalog.js';
 import { startTrackers } from './ui/trackers.js';
 import { createNotificationUI } from './ui/notifications.js';
 import { startOnboarding } from './ui/onboarding.js';
+import { createIntro } from './ui/intro.js';
 import { listGames } from './ui/games/catalog.js';
 import { listApps as listRegisteredApps } from './ui/apps/registry.js';
 import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from './scene/stations.js';
@@ -39,9 +40,8 @@ const stage = $('stage');
 const hud = $('hud');
 const promptEl = $('prompt');
 const hintEl = $('hint');
-const intro = $('intro');
-const introText = $('intro-text');
 const startBtn = $('intro-start');
+let introUi = null; // the opening screen (ui/intro.js), created once the first frame is on its way
 const soundBtn = $('btn-sound');
 const viewBtn = $('btn-view');
 const timeBtn = $('btn-time');
@@ -89,7 +89,7 @@ const desktop = createDesktop({
   fast: FAST,
   onPower: (kind) => handlePower(kind),
   night: () => nightLevel(),
-  onVolume: (on) => { soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff; }, // the speaker icon follows Settings / Control Center
+  onVolume: (on) => { soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff; if (introUi) introUi.setSound(on); }, // the speaker icon follows Settings / Control Center
 });
 const world = createScene({ renderer, screenElement: desktop.root, wallArt: wallpaper.id, wallHours: wallpaper.hours });
 const { scene, mac } = world;
@@ -497,35 +497,11 @@ registerRoom({
   },
 });
 
-// ── intro sequence ─────────────────────────────────────────────────────
-const introLines = [`${content.name} Portfolio Showcase ${content.year}`, 'Click start to begin'];
-
-async function typeIntro() {
-  if (FAST) {
-    introText.textContent = introLines.join('\n');
-    startBtn.hidden = false;
-    return;
-  }
-  let out = '';
-  for (let li = 0; li < introLines.length; li++) {
-    for (const ch of introLines[li]) {
-      out += ch;
-      introText.textContent = out;
-      await new Promise((r) => setTimeout(r, 22 + Math.random() * 28));
-    }
-    out += '\n';
-    await new Promise((r) => setTimeout(r, 160));
-  }
-  startBtn.hidden = false;
-}
-typeIntro();
-
 startBtn.addEventListener('click', () => {
   sound.unlock();
   sound.click();
   sound.startAmbient();
-  intro.classList.add('out');
-  setTimeout(() => (intro.style.display = 'none'), 1000);
+  if (introUi) introUi.leave(); // the veil's blur melts while the camera pushes in
   state = 'ready';
   promptEl.classList.add('on');
   hud.classList.add('on'); // the HUD (and the "Discovered n/11" counter) is there from the first view
@@ -575,6 +551,19 @@ let timeOfDay = null;
 let ready = false;
 let resolveReady;
 const readyPromise = new Promise((res) => { resolveReady = res; });
+
+// the opening screen: a veil over the live room; its button appears when fonts and the first frame are really there
+introUi = createIntro({
+  fast: FAST,
+  name: content.name,
+  tagline: content.title,
+  year: content.year,
+  whenReady: readyPromise,
+  getHours: () => daylight.targetHours,
+  soundOn: () => sound.isEnabled() && system.get('volume') > 0,
+  onSoundToggle: () => soundBtn.click(),
+  reduceMotion: () => system.get('reduceMotion'),
+});
 let fps = 0, fpsFrames = 0, fpsT0 = performance.now();
 
 // While a full-screen game (NEON DRIFT, src/game3d) is open the room loop is stopped completely: ~0 GPU and CPU for the room.

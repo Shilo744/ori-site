@@ -149,7 +149,8 @@ export async function loadSite(session, origin, { fast = true, hash = '' } = {})
 /** Clicks START, then enters the MacBook screen with a real click. Resolves when the UI is interactive. */
 export async function enterScreen(session) {
   const { page, width, height } = session;
-  await page.click('#intro-start', { timeout: 15000 });
+  // (the intro test may already have started the page with the keyboard: then there is no button any more)
+  if (await page.evaluate(() => !!document.getElementById('intro-start'))) await page.click('#intro-start', { timeout: 15000 });
   await page.waitForFunction(() => window.__ori.state === 'ready', null, { timeout: 15000 });
   await sleep(1100); // the intro overlay fades out and stops capturing clicks
   await page.mouse.click(width / 2, height / 2);
