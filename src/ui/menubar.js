@@ -28,7 +28,9 @@ export function createMenubar({ root, menuLayer, appLabel, cc, wm, scale, power 
       edit: [{ l: 'Undo', k: '⌘Z', dis: true }, { l: 'Redo', k: '⇧⌘Z', dis: true }, { sep: 1 }, { l: 'Cut', k: '⌘X', dis: true }, { l: 'Copy', k: '⌘C', dis: true }, { l: 'Paste', k: '⌘V', dis: true }, { l: 'Select All', k: '⌘A', dis: true }],
       view: [{ l: 'as Icons', k: '⌘1', dis: true }, { l: 'as List', k: '⌘2', dis: true }, { sep: 1 }, { l: 'Enter Full Screen', k: '⌃⌘F', dis: true }],
       go: [{ l: 'Back', k: '⌘[', dis: true }, { l: 'Forward', k: '⌘]', dis: true }, { sep: 1 }, { l: 'Home', k: '⇧⌘H', a: () => wm.open('finder') }, { l: 'Applications', k: '⇧⌘A', dis: true }],
-      window: [{ l: 'Minimize', k: '⌘M', a: minimizeFront }, { l: 'Zoom', dis: true }, ...(ids.length ? [{ sep: 1 }] : []),
+      window: [{ l: 'Minimize', k: '⌘M', a: minimizeFront, dis: !ids.length }, { l: 'Zoom', k: '⌃⌘F', a: () => wm.zoom(), dis: !ids.length },
+        { l: 'Tile Window to Left of Screen', a: () => wm.snap(wm.front(), 'left'), dis: !ids.length }, { l: 'Tile Window to Right of Screen', a: () => wm.snap(wm.front(), 'right'), dis: !ids.length },
+        ...(ids.length ? [{ sep: 1 }] : []),
         ...ids.map((a) => ({ l: wm.get(a).def.menuTitle, a: () => wm.restore(a) }))],
       help: [{ l: `${name} Help`, a: () => wm.open('welcome') }],
     };

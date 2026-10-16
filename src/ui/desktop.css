@@ -109,13 +109,11 @@
   box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.3), 0 24px 60px rgba(8, 4, 30, 0.45);
   animation: win-in 0.2s cubic-bezier(.2, .9, .3, 1.15);
   transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.2s;
-  transform-origin: 50% 100%;
+  transform-origin: 50% 50%;
 }
 .mac .win:not(.active) { box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 10px 28px rgba(8, 4, 30, 0.3); }
 .mac .win.closing { opacity: 0; transform: scale(0.94); }
-.mac .win.min { opacity: 0; transform: translateY(260px) scale(0.25); pointer-events: none; }
-.mac .win.max { left: 0 !important; top: 32px !important; width: 100% !important; height: calc(100% - 32px) !important; border-radius: 0; }
-@keyframes win-in { from { opacity: 0; transform: scale(0.95); } }
+@keyframes win-in { from { opacity: 0; transform: scale(0.94); } }
 
 /* traffic lights */
 .mac .lights { position: absolute; z-index: 3; top: 19px; left: 16px; display: flex; gap: 9px; }
@@ -395,6 +393,10 @@
 .mac .cur[data-k='arrow'] .cu-arrow { display: block; width: 12.5px; height: 18.75px; left: -1.1px; top: -1px; }
 .mac .cur[data-k='hand'] .cu-hand { display: block; width: 18px; height: 19.8px; left: -6.6px; top: -1px; }
 .mac .cur[data-k='text'] .cu-text { display: block; width: 8px; height: 17px; left: -4px; top: -8.5px; }
+.mac .cur[data-k='ew'] .cu-ew { display: block; width: 20px; height: 14px; left: -10px; top: -7px; }
+.mac .cur[data-k='ns'] .cu-ns { display: block; width: 14px; height: 20px; left: -7px; top: -10px; }
+.mac .cur[data-k='nwse'] .cu-nwse, .mac .cur[data-k='nesw'] .cu-nesw { display: block; width: 16px; height: 16px; left: -8px; top: -8px; }
+.mac .cur[data-k='grab'] .cu-grab { display: block; width: 20px; height: 20px; left: -10px; top: -9px; }
 
 /* ───────── compact / phone layout ───────── */
 .mac.compact { font-size: 14px; }

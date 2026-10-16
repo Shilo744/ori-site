@@ -10,6 +10,7 @@ import { runCoreContract } from './lib/core-contract.mjs';
 import { GAME_TESTS } from './lib/games.mjs';
 import { runArcade } from './lib/arcade-test.mjs';
 import { runLid } from './lib/lid-test.mjs';
+import { runWm2 } from './lib/wm2-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -68,6 +69,9 @@ try {
 
     // Arcade launcher (covers, scores, real click / keyboard launch, tabs, terminal commands)
     await runArcade(s, { ok, fail });
+
+    // window manager v2: drag / resize / zoom / snap / minimise to the Dock / geometry memory
+    await runWm2(s, { ok, fail });
 
     // MacBook: lid, key presses, Sleep / Shut Down / Restart
     await runLid(s, { ok, fail });

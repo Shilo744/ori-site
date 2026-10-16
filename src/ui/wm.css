@@ -2,3 +2,43 @@
 .mac .win.win-std { flex-direction: column; }
 .mac .win-std > .tb { flex: none; justify-content: center; }
 .mac .wm-body { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+
+/* ───────── resize handles (invisible strips on every edge / corner) ───────── */
+.mac .rz { position: absolute; z-index: 8; display: block; }
+.mac .rz[data-rz='n'] { left: 14px; right: 14px; top: 0; height: 5px; }
+.mac .rz[data-rz='s'] { left: 14px; right: 14px; bottom: 0; height: 6px; }
+.mac .rz[data-rz='e'] { top: 14px; bottom: 14px; right: 0; width: 6px; }
+.mac .rz[data-rz='w'] { top: 14px; bottom: 14px; left: 0; width: 6px; }
+.mac .rz[data-rz='ne'] { top: 0; right: 0; width: 14px; height: 14px; }
+.mac .rz[data-rz='nw'] { top: 0; left: 0; width: 14px; height: 14px; }
+.mac .rz[data-rz='se'] { bottom: 0; right: 0; width: 15px; height: 15px; }
+.mac .rz[data-rz='sw'] { bottom: 0; left: 0; width: 15px; height: 15px; }
+.mac.compact .rz { display: none; }
+.mac .win.dragging { transition: box-shadow 0.2s; user-select: none; }
+
+/* zoom / snap: the geometry animates */
+.mac .win.geo { transition: opacity 0.16s ease, transform 0.16s ease, box-shadow 0.2s, left 0.28s cubic-bezier(.3, .7, .2, 1), top 0.28s cubic-bezier(.3, .7, .2, 1), width 0.28s cubic-bezier(.3, .7, .2, 1), height 0.28s cubic-bezier(.3, .7, .2, 1); }
+.mac .win[data-mode='left'], .mac .win[data-mode='right'] { border-radius: 10px; }
+
+/* minimise flies into the Dock (the JS sets --mx/--my to the Dock slot), restore flies back out */
+.mac .win.min { opacity: 0; transform: translate(var(--mx, 0px), var(--my, 260px)) scale(0.12); pointer-events: none; transition: transform 0.42s cubic-bezier(.55, 0, .85, .45), opacity 0.34s ease 0.1s, box-shadow 0.2s; }
+.mac .win.restoring { transition: transform 0.4s cubic-bezier(.2, .85, .25, 1), opacity 0.22s ease, box-shadow 0.2s; }
+
+/* the window you are not working in is a little quieter */
+.mac .win::after { content: ''; position: absolute; inset: 0; z-index: 7; pointer-events: none; border-radius: inherit; background: rgba(18, 20, 40, 0.07); opacity: 0; transition: opacity 0.18s; }
+.mac .win:not(.active)::after { opacity: 1; }
+.mac .win-game:not(.active)::after, .mac .win-terminal:not(.active)::after { background: rgba(0, 0, 0, 0.22); }
+
+/* drag-to-edge preview */
+.mac .snap-prev { position: absolute; z-index: 9; border-radius: 12px; pointer-events: none; opacity: 0; background: rgba(255, 255, 255, 0.18); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.6), 0 8px 30px rgba(0, 0, 0, 0.2); transition: left 0.16s, top 0.16s, width 0.16s, height 0.16s, opacity 0.14s; }
+.mac .snap-prev.on { opacity: 1; }
+
+/* minimised windows live in the Dock, right of the separator */
+.mac .dk.mini { --dk: 44px; }
+.mac .dk.mini .dki { transform: scale(0.9); border-radius: 10px; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5), 0 3px 10px rgba(0, 0, 0, 0.3); overflow: hidden; }
+.mac .dk.mini { animation: dk-mini-in 0.3s cubic-bezier(.2, .9, .3, 1.1); }
+@keyframes dk-mini-in { from { transform: scale(0.2); opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .mac .win.geo, .mac .win.min, .mac .win.restoring, .mac .snap-prev, .mac .dk.mini { transition-duration: 0s; animation: none; }
+}

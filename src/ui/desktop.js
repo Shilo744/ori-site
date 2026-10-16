@@ -9,6 +9,8 @@ import { shellHTML } from './shell.js';
 import { createWM } from './wm.js';
 import { createMenubar } from './menubar.js';
 import { createOverlays } from './overlays.js';
+import { esc } from './apps/shared.js';
+import { cursorForEdge } from './wm-interact.js';
 
 export function createDesktop(opts = {}) {
   const root = document.createElement('div');
@@ -51,6 +53,18 @@ export function createDesktop(opts = {}) {
     root.querySelectorAll('.dk[data-app]').forEach((b) => b.classList.toggle('on', running.has(b.dataset.app)));
   };
 
+  // minimised windows live in the Dock, right of the separator (so every window — also games — can be restored)
+  function miniItem(entry, on) {
+    if (!on) { if (entry.mini) entry.mini.remove(); return null; }
+    const b = document.createElement('button');
+    b.className = 'dk mini';
+    b.dataset.restore = entry.id;
+    b.setAttribute('aria-label', `Restore ${entry.title}`);
+    b.innerHTML = `<span class="dki">${entry.def.icon}</span><em>${esc(entry.title)}</em><u></u>`;
+    dock.insertBefore(b, q('[data-trash]'));
+    return b;
+  }
+
   // ── window manager, menubar, overlays ──
   const wm = createWM({
     root,
@@ -63,6 +77,8 @@ export function createDesktop(opts = {}) {
       beforeCreate: (def) => bounce(root.querySelector(`.dk[data-app="${def.dockId}"]`)),
       change: setDock,
       frontChange: (def) => { mbApp.textContent = def ? def.name : 'Finder'; },
+      mini: (entry, on) => miniItem(entry, on),
+      cursorLock: (kind) => lockCursor(kind),
     },
   });
   const power = { restart: () => restart(), shutdown: () => shutdown(), sleep: () => sleep() };
@@ -130,12 +146,13 @@ export function createDesktop(opts = {}) {
       sound.click();
       if (a === 'close') wm.close(entry.id);
       if (a === 'min') wm.minimize(entry.id);
-      if (a === 'max') wm.toggleMax(entry.id);
+      if (a === 'max') wm.zoom(entry.id);
       return;
     }
     const dk = t.closest('.dk');
     if (dk) {
       if (dk.dataset.trash) { sound.pop(); bounce(dk); return; }
+      if (dk.dataset.restore) { sound.pop(); wm.restore(dk.dataset.restore); return; }
       wm.open(dk.dataset.open);
       return;
     }
@@ -145,7 +162,13 @@ export function createDesktop(opts = {}) {
 
   root.addEventListener('dblclick', (e) => {
     const d = e.target.closest('[data-dopen]');
-    if (d) wm.open(d.dataset.dopen);
+    if (d) { wm.open(d.dataset.dopen); return; }
+    // double-click on a title bar (not on a control) zooms the window, like macOS
+    const bar = e.target.closest('[data-drag]');
+    if (bar && !e.target.closest('.lights, button, input, textarea, a, .ic, .nav, .seg, .search, .addr')) {
+      const entry = wm.entryOf(bar.closest('.win'));
+      if (entry) wm.zoom(entry.id);
+    }
   });
   root.addEventListener('mouseover', (e) => menubar.handleHover(e));
   root.addEventListener('pointerdown', (e) => wm.onPointerDown(e));
@@ -155,6 +178,19 @@ export function createDesktop(opts = {}) {
   // keys for the active app (games, shortcuts) — see ctx.onKey in wm.js
   window.addEventListener('keydown', (e) => wm.handleKey(e));
   window.addEventListener('keyup', (e) => wm.handleKey(e));
+  // window shortcuts: only combos the browser does not own. ⌘ combos work when the keyboard reports metaKey; the menu items always work.
+  window.addEventListener('keydown', (e) => {
+    if (isLocked() || !root.isConnected || !e.metaKey || e.altKey) return;
+    const front = wm.front();
+    let used = true;
+    if (e.ctrlKey && e.code === 'KeyF') { if (front) wm.zoom(front); }
+    else if (e.ctrlKey || e.shiftKey) used = false;
+    else if (e.code === 'KeyW' || e.code === 'KeyQ') { if (front) wm.close(front); }
+    else if (e.code === 'KeyM') { if (front) wm.minimize(front); }
+    else if (e.code === 'Comma') wm.open('settings');
+    else used = false;
+    if (used) e.preventDefault();
+  });
 
   // ── dock magnification (gaussian, like the real thing) ──
   let rest = null;
@@ -181,12 +217,22 @@ export function createDesktop(opts = {}) {
   // ── cursor (drawn inside the screen so it has the right size & perspective) ──
   const cur = q('.cur');
   cur.dataset.k = 'arrow';
+  let cursorKindLock = null; // while dragging / resizing a window the cursor keeps that shape
+  function lockCursor(kind) {
+    cursorKindLock = kind;
+    if (kind) cur.dataset.k = kind;
+  }
   function probeCursor(cx, cy) {
-    const el = document.elementFromPoint(cx, cy);
     let kind = 'arrow';
-    if (el && root.contains(el)) {
-      if (el.closest('input, textarea')) kind = 'text';
-      else if (el.closest('a[href]')) kind = 'hand';
+    if (cursorKindLock) kind = cursorKindLock;
+    else {
+      const el = document.elementFromPoint(cx, cy);
+      if (el && root.contains(el)) {
+        const rz = el.closest('[data-rz]');
+        if (rz && !isCompact()) kind = cursorForEdge(rz.dataset.rz);
+        else if (el.closest('input, textarea')) kind = 'text';
+        else if (el.closest('a[href]')) kind = 'hand';
+      }
     }
     if (cur.dataset.k !== kind) cur.dataset.k = kind;
   }
