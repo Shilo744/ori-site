@@ -87,3 +87,8 @@
 .nt-ic { flex: none; width: 20px; height: 20px; color: #ffcf5a; display: block; }
 .nt-ic svg { width: 100%; height: 100%; display: block; }
 .nt span { min-width: 0; overflow-wrap: anywhere; }
+
+/* a quiet notification arrived (no banner): the menu-bar clock gives a soft nudge */
+.mac #mb-clock.nudge { animation: mb-nudge 1.6s ease-out; }
+@keyframes mb-nudge { 0% { background: transparent; } 18% { background: rgba(255, 255, 255, 0.28); transform: scale(1.06); } 100% { background: transparent; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .mac #mb-clock.nudge { animation: none; } }

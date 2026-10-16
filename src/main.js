@@ -231,6 +231,7 @@ function enterScreen() {
         desktop.open('home');
       }
       bus.emit('screen:enter');
+      notifications.entered(); // a new visit: the limiter's quiet window starts
       startOnboarding({ fast: FAST, openSpotlight: () => desktop.openSpotlight(), open: (id, args) => desktop.open(id, args), isLive: () => state === 'screen' || state === 'flat' });
       runPendingOpen();
       if (wantsFlat()) { goFlat(); return; }
@@ -461,7 +462,15 @@ const notifUI = createNotificationUI({
   isScreenLive: () => state === 'screen' || state === 'flat', open: openApp, sound,
 });
 if (new URLSearchParams(location.search).has('quiet')) notifUI.quiet = true; // browser tests: keep banners off the UI under test
-bus.on('achievement:unlock', () => sound.trophy());
+bus.on('achievement:unlock', (a) => { if (a && a.rarity !== 'common') sound.trophy(); }); // common ones are silent (T50)
+if (FAST) notifications.setTimeScale(0.12); // ?fast=1 shrinks every wait, the limiter's too
+bus.on('notify', (note) => {
+  // held back (no banner, not Do Not Disturb): the menu-bar clock gives a soft nudge so the list is still discoverable
+  if (!note.shown && !note.silent) {
+    const c = desktop.root.querySelector('#mb-clock');
+    if (c) { c.classList.remove('nudge'); void c.offsetWidth; c.classList.add('nudge'); }
+  }
+});
 const trophiesEl = document.getElementById('hud-trophies');
 function syncTrophies(pop = false) {
   const c = achievements.counts();

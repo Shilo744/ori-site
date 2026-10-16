@@ -39,7 +39,7 @@ export function defaultAction(note, open) {
  * @param {{ pop: Function }} o.sound
  */
 export function createNotificationUI({ stack, toasts, isScreenLive, open, sound }) {
-  const api = { duration: 5000 };
+  const api = { duration: 4000 };
   const live = new Set();
 
   function makeItem(note, kind) {
@@ -62,7 +62,7 @@ export function createNotificationUI({ stack, toasts, isScreenLive, open, sound 
     const arm = () => { item.t0 = performance.now(); item.timer = setTimeout(() => dismiss(item), item.left); };
     const disarm = () => { clearTimeout(item.timer); item.left = Math.max(1200, item.left - (performance.now() - item.t0)); };
     el.addEventListener('pointerenter', () => { if (!item.gone) disarm(); });
-    el.addEventListener('pointerleave', () => { if (!item.gone) arm(); });
+    el.addEventListener('pointerleave', () => { if (!item.gone) { item.left = Math.min(item.left, 900); arm(); } }); // leaving the banner sends it away quickly
     el.addEventListener('click', (e) => {
       if (e.target.closest('.nb-x')) { dismiss(item); return; }
       if (action) { sound.pop(); action(); }
@@ -75,7 +75,8 @@ export function createNotificationUI({ stack, toasts, isScreenLive, open, sound 
     arm();
     // keep the stack short: the oldest banner leaves when a fourth arrives
     const mine = [...live].filter((x) => x.host === host);
-    if (mine.length > (kind === 'banner' ? MAX_BANNERS : 4)) dismiss(mine[0]);
+    if (mine.length > (kind === 'banner' ? MAX_BANNERS : 1)) dismiss(mine[0]);
+    report();
     return item;
   }
 
@@ -86,8 +87,12 @@ export function createNotificationUI({ stack, toasts, isScreenLive, open, sound 
     item.el.classList.remove('in');
     item.el.classList.add('out');
     live.delete(item);
+    report();
     setTimeout(() => item.el.remove(), 380);
   }
+
+  /** Tells the limiter how many banners / toasts are on screen (it lets only one at a time through). */
+  function report() { notifications.setVisible(live.size); }
 
   function sink(note) {
     if (isScreenLive()) { show(note, 'banner', stack); sound.pop(); } else show(note, 'toast', toasts);

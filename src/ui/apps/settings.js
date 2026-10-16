@@ -88,7 +88,12 @@ const BUILD = {
   },
   notifications: () => {
     const n = notifications.recent().length;
-    return grp(row('Do Not Disturb', sw('dnd', system.get('dnd'), 'Do Not Disturb'), 'Silences banners; they still land in the list'))
+    const bs = system.get('bannerStyle');
+    const segs = [['normal', 'Normal'], ['quiet', 'Quiet'], ['off', 'Off']].map(([id, label]) => `<button class="st-segb${bs === id ? ' on' : ''}" data-bs="${id}" aria-pressed="${bs === id}">${label}</button>`).join('');
+    return grp(
+      row('Banner style', `<div class="st-seg" role="group" aria-label="Banner style">${segs}</div>`, bs === 'quiet' ? 'One banner at a time, spaced out — the rest wait in the list' : bs === 'normal' ? 'More banners, still one at a time' : 'No banners at all; everything lands in the list'),
+      row('Do Not Disturb', sw('dnd', system.get('dnd'), 'Do Not Disturb'), 'Silences banners; they still land in the list'),
+    )
       + `<h3 class="st-h">Recent</h3>${grp(row(n ? `${n} notification${n === 1 ? '' : 's'}` : 'No notifications', n ? '<button class="st-btn" data-act-clear>Clear all</button>' : '', n ? notifications.recent()[0].title : 'Achievements and updates show up here.'))}`;
   },
   sound: () => {
@@ -180,6 +185,8 @@ registerApp({
       if (p) { sound.pop(); open(p.dataset.pane); return; }
       const t = e.target.closest('[data-tog]');
       if (t) { system.toggle(t.dataset.tog); sound.pop(); return; }
+      const bsb = e.target.closest('[data-bs]');
+      if (bsb) { system.set('bannerStyle', bsb.dataset.bs); sound.pop(); return; }
       const ap = e.target.closest('[data-ap]');
       if (ap) { theme.setAppearance(ap.dataset.ap); sound.pop(); return; }
       const ac = e.target.closest('[data-accent]');

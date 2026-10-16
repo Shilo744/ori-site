@@ -37,8 +37,28 @@ export function unlock(id) {
   save();
   const info = view(d);
   bus.emit('achievement:unlock', info);
-  notify({ title: 'Achievement unlocked', body: d.name, icon: d.icon, app: 'trophies' });
+  announce(d);
   return true;
+}
+
+// Common achievements unlock silently (they are counted and listed, no banner); the rare ones announce themselves, and a few
+// unlocking within a second are merged into ONE banner ("3 achievements unlocked").
+const batch = [];
+let batchTimer = 0;
+function announce(d) {
+  if (d.rarity === 'common') {
+    notify({ title: 'Achievement unlocked', body: d.name, icon: d.icon, app: 'trophies', level: 'quiet' });
+    return;
+  }
+  batch.push(d);
+  clearTimeout(batchTimer);
+  batchTimer = setTimeout(flush, 900);
+}
+function flush() {
+  const list = batch.splice(0);
+  if (!list.length) return;
+  if (list.length === 1) notify({ title: 'Achievement unlocked', body: list[0].name, icon: list[0].icon, app: 'trophies' });
+  else notify({ title: `${list.length} achievements unlocked`, body: list.map((x) => x.name).join(' · '), icon: list[0].icon, app: 'trophies' });
 }
 
 export function progress(id, n) {

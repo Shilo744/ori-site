@@ -103,3 +103,10 @@
 .mac.compact .st-ctl.wide { width: 170px; }
 .mac.compact .st-aps { gap: 8px; }
 .mac.compact .st-ap { width: 88px; }
+
+/* segmented control (Banner style) */
+.mac .st-seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--fill-s); gap: 2px; }
+.mac .st-segb { padding: 4px 12px; border-radius: 7px; font-size: 12.5px; color: var(--label2); transition: background 0.15s, color 0.15s; }
+.mac .st-segb:hover { color: var(--label); }
+.mac .st-segb.on { background: var(--pop-tile, #fff); color: var(--label); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); font-weight: 600; }
+.mac .st-segb:focus-visible { outline: 2px solid var(--ac); outline-offset: 1px; }

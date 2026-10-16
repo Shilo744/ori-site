@@ -17,9 +17,9 @@ export async function runNotify(session, { ok, fail }) {
   const shot = (name) => snap(session, join(SHOTS, 'smoke', `${tag}-notify-${name}.png`));
   const send = (n) => ev((x) => window.__ori.core.notifications.notify(x), n);
   const banners = () => ev(() => document.querySelectorAll('.mac .nb:not(.out)').length);
-  const reset = () => ev(() => { const o = window.__ori; o.banners.dismissAll(); o.core.notifications.clear(); o.core.system.set('dnd', false); o.banners.duration = 5000; });
+  const reset = () => ev(() => { const o = window.__ori; o.banners.dismissAll(); o.core.notifications.clear(); o.core.system.set('dnd', false); o.banners.duration = 4000; });
 
-  await ev(() => { window.__ori.banners.quiet = false; }); // this block is about the banners themselves
+  await ev(() => { window.__ori.banners.quiet = false; window.__ori.core.notifications.setBannerStyle('all'); }); // this block is about the banners themselves: no rate limit until the calm-notification checks
   // we need the screen
   if (!flat && (await ev(() => window.__ori.state)) !== 'screen') {
     await ev(() => window.__ori.enterScreen());
@@ -68,7 +68,7 @@ export async function runNotify(session, { ok, fail }) {
   check((await banners()) === 1, 'hovering a banner pauses its timer');
   await page.mouse.move(bp.x - 400, bp.y + 200);
   check(await until(() => document.querySelectorAll('.mac .nb:not(.out)').length === 0, null, 8000), '…and it goes when the pointer leaves');
-  await ev(() => { window.__ori.banners.duration = 5000; });
+  await ev(() => { window.__ori.banners.duration = 4000; });
 
   // click action + ×
   await ev(() => { window.__clicked = 0; window.__ori.core.notifications.notify({ title: 'Click me', body: 'action', onClick: () => { window.__clicked++; } }); });
@@ -82,7 +82,7 @@ export async function runNotify(session, { ok, fail }) {
   await sleep(150);
   await click('.mac .nb:not(.out) .nb-x');
   check(await until(() => document.querySelectorAll('.mac .nb:not(.out)').length === 0, null), 'the × button dismisses a banner');
-  await ev(() => { window.__ori.core.achievements.reset(); window.__ori.core.achievements.unlock('dark-side'); }); // (an earlier block may have unlocked it already)
+  await ev(() => { window.__ori.core.achievements.reset(); window.__ori.core.achievements.unlock('sudo'); }); // a rare one announces itself (the common ones are silent, see below)
   check(await until(() => /Achievement unlocked/.test(document.querySelector('.mac .nb:not(.out) strong')?.textContent || ''), null), 'unlocking an achievement shows a banner');
   await until(() => !!document.querySelector('.mac .nb.in:not(.out)'), null);
   await sleep(600); // the slide-in must be over before we aim at it (the rect is still off to the right while it moves)
@@ -90,6 +90,43 @@ export async function runNotify(session, { ok, fail }) {
   check(await until(() => !!document.querySelector('.mac .win-arcade') && document.querySelector('.mac .win-arcade .arc-tab.on')?.dataset.tab === 'trophies', null), 'clicking it opens the Arcade on the Achievements tab');
   await shot('trophies');
   await ev(() => window.__ori.desktop.reset());
+  await reset();
+
+  // ── calm notifications (T50) ──
+  await ev(() => { const c = window.__ori.core; c.achievements.reset(); c.achievements.unlock('dark-side'); }); // a common one
+  await sleep(1400);
+  const quietAch = await ev(() => ({ banners: document.querySelectorAll('.mac .nb:not(.out)').length, note: window.__ori.core.notifications.recent().find((n) => n.body === 'The dark side'), nudge: document.getElementById('mb-clock').classList.contains('nudge') }));
+  check(quietAch.banners === 0 && quietAch.note && quietAch.note.shown === false, 'a common achievement unlocks silently: no banner, but it is in the list');
+  check(quietAch.nudge, '…and the menu-bar clock gives a soft nudge');
+  await ev(() => { const c = window.__ori.core; c.achievements.reset(); ['app-hopper', 'game-night', 'high-roller'].forEach((id) => c.achievements.unlock(id)); });
+  check(await until(() => document.querySelectorAll('.mac .nb:not(.out)').length === 1 && /3 achievements unlocked/.test(document.querySelector('.mac .nb:not(.out) strong').textContent), null), 'three rare achievements at once are merged into ONE banner "3 achievements unlocked"');
+  await sleep(300);
+  check((await banners()) === 1, 'exactly one banner for them');
+  await ev(() => { window.__ori.core.achievements.reset(); });
+  await reset();
+  // the limiter: a flood of 45 notifications in 29 s (fake clock; the banner UI is told nothing is on screen) gives at most one banner in Quiet's first 30 s in Quiet; Off gives none; Normal more
+  const flood = await ev(() => {
+    const nn = window.__ori.core.notifications;
+    let base = 500000;
+    const run = (style) => {
+      nn.setBannerStyle(style); nn.setTimeScale(1);
+      let t = (base += 1000000);
+      nn.setClock(() => t);
+      nn.entered();
+      const before = nn.recent().length;
+      for (let i = 0; i < 45; i++) { t += 650; nn.setVisible(0); nn.notify({ title: 'Flood ' + style + i, body: 'x' }); }
+      nn.setClock(null);
+      const list = nn.recent().slice(0, 45);
+      window.__ori.banners.dismissAll();
+      return { shown: list.filter((n) => n.shown).length, kept: list.length };
+    };
+    const out = { quiet: run('quiet'), off: run('off'), normal: run('normal') };
+    nn.setTimeScale(0.12); nn.setBannerStyle('all');
+    return out;
+  });
+  check(flood.quiet.shown <= 1 && flood.quiet.kept === 45, `Quiet: ${flood.quiet.shown} banner(s) for a flood of 45 notifications in 29 s (all 45 still listed)`);
+  check(flood.off.shown === 0 && flood.off.kept === 45, 'Off: no banner at all');
+  check(flood.normal.shown > flood.quiet.shown && flood.normal.shown <= 8, `Normal is looser (${flood.normal.shown} banners) but still capped`);
   await reset();
 
   // ── Do Not Disturb ──
@@ -152,21 +189,38 @@ export async function runNotify(session, { ok, fail }) {
   check(t1 > t0 + 6, `${t1 - t0} more achievements unlocked by playing around`);
   await ev(() => window.__ori.desktop.reset());
 
-  if (flat) { await reset(); await ev(() => { window.__ori.banners.quiet = true; }); return; }
+  if (flat) { await reset(); await ev(() => { window.__ori.banners.quiet = true; window.__ori.core.notifications.setBannerStyle(window.__ori.core.system.get('bannerStyle')); }); return; }
 
   // ── the room: toasts instead of banners, the Trophies tag ──
   await reset();
   await page.keyboard.press('Escape');
   await until(() => window.__ori.state === 'overview', null, 30000);
   await send({ title: 'Toast!', body: 'seen from the room', app: 'trophies' });
-  check(await until(() => document.querySelectorAll('#toasts .nt.in').length === 1, null), 'in the room a black toast appears instead of a banner');
+  const toastOk = await until(() => document.querySelectorAll('#toasts .nt.in').length === 1, null);
+  check(toastOk, `in the room a black toast appears instead of a banner (${toastOk ? 'ok' : JSON.stringify(await ev(() => ({ nt: document.querySelectorAll('#toasts .nt').length, first: window.__ori.core.notifications.recent()[0], style: window.__ori.core.notifications.bannerStyle(), state: window.__ori.state })))})`);
   check((await ev(() => document.querySelectorAll('.mac .nb:not(.out)').length)) === 0, '…and no banner inside the (tiny) screen');
+  await send({ title: 'Toast 2', body: 'again' });
+  await send({ title: 'Toast 3', body: 'and again' });
+  await sleep(500);
+  check((await ev(() => document.querySelectorAll('#toasts .nt:not(.out)').length)) <= 1, 'toasts never stack: one at a time');
   await shot('toast');
   const c = await ev(() => window.__ori.core.achievements.counts());
   check((await ev(() => document.getElementById('hud-trophies').textContent)) === `Trophies ${c.unlocked}/${c.total}`, `the HUD tag reads "Trophies ${c.unlocked}/${c.total}"`);
   await click('#hud-trophies');
   check(await until(() => window.__ori.state === 'screen' && document.querySelector('.mac .win-arcade .arc-tab.on')?.dataset.tab === 'trophies', null, 40000), 'clicking the Trophies tag enters the screen and opens the Arcade → Achievements');
   await shot('trophies-tab');
+
+  // ── Settings → Notifications → Banner style ──
+  await ev(() => { window.__ori.desktop.reset(); window.__ori.openApp('settings'); });
+  await until(() => document.querySelector('.mac .win-settings [data-pane="notifications"]'), null);
+  await click('.mac .win-settings [data-pane="notifications"]');
+  await until(() => document.querySelector('.mac .win-settings [data-bs]'), null);
+  check((await ev(() => document.querySelectorAll('.mac .win-settings [data-bs]').length)) === 3 && (await ev(() => document.querySelector('.mac .win-settings [data-bs].on').dataset.bs)) === 'quiet', 'Settings → Notifications has Banner style: Normal / Quiet / Off, Quiet is the default');
+  await click('.mac .win-settings [data-bs="off"]');
+  check((await ev(() => window.__ori.core.system.get('bannerStyle') === 'off' && window.__ori.core.notifications.bannerStyle() === 'off')), 'choosing Off reaches the limiter');
+  await click('.mac .win-settings [data-bs="quiet"]');
+  check((await ev(() => window.__ori.core.notifications.bannerStyle() === 'quiet')), '…and back to Quiet');
+  await ev(() => { window.__ori.core.notifications.setBannerStyle('all'); window.__ori.desktop.reset(); });
 
   // ── Reset progress (Settings → General) ──
   await ev(() => { window.__ori.desktop.reset(); window.__ori.openApp('settings'); });
@@ -180,7 +234,7 @@ export async function runNotify(session, { ok, fail }) {
   check(await until(() => window.__ori.core.achievements.counts().unlocked === 0, null), 'a second click resets the achievements');
   check((await ev(() => window.__ori.core.storage.get('onboarded', null))) === null && (await ev(() => window.__ori.core.storage.keys('scores:').length)) === 0, '…the high scores and the onboarding flag too');
   check((await ev(() => document.getElementById('hud-trophies').textContent)).startsWith('Trophies 0/'), 'the Trophies tag follows');
-  await ev(() => { window.__ori.desktop.reset(); window.__ori.core.storage.set('onboarded', true); window.__ori.banners.quiet = true; });
+  await ev(() => { window.__ori.desktop.reset(); window.__ori.core.storage.set('onboarded', true); window.__ori.banners.quiet = true; window.__ori.core.notifications.setBannerStyle(window.__ori.core.system.get('bannerStyle')); });
   await page.keyboard.press('Escape');
   await until(() => window.__ori.state === 'overview', null, 30000);
 }
@@ -198,9 +252,14 @@ export async function runNotifyOnboarding(session, { ok, fail }) {
   await until(() => window.__ori.state === 'ready', null);
   await page.evaluate(() => window.__ori.enterScreen());
   await until((f) => window.__ori.state === (f ? 'flat' : 'screen'), flat, 30000);
-  check(await until(() => window.__ori.core.notifications.recent().filter((n) => n.app !== 'trophies').length >= 4, null, 30000), 'four friendly notifications arrive after the first entry');
-  const titles = await page.evaluate(() => window.__ori.core.notifications.recent().map((n) => n.title).reverse());
-  check(/Welcome/.test(titles.join()) && /Spotlight/.test(titles.join()) && /Arcade/.test(titles.join()) && /terminal/i.test(titles.join()), `welcome → Spotlight → Arcade → terminal (${titles.filter((t) => !/Achievement/.test(t)).join(' | ')})`);
+  check(await until(() => window.__ori.core.notifications.recent().filter((n) => !/Achievement/.test(n.title)).length >= 1, null, 30000), 'the one onboarding tip arrives after the first entry');
+  await new Promise((r) => setTimeout(r, 2500));
+  const tips = await page.evaluate(() => window.__ori.core.notifications.recent().filter((n) => !/Achievement/.test(n.title)));
+  check(tips.length === 1 && /Spotlight/.test(tips[0].title), `a single quiet tip, not four (${tips.map((t) => t.title).join(' | ')})`);
+  const shownCount = await page.evaluate(() => window.__ori.core.notifications.recent().filter((n) => n.shown).length);
+  check(shownCount <= 1, `at most one banner in the first moments on the screen (${shownCount})`);
+  await new Promise((r) => setTimeout(r, 400));
+  await page.screenshot({ path: join(SHOTS, `T50-quiet-entry${flat ? '-phone' : ''}.png`) });
   check(await page.evaluate(() => window.__ori.core.storage.get('onboarded', false) === true), 'it only runs once (flag stored)');
   // a second visit stays quiet
   await page.reload({ waitUntil: 'domcontentloaded' });

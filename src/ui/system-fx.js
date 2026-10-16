@@ -24,6 +24,7 @@ export function createSystemFx({ root, onSound }) {
         document.documentElement.classList.toggle('reduce-motion', !!v);
         break;
       case 'dnd': notifications.setDoNotDisturb(!!v); break;
+      case 'bannerStyle': notifications.setBannerStyle(v); break;
       case 'wifi': case 'bluetooth': case 'airdrop': root.classList.toggle(`${key}-off`, !v); break;
       default: break;
     }

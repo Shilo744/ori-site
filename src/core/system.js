@@ -7,7 +7,7 @@ import { bus } from './bus.js';
 const prefersReduced = () => { try { return !!window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 
 const defaults = () => ({
-  wifi: true, bluetooth: true, airdrop: false, dnd: false,
+  wifi: true, bluetooth: true, airdrop: false, dnd: false, bannerStyle: 'quiet',
   volume: 70, muted: false,
   brightness: 100, nightShift: false,
   reduceMotion: prefersReduced(),
