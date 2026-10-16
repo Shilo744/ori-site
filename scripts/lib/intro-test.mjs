@@ -23,7 +23,7 @@ export async function runIntro(session, { ok, fail }) {
     };
   });
   check(info.role === 'dialog' && info.modal === 'true' && info.labelled === 'intro-title', 'it is a modal dialog labelled by the title');
-  check(/blur\(28px\)/.test(info.blur || ''), `a frosted veil over the live room (${info.blur})`);
+  check(/blur\(20px\)/.test(info.blur || ''), `a frosted veil over the live room (${info.blur})`);
   check(!info.oldBox && !info.mono, 'the old bordered monospace box is gone');
   check(info.title === 'Ori Asher' && /Creative Developer · Portfolio 2026/.test(info.sub), 'the name and the tagline');
   check(!info.btnHidden && info.btnText === 'Enter' && info.focused, 'the Enter button is there (the room is ready) and has the focus');
@@ -43,6 +43,14 @@ export async function runIntro(session, { ok, fail }) {
   });
   check(tones[13] === 'light' && tones[23] === 'dark' && tones[18] === 'warm', `the veil follows the time of day (${JSON.stringify(tones)})`);
 
+  // the Enter button is focused by script so Return works — that must not draw a focus ring; Tab (keyboard users) does
+  const ring0 = await ev(() => { const b = document.getElementById('intro-start'); const cs = getComputedStyle(b); return { outline: cs.outlineStyle, shadow: cs.boxShadow, kbd: document.getElementById('intro').classList.contains('kbd') }; });
+  check(ring0.outline === 'none' && !ring0.kbd && !/0px 0px 0px 3px/.test(ring0.shadow), `no focus ring on the Enter button until the keyboard is used (${ring0.outline})`);
+  await page.keyboard.press('Tab');
+  await sleep(100);
+  check(await ev(() => document.getElementById('intro').classList.contains('kbd') && document.activeElement !== document.getElementById('intro-start')), '…Tab (a keyboard user) switches the focus rings on');
+  await page.focus('#intro-start');
+
   // the sound pill shares the speaker's state
   const snd0 = await ev(() => document.getElementById('intro-sound').getAttribute('aria-pressed'));
   await page.click('#intro-sound');
@@ -60,7 +68,7 @@ export async function runIntro(session, { ok, fail }) {
   check(await until(() => document.getElementById('intro') && document.getElementById('intro').classList.contains('leaving')), 'Return starts the transition');
   await sleep(350);
   const mid = await ev(() => { const v = document.querySelector('#intro .iv-veil'); return v ? getComputedStyle(v).backdropFilter : 'gone'; });
-  check(/blur\(/.test(mid) && !/blur\(28px\)/.test(mid), `mid-transition the blur is melting (${mid})`);
+  check(/blur\(/.test(mid) && !/blur\(20px\)/.test(mid), `mid-transition the blur is melting (${mid})`);
   check(await until(() => !document.getElementById('intro'), null, 4000), 'afterwards the whole element is removed (no blur / will-change left)');
   check(await ev(() => !document.getElementById('hud').hasAttribute('inert')), 'the page is interactive again');
 }

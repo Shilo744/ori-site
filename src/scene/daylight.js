@@ -171,9 +171,27 @@ export function createDaylight({ scene, renderer, sun, hemi, fill, mats, skyMat,
     root.style.setProperty('--bg1', `#${s.bg1.getHexString()}`);
     root.style.setProperty('--bg2', `#${s.bg2.getHexString()}`);
     root.style.setProperty('--bg3', `#${s.bg3.getHexString()}`);
-    root.style.setProperty('--vig', `rgba(${Math.round(30 - 22 * s.night)}, ${Math.round(30 - 22 * s.night)}, ${Math.round(50 - 26 * s.night)}, ${s.vig.toFixed(3)})`);
+    root.style.setProperty('--vig', `rgba(${Math.round(30 - 22 * s.night)}, ${Math.round(30 - 22 * s.night)}, ${Math.round(50 - 26 * s.night)}, ${(s.vig * 0.7).toFixed(3)})`);
     if (theme) theme.setAttribute('content', `#${s.bg2.getHexString()}`);
+    glassTokens(s.night);
     appliedHours = s.hours;
+  }
+
+  // the HUD glass (ui/hud.css reads --g-*): white frosted glass by day, deep blue-graphite at night; written only when the 1/40 step changes
+  function glassTokens(night) {
+    const step = Math.round(night * 40);
+    if (step === glassTokens.step) return;
+    glassTokens.step = step;
+    const n = step / 40;
+    const mix = (a, b) => Math.round(a + (b - a) * n);
+    const f2 = (a, b) => (a + (b - a) * n).toFixed(2);
+    root.style.setProperty('--g-bg', `rgba(${mix(255, 24)}, ${mix(255, 29)}, ${mix(255, 48)}, ${f2(0.6, 0.56)})`);
+    root.style.setProperty('--g-bg-hover', `rgba(${mix(255, 44)}, ${mix(255, 52)}, ${mix(255, 82)}, ${f2(0.82, 0.78)})`);
+    root.style.setProperty('--g-ink', `rgb(${mix(29, 245)}, ${mix(29, 245)}, ${mix(31, 247)})`);
+    root.style.setProperty('--g-ink2', `rgba(${mix(40, 226)}, ${mix(40, 230)}, ${mix(48, 248)}, ${f2(0.7, 0.72)})`);
+    root.style.setProperty('--g-edge', `rgba(255, 255, 255, ${f2(0.55, 0.16)})`);
+    root.style.setProperty('--g-shadow', `0 6px 22px rgba(${mix(20, 0)}, ${mix(24, 0)}, ${mix(40, 8)}, ${f2(0.14, 0.45)})`);
+    root.style.setProperty('--g-accent', `rgb(${mix(0, 10)}, ${mix(113, 132)}, ${mix(227, 255)})`);
   }
 
   function lampTarget() { return lampOverride == null ? shown.lamp : lampOverride ? 1 : 0; }

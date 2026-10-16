@@ -13,8 +13,8 @@ const GREETINGS = [
 ];
 const WORD_MS = 1450;
 const MIN_SHOW_MS = 1500; // the greeting is seen at least this long before the button appears
-const SPEAKER = '<path d="M3.5 9.5v5h3.6L12 18.5v-13L7.100 9.500z"/><path class="w" d="M15.500 9a4.300 4.300 0 0 1 0 6M18.200 6.500a8 8 0 0 1 0 11"/>';
-const SPEAKER_OFF = '<path d="M3.5 9.5v5h3.6L12 18.5v-13L7.100 9.500z"/><path d="M16 9.500l5 5M21 9.500l-5 5"/>';
+const SPEAKER = '<path d="M3.5 9.5v5h3.6L12 18.5v-13L7.1 9.5z"/><path class="w" d="M15.5 9a4.3 4.3 0 0 1 0 6M18.2 6.5a8 8 0 0 1 0 11"/>';
+const SPEAKER_OFF = '<path d="M3.5 9.5v5h3.6L12 18.5v-13L7.1 9.5z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/>';
 
 /**
  * @param {object} o
@@ -123,6 +123,9 @@ export function createIntro({ fast = false, name, tagline, year, whenReady, getH
     el.btn.click();
   };
   window.addEventListener('keydown', onKey);
+  // the focus ring is for keyboard users only: the button is focused by script so Return works, which must not draw a ring by itself
+  const onKbd = (e) => { if (e.key === 'Tab' || e.key.startsWith('Arrow')) root.classList.add('kbd'); };
+  window.addEventListener('keydown', onKbd);
 
   cycle();
 
@@ -135,6 +138,7 @@ export function createIntro({ fast = false, name, tagline, year, whenReady, getH
       gone = true;
       clearTimeout(waitTimer);
       window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onKbd);
       window.removeEventListener('ori:settime', onSetTime);
       inertTargets.forEach((n) => n.removeAttribute('inert'));
       if (anim) { try { anim.cancel(); } catch { /* done */ } }

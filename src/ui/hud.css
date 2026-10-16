@@ -1,0 +1,93 @@
+/* The room HUD, one glass system (T47): translucent blurred pills and cards, Inter / SF, 1px inner border, soft shadow, adaptive to the
+   light of the room (the tokens are written by scene/daylight.js), SF-like stroke icons, 44px targets on touch. */
+:root {
+  --ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
+  --g-bg: rgba(255, 255, 255, 0.6);
+  --g-bg-hover: rgba(255, 255, 255, 0.82);
+  --g-ink: #1d1d1f;
+  --g-ink2: rgba(40, 40, 48, 0.68);
+  --g-edge: rgba(255, 255, 255, 0.55);
+  --g-shadow: 0 6px 22px rgba(20, 24, 40, 0.14);
+  --g-accent: #0071e3;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font: 500 13px/1 var(--ui);
+  letter-spacing: -0.005em;
+  color: var(--g-ink);
+  background: var(--g-bg);
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 13px;
+  box-shadow: inset 0 0 0 1px var(--g-edge), var(--g-shadow);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  backdrop-filter: blur(20px) saturate(1.4);
+  transition: background-color 0.18s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s ease, opacity 0.3s ease;
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .tag { background: color-mix(in srgb, var(--g-bg) 92%, #888); } }
+
+#hud { gap: 8px; }
+#hud-name { font-weight: 650; font-size: 14px; }
+#hud-title { font-size: 12.5px; color: var(--g-ink2); font-weight: 500; }
+#hud-clock { font-variant-numeric: tabular-nums; padding-inline: 12px; }
+#hud .row { gap: 8px; align-items: center; }
+#hud .btn {
+  width: 40px; height: 40px; padding: 0; border-radius: 999px; display: grid; place-items: center;
+}
+#hud .btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+#hud .btn:hover, #hud-trophies:hover, .nav-chev:hover { background: var(--g-bg-hover); transform: scale(1.05); }
+#hud .btn:active, #hud-trophies:active, .nav-chev:active { transform: scale(0.95); }
+#hud .btn:focus-visible, #hud-trophies:focus-visible, .nav-chev:focus-visible, #prompt:focus-visible, .st-dots button:focus-visible { outline: 2px solid var(--g-accent); outline-offset: 2px; }
+#hud-found, #hud-trophies { font-size: 12px; padding: 7px 11px; opacity: 1; color: var(--g-ink2); font-variant-numeric: tabular-nums; }
+#hud-trophies { border: 0; }
+#hud-trophies:hover { color: var(--g-ink); }
+@keyframes foundPop { 0% { transform: scale(1); } 30% { transform: scale(1.1); background: var(--g-bg-hover); color: var(--g-accent); } 100% { transform: scale(1); } }
+
+/* hover label for the things in the room */
+#room-tag { font: 500 12.5px/1 var(--ui); padding: 7px 11px; border-radius: 10px; }
+
+/* the start prompt and the hint: a glass pill with a soft pulsing dot instead of a blinking black box */
+#prompt, #hint { font: 500 14px/1 var(--ui); padding: 12px 18px 12px 16px; border-radius: 999px; bottom: max(30px, calc(18px + env(safe-area-inset-bottom))); }
+#prompt::before { content: ''; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--g-accent); box-shadow: 0 0 0 0 color-mix(in srgb, var(--g-accent) 50%, transparent); animation: promptDot 1.8s ease-out infinite; }
+#prompt.on { animation: none; }
+@keyframes promptDot { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--g-accent) 55%, transparent); } 70%, 100% { box-shadow: 0 0 0 9px transparent; } }
+#prompt.on.nudge { animation: promptNudge 0.6s ease; }
+@keyframes promptNudge { 0% { transform: translateX(-50%) scale(1); } 30% { transform: translateX(-50%) scale(1.06); background: var(--g-bg-hover); } 100% { transform: translateX(-50%) scale(1); } }
+@keyframes blink { 50% { opacity: 1; } }
+
+/* look-around chevrons + station dots */
+.nav-chev { width: 44px; height: 44px; border-radius: 999px; padding: 0; justify-content: center; color: var(--g-ink); }
+.nav-chev svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.nav-chev:disabled { opacity: 0.3; }
+.nav-chev .bd { top: -6px; left: auto; right: -4px; margin: 0; min-width: 20px; height: 20px; border-radius: 10px; background: var(--g-accent); color: #fff; font: 600 11px/20px var(--ui); box-shadow: 0 0 0 2px var(--g-bg-hover), 0 2px 6px rgba(0, 0, 0, 0.2); }
+@keyframes chevHint { 0%, 100% { transform: translateY(-50%) scale(1); } 50% { transform: translateY(-50%) scale(1.14); background: var(--g-bg-hover); } }
+@keyframes chevHintL { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(-5px, -50%); background: var(--g-bg-hover); } }
+@keyframes chevHintR { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(5px, -50%); background: var(--g-bg-hover); } }
+.st-dots { padding: 8px 12px; border-radius: 999px; gap: 9px; background: var(--g-bg); box-shadow: inset 0 0 0 1px var(--g-edge), var(--g-shadow); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); bottom: max(86px, calc(74px + env(safe-area-inset-bottom))); }
+.st-dots button { background: color-mix(in srgb, var(--g-ink) 28%, transparent); }
+.st-dots button:hover { background: color-mix(in srgb, var(--g-ink) 62%, transparent); }
+.st-dots button.on { background: var(--g-ink); }
+
+@media (pointer: coarse) {
+  #hud .btn, .nav-chev { width: 44px; height: 44px; }
+  #hud-trophies, #hud-found { padding: 10px 13px; }
+  .st-dots button { width: 12px; height: 12px; }
+}
+@media (max-width: 640px) {
+  .tag { font-size: 12.5px; padding: 8px 11px; }
+  #hud { top: 12px; left: 12px; gap: 6px; }
+  #hud .btn { width: 40px; height: 40px; }
+  #prompt, #hint { max-width: calc(100vw - 28px); white-space: normal; text-align: center; padding: 11px 16px; font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #prompt::before { animation: none; }
+  .tag, .nav-chev { transition: none; }
+}
+
+/* in-room notification toasts (the same glass) */
+#toasts .nt { background: var(--g-bg); color: var(--g-ink); font: 500 13px/1.35 var(--ui); letter-spacing: -0.005em; border-radius: 14px; padding: 10px 14px; box-shadow: inset 0 0 0 1px var(--g-edge), var(--g-shadow); -webkit-backdrop-filter: blur(20px) saturate(1.4); backdrop-filter: blur(20px) saturate(1.4); }
+#toasts .nt.act:hover { background: var(--g-bg-hover); }
+#toasts .nt-ic { color: #f5a623; width: 18px; height: 18px; }

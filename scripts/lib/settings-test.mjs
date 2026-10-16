@@ -122,7 +122,7 @@ export async function runSettings(session, { ok, fail }) {
   check((await sys('volume')) === 30 && Math.abs((await ev(() => window.__ori.audio().volume)) - 0.3) < 0.001, 'Output volume slider drives the audio master volume (30%)');
   await click(`${win} [data-tog="muted"]`);
   check(await until(() => window.__ori.core.system.get('muted') === true && window.__ori.audio().enabled === false, null), 'Mute switch silences the audio engine');
-  check((await ev(() => document.getElementById('btn-sound').innerHTML)).includes('M16 9.5l5 5'), 'the speaker button in the corner shows "muted" too');
+  check(await ev(() => { const b = document.getElementById('btn-sound'); return /M16 9\.5l5 5/.test(b.innerHTML) && b.getAttribute('aria-pressed') === 'false'; }), 'the speaker button in the corner shows "muted" too (cross icon, aria-pressed=false)');
   await click(`${win} [data-tog="muted"]`);
   check(await until(() => window.__ori.core.system.get('muted') === false && window.__ori.audio().enabled === true, null), 'Unmuting restores the sound');
   await ev(() => { const s = document.querySelector('.mac .win-settings [data-sld="volume"]'); s.value = '70'; s.dispatchEvent(new Event('input', { bubbles: true })); });

@@ -1,4 +1,5 @@
 import './styles.css';
+import './ui/hud.css';
 import * as THREE from 'three';
 import { CSS3DRenderer } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
 import { createScene } from './scene/index.js';
@@ -23,6 +24,7 @@ import { startTrackers } from './ui/trackers.js';
 import { createNotificationUI } from './ui/notifications.js';
 import { startOnboarding } from './ui/onboarding.js';
 import { createIntro } from './ui/intro.js';
+import { HUD_ICON, TIME_ICON } from './ui/hud-icons.js';
 import { installCursors } from './ui/cursors.js';
 import { listGames } from './ui/games/catalog.js';
 import { listApps as listRegisteredApps } from './ui/apps/registry.js';
@@ -54,21 +56,11 @@ $('hud-name').textContent = content.name;
 $('hud-title').textContent = content.title;
 document.title = `${content.name} — Portfolio ${content.year}`;
 
-const ICON = {
-  soundOn: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a8.5 8.5 0 0 1 0 12" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
-  soundOff: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 4V5L7 9z"/><path d="M16 9.5l5 5M21 9.5l-5 5" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round"/></svg>',
-  zoomOut: '<svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h2.5l1.2-1.6h6.6L16.5 5H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zm9 9.6a4.1 4.1 0 1 0 0-8.2 4.1 4.1 0 0 0 0 8.2z"/></svg>',
-};
-soundBtn.innerHTML = ICON.soundOn;
-viewBtn.innerHTML = ICON.zoomOut;
+soundBtn.innerHTML = HUD_ICON.soundOn;
+soundBtn.setAttribute('aria-pressed', 'true');
+viewBtn.innerHTML = HUD_ICON.view;
 
-// time-of-day button: icon follows the mode (auto / day / golden hour / night)
-const TIME_ICON = {
-  auto: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18z"/><path d="M12 3a9 9 0 0 1 0 18z" opacity=".4"/><circle cx="17" cy="7" r="1.4"/></svg>',
-  day: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.6"/><g stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g></svg>',
-  golden: '<svg viewBox="0 0 24 24"><path d="M6 16a6 6 0 0 1 12 0z"/><g stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 5.5v2.4M4.2 9.4l1.7 1.6M19.8 9.4l-1.7 1.6M2.5 19.5h19M7 22.2h10"/></g></svg>',
-  night: '<svg viewBox="0 0 24 24"><path d="M20 14.6A8.4 8.4 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6z"/><circle cx="17.4" cy="5.6" r="1.1"/><circle cx="20.4" cy="9.4" r=".8"/></svg>',
-};
+// time-of-day button: icon follows the mode (auto / day / golden hour / night) — ui/hud-icons.js
 const TIME_LABEL = { auto: 'Auto (local time)', day: 'Day', golden: 'Golden hour', night: 'Night' };
 
 // ── renderer ───────────────────────────────────────────────────────────
@@ -92,7 +84,7 @@ const desktop = createDesktop({
   fast: FAST,
   onPower: (kind) => handlePower(kind),
   night: () => nightLevel(),
-  onVolume: (on) => { soundBtn.innerHTML = on ? ICON.soundOn : ICON.soundOff; if (introUi) introUi.setSound(on); }, // the speaker icon follows Settings / Control Center
+  onVolume: (on) => { soundBtn.innerHTML = on ? HUD_ICON.soundOn : HUD_ICON.soundOff; soundBtn.setAttribute('aria-pressed', String(on)); if (introUi) introUi.setSound(on); }, // the speaker icon follows Settings / Control Center
 });
 const world = createScene({ renderer, screenElement: desktop.root, wallArt: wallpaper.id, wallHours: wallpaper.hours });
 const { scene, mac } = world;
