@@ -90,7 +90,6 @@ export function createMaterials(tex) {
     fabricWhite: std(0xf1f1f3, 0.95),
     lamp: new THREE.MeshStandardMaterial({ color: 0xfff7e8, emissive: 0xffe9c4, emissiveIntensity: 1.2, roughness: 0.7 }),
     led: new THREE.MeshBasicMaterial({ color: 0xfff6e6, toneMapped: false }),
-    sky: new THREE.MeshBasicMaterial({ map: tex.sky, toneMapped: false }),
   };
 }
 

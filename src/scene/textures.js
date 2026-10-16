@@ -246,45 +246,6 @@ export function posterTexture(kind = 0) {
   return toTexture(c);
 }
 
-/** Sky + skyline seen through the window. */
-export function skylineTexture() {
-  const W = 1024, H = 512;
-  const [c, g] = canvas(W, H);
-  const grd = g.createLinearGradient(0, 0, 0, H);
-  grd.addColorStop(0, '#9ec8ee');
-  grd.addColorStop(0.55, '#d6e8f6');
-  grd.addColorStop(1, '#fff3e0');
-  g.fillStyle = grd;
-  g.fillRect(0, 0, W, H);
-  // soft clouds
-  const r = rng(11);
-  for (let i = 0; i < 9; i++) {
-    const cx = r() * W, cy = 60 + r() * 150;
-    for (let k = 0; k < 6; k++) {
-      g.fillStyle = 'rgba(255,255,255,0.35)';
-      g.beginPath();
-      g.ellipse(cx + (k - 3) * 28, cy + (r() - 0.5) * 14, 50 + r() * 30, 18 + r() * 8, 0, 0, Math.PI * 2);
-      g.fill();
-    }
-  }
-  // buildings
-  const layers = [
-    { col: '#c7d6e6', min: 70, max: 190 },
-    { col: '#aebfd2', min: 50, max: 150 },
-  ];
-  for (const L of layers) {
-    let x = -20;
-    while (x < W) {
-      const bw = 40 + r() * 70, bh = L.min + r() * (L.max - L.min);
-      g.fillStyle = L.col;
-      g.fillRect(x, H - bh, bw, bh);
-      x += bw + r() * 6;
-    }
-  }
-  return toTexture(c, { srgb: true });
-}
-
-
 /* ───────── Apple-store style materials & device screens ───────── */
 
 /** Pale large-format stone floor, 60 × 120 cm tiles in a running bond. One texture = 120 × 120 cm. */

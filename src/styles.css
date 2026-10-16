@@ -24,7 +24,7 @@ html, body {
 
 #vignette {
   position: fixed; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(30, 30, 50, 0.22) 100%);
+  background: radial-gradient(ellipse at center, transparent 55%, var(--vig, rgba(30, 30, 50, 0.22)) 100%);
 }
 
 /* terminal-style labels (like the reference site) */

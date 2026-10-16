@@ -29,6 +29,7 @@ const introText = $('intro-text');
 const startBtn = $('intro-start');
 const soundBtn = $('btn-sound');
 const viewBtn = $('btn-view');
+const timeBtn = $('btn-time');
 const clockEl = $('hud-clock');
 
 $('hud-name').textContent = content.name;
@@ -42,6 +43,15 @@ const ICON = {
 };
 soundBtn.innerHTML = ICON.soundOn;
 viewBtn.innerHTML = ICON.zoomOut;
+
+// time-of-day button: icon follows the mode (auto / day / golden hour / night)
+const TIME_ICON = {
+  auto: '<svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18z"/><path d="M12 3a9 9 0 0 1 0 18z" opacity=".4"/><circle cx="17" cy="7" r="1.4"/></svg>',
+  day: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.6"/><g stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 2.5v2.6M12 18.9v2.6M2.5 12h2.6M18.9 12h2.6M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></g></svg>',
+  golden: '<svg viewBox="0 0 24 24"><path d="M6 16a6 6 0 0 1 12 0z"/><g stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"><path d="M12 5.5v2.4M4.2 9.4l1.7 1.6M19.8 9.4l-1.7 1.6M2.5 19.5h19M7 22.2h10"/></g></svg>',
+  night: '<svg viewBox="0 0 24 24"><path d="M20 14.6A8.4 8.4 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6z"/><circle cx="17.4" cy="5.6" r="1.1"/><circle cx="20.4" cy="9.4" r=".8"/></svg>',
+};
+const TIME_LABEL = { auto: 'Auto (local time)', day: 'Day', golden: 'Golden hour', night: 'Night' };
 
 // ── renderer ───────────────────────────────────────────────────────────
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -70,6 +80,15 @@ const desktop = createDesktop({
 const world = createScene({ renderer, screenElement: desktop.root });
 const { scene, mac } = world;
 mac.setLid(false, 0); // the laptop starts shut; START opens it
+const daylight = world.daylight;
+if (FAST) daylight.transitionSeconds = 0.2; // tests: the 1.5 s cross-fade would take ~30 frames at software-GL speed
+function syncTimeBtn() {
+  timeBtn.innerHTML = TIME_ICON[daylight.mode];
+  timeBtn.title = `Time of day: ${TIME_LABEL[daylight.mode]} (T)`;
+  timeBtn.setAttribute('aria-label', `Time of day: ${TIME_LABEL[daylight.mode]}`);
+}
+syncTimeBtn();
+timeBtn.addEventListener('click', () => { sound.click(); daylight.cycleMode(); syncTimeBtn(); });
 
 const camera = new THREE.PerspectiveCamera(26, 1, 5, 12000);
 
@@ -286,6 +305,13 @@ soundBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  // T cycles the time of day (only while looking at the room, never while typing)
+  if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && state !== 'screen' && state !== 'flat' && state !== 'entering' && !(e.target.closest && e.target.closest('input, textarea'))) {
+    sound.click();
+    daylight.cycleMode();
+    syncTimeBtn();
+    return;
+  }
   if (e.key === 'Escape') {
     if (e.defaultPrevented) return; // the active app used Esc itself (e.g. a game pausing)
     if (state === 'screen' && desktop.closeOverlays()) return;
@@ -452,7 +478,7 @@ function frame() {
 
   // display glow on the keys when close
   const near = THREE.MathUtils.clamp(1 - (dist - 40) / 400, 0, 1);
-  mac.glow.intensity = near * 1800 * mac.openness;
+  mac.glow.intensity = near * 1800 * mac.openness * daylight.state.screen;
 
   world.update(dt, t, state);
 
@@ -516,9 +542,11 @@ window.__ori = {
   loops: () => kit.loopsRunning(),
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
-  /** Time of day in hours (0–24). No-op until the daylight system (T9) listens to it. */
+  daylight,
+  /** Time of day in hours (0–24): jumps there instantly (mode stays whatever it was; the clock override wins until setMode). */
   setTime(hours) {
     timeOfDay = hours;
+    daylight.setHours(hours, 0);
     window.dispatchEvent(new CustomEvent('ori:settime', { detail: { hours } }));
   },
   get time() { return timeOfDay; },

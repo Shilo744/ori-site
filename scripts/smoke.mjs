@@ -11,6 +11,7 @@ import { GAME_TESTS } from './lib/games.mjs';
 import { runArcade } from './lib/arcade-test.mjs';
 import { runLid } from './lib/lid-test.mjs';
 import { runWm2 } from './lib/wm2-test.mjs';
+import { runDaylight } from './lib/daylight-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -103,6 +104,9 @@ try {
       await page.evaluate(() => window.__ori.setView('free'));
       log(`  stats: ${stats.calls} draw calls · ${stats.triangles} triangles · ${stats.geometries} geometries · ${stats.textures} textures · ~${stats.fps} fps (software GL)`);
     }
+
+    // time of day: reference hours, lamp, HUD button / T key, cross-fade (leaves the camera in the room view)
+    await runDaylight(s, { ok, fail });
 
     // core services (reloads the page to prove persistence, so it runs last)
     await runCoreContract(s, { ok, fail });

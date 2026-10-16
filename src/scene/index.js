@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  woodTexture, stoneTexture, blobShadowTexture, rectShadowTexture, skylineTexture, rugTexture,
+  woodTexture, stoneTexture, blobShadowTexture, rectShadowTexture, rugTexture,
   feltTexture, wallTexture, wallArtTexture, phoneScreenTexture, padScreenTexture,
 } from './textures.js';
 import {
@@ -13,6 +13,8 @@ import {
   createVase, createFloorLamp, createBench, createShelf, createPanel, roundedRectShape, slabGeo, smooth,
 } from './props.js';
 import { createMacBook } from './macbook.js';
+import { createSkyMaterial } from './sky.js';
+import { createDaylight } from './daylight.js';
 
 const ROOM = { x0: -270, x1: 270, z0: -220, z1: 220, h: 290, t: 12 };
 const DESK_TOP = 76.6;
@@ -45,7 +47,6 @@ export function createScene({ renderer, screenElement }) {
   const tex = {
     floor: stoneTexture({ repeat: [1 / 120, 1 / 120], aniso }),
     oak,
-    sky: skylineTexture(),
     felt,
     rug: rugTexture(),
     wallB,
@@ -144,7 +145,8 @@ export function createScene({ renderer, screenElement }) {
   }
 
   // what you see outside
-  const sky = new THREE.Mesh(new THREE.PlaneGeometry(380, 250), m.sky);
+  const skyMat = createSkyMaterial(); // driven by the daylight system (uniforms only)
+  const sky = new THREE.Mesh(new THREE.PlaneGeometry(380, 250), skyMat);
   sky.position.set(x0 - 40, wcy + 8, wcz);
   sky.rotation.y = Math.PI / 2;
   scene.add(sky);
@@ -185,7 +187,11 @@ export function createScene({ renderer, screenElement }) {
   contact(blob, 56, 56, 148, -118, 0.05);
 
   // slim floor lamp left of the desk
-  add(createFloorLamp(m), -118, 0, -198);
+  const floorLamp = add(createFloorLamp(m), -118, 0, -198);
+  // a real warm light in the globe (intensity driven by the daylight system / lamp.setOn)
+  const lampLight = new THREE.PointLight(0xffb36b, 0, 0, 2);
+  lampLight.position.set(0, 163, 0);
+  floorLamp.add(lampLight);
   contact(blob, 44, 44, -118, -198, 0.05);
 
   // pill bench under the window
@@ -247,7 +253,8 @@ export function createScene({ renderer, screenElement }) {
   sun.shadow.radius = 3;
   scene.add(sun, sun.target);
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xdcd8d0, 0.5));
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xdcd8d0, 0.5);
+  scene.add(hemi);
 
   const fill = new THREE.DirectionalLight(0xe6edff, 0.38);
   fill.position.set(500, 300, 600);
@@ -256,9 +263,17 @@ export function createScene({ renderer, screenElement }) {
   // physical keyboard presses the 3D keys (visible whenever the camera looks at the laptop)
   mac.keys.bind();
 
+  // time of day: sun/moon, sky, ambient light, tints, lamp, page background
+  const daylight = createDaylight({
+    scene, renderer, sun, hemi, fill, mats: m, skyMat, lampLight,
+    sky: { center: sky.position.clone(), w: 380, h: 250 },
+    target: sun.target.position,
+  });
+
   /** Per-frame hook (called from the render loop with dt seconds, time, and the camera state). */
   const update = (dt) => {
+    daylight.update(dt);
     mac.update(dt);
   };
-  return { scene, mac, update, lights: { sun, fill }, ROOM };
+  return { scene, mac, update, daylight, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
 }
