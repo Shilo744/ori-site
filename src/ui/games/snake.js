@@ -497,7 +497,7 @@ registerApp({
     });
 
     // read-only view of the game for the test harness (scripts/lib/game-snake.mjs)
-    el.__debug = { get state() { return state; }, get score() { return score; }, get food() { return food; }, get head() { return snake[0]; }, get dir() { return dir; }, get length() { return snake.length; } };
+    el.__debug = { get state() { return state; }, get score() { return score; }, get food() { return food; }, get head() { return snake[0]; }, get dir() { return dir; }, get length() { return snake.length; }, set stepTime(v) { stepTime = v; } /* test hook: slow the snake down so lifecycle checks do not race it */ };
 
     modeBtn.querySelector('b').textContent = wrap ? 'WRAP' : 'WALLS';
     drawBackground();

@@ -28,7 +28,7 @@ export async function runTetris(session, { ok, fail }) {
   check(s.music === true, 'the chiptune music starts with the run (music flag on)');
 
   // ── move / rotate / hold ──
-  await dbg((d) => d.forceQueue(['T', 'I', 'O', 'L', 'J', 'S', 'Z']));
+  await dbg((d) => d.forceQueue(['I', 'O', 'L', 'J', 'S', 'Z', 'T']));
   await dbg((d) => d.respawn('T'));
   const p0 = (await st()).piece;
   await press('ArrowLeft');
@@ -48,7 +48,7 @@ export async function runTetris(session, { ok, fail }) {
   check(s.hold === 'T' && s.piece.type === 'I', 'holding twice in one turn is ignored');
   const consumed = await page.evaluate(() => {
     const out = [];
-    for (const code of ['ArrowDown', 'ArrowUp', 'Space']) { const ev = new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }); window.dispatchEvent(ev); out.push(ev.defaultPrevented); }
+    for (const code of ['ArrowDown', 'ArrowUp', 'Space']) { const ev = new KeyboardEvent('keydown', { code, key: code, bubbles: true, cancelable: true }); window.dispatchEvent(ev); out.push(ev.defaultPrevented); window.dispatchEvent(new KeyboardEvent('keyup', { code, key: code, bubbles: true })); } // release again: a held Down would soft-drop at real speed
     return out;
   });
   check(consumed.every(Boolean), 'arrows / Space are preventDefault-ed (no page scroll)');
@@ -79,7 +79,7 @@ export async function runTetris(session, { ok, fail }) {
   };
   await dbg((d) => d.set({ level: 1, lines: 0, b2b: false }));
   const t1 = await dropI();
-  check(t1.col === 9, 'the I piece reached the right-hand well');
+  check(t1.col === 9, 'the I piece reached the right-hand well (' + JSON.stringify(t1) + ')');
   await waitState('clearing').catch(() => {});
   await shot('clear');
   await waitState('playing');

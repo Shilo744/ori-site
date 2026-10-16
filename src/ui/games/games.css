@@ -45,6 +45,7 @@
 .mac .gk-toggle:active { transform: scale(0.96); }
 .mac .gk-toggle:focus-visible, .mac .gk-btn:focus-visible, .mac .gk-pb:focus-visible { outline: 2px solid var(--gk-cyan); outline-offset: 2px; }
 
+.mac .gk-toggle.gk-on { border-color: rgba(255, 61, 166, 0.7); box-shadow: 0 0 14px rgba(255, 61, 166, 0.35); }
 .mac .gk-toggle:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
 .mac .gk-fit { flex: none; }
 

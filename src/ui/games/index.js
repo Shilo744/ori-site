@@ -2,3 +2,4 @@
 import './snake.js';
 import './g2048.js';
 import './tetris.js';
+import './minesweeper.js';

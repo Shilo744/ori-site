@@ -23,7 +23,7 @@ const LOCK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 
 /** Rows of every score table: one per game, plus one per variant (e.g. Snake · Wrap). */
 function tables(games) {
-  return games.flatMap((g) => [{ info: g, id: g.id, label: '' }, ...g.variants.map((v) => ({ info: g, id: v.id, label: v.label }))]);
+  return games.flatMap((g) => [{ info: g, id: g.id, label: g.baseLabel || '' }, ...g.variants.map((v) => ({ info: g, id: v.id, label: v.label }))]);
 }
 
 export function renderLeaderboard(selected) {

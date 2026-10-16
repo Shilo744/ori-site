@@ -61,6 +61,8 @@ export async function runSnake(session, { ok, fail }) {
   const eaten = await dbg();
   check(eaten.score >= 1, `the snake eats food and scores (score ${eaten.score}, length ${eaten.len})`);
   check((await hud('score')) === String(eaten.score), 'HUD score follows the game');
+  // at real (GPU) speed the snake could hit a wall during the lifecycle checks below (it may be right next to one): freeze it to one step per 5 s
+  await page.evaluate(() => { document.querySelector('.win-snake .wm-body').__debug.stepTime = 5; });
   // freeze the run for a clean mid-game screenshot (overlay hidden just for the picture)
   await page.keyboard.press('KeyP');
   await sleep(150);
@@ -103,6 +105,7 @@ export async function runSnake(session, { ok, fail }) {
   await page.keyboard.press('Space');
 
   // run into the wall → game over, score recorded, Enter restarts
+  await page.evaluate(() => { document.querySelector('.win-snake .wm-body').__debug.stepTime = 0.09; });
   await waitFor(() => { const o = document.querySelector('.win-snake .gk-ov'); return o && !o.hidden && /game over/i.test(o.querySelector('.gk-kicker').textContent); });
   check(true, 'running into a wall ends the run');
   await sleep(300);

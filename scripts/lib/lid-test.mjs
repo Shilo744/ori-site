@@ -29,11 +29,12 @@ export async function runLid(session, { ok, fail }) {
     check(l0.angle > 100 && l0.open && l0.vis === '', `the lid is open at the desktop (${l0.angle.toFixed(0)}°) and the screen is shown`);
 
     // key presses follow real keyboard events (and release again)
+    // the key is a spring: wait for it to arrive (polling — at real GPU speed a fixed number of frames is only milliseconds)
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyA', key: 'a', bubbles: true })));
-    await settle(session, 3);
+    await page.waitForFunction(() => window.__ori.mac.keys.depthOf('KeyA') > 0.5, null, { timeout: 5000 }).catch(() => {});
     const pressed = await ev(() => window.__ori.mac.keys.depthOf('KeyA'));
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyA', key: 'a', bubbles: true })));
-    await settle(session, 8);
+    await page.waitForFunction(() => window.__ori.mac.keys.depthOf('KeyA') < 0.1, null, { timeout: 5000 }).catch(() => {});
     const released = await ev(() => window.__ori.mac.keys.depthOf('KeyA'));
     check(pressed > 0.5, `keydown presses the 3D key (depth ${pressed.toFixed(2)})`);
     check(released < 0.1, `keyup lets it spring back (depth ${released.toFixed(2)})`);
