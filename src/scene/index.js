@@ -4,14 +4,18 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import {
-  woodTexture, stoneTexture, blobShadowTexture, rectShadowTexture, rugTexture,
+  woodTexture, stoneTexture, blobShadowTexture, rectShadowTexture,
   feltTexture, wallTexture, wallArtTexture, phoneScreenTexture, padScreenTexture,
 } from './textures.js';
+import { leafTexture, meshFabricTexture, photoTexture, lampGlowTexture, rugTexture2, noiseBump } from './textures2.js';
 import {
-  createMaterials, createDesk, createChair, createFiddlePlant, createFrame, createMug,
-  createMouse, createIPhone, createIPad, createAirPods, createHomePod, createRug, createSideTable,
+  createMaterials, createDesk, createChair, createFiddlePlant, createFrame, createRug, createSideTable,
   createVase, createFloorLamp, createBench, createShelf, createPanel, roundedRectShape, slabGeo, smooth,
 } from './props.js';
+import {
+  createMug, createMouse, createIPhone, createIPad, createAirPods, createHomePod, createDeskMat, createNotebook,
+  createBooksStack, createSucculent, createHeadphones, createPhotoFrame, createCable,
+} from './props-devices.js';
 import { createMacBook } from './macbook.js';
 import { createSkyMaterial } from './sky.js';
 import { createDaylight } from './daylight.js';
@@ -48,9 +52,13 @@ export function createScene({ renderer, screenElement }) {
     floor: stoneTexture({ repeat: [1 / 120, 1 / 120], aniso }),
     oak,
     felt,
-    rug: rugTexture(),
+    rug: rugTexture2(),
     wallB,
     wallL,
+    leaf: leafTexture(),
+    noise: noiseBump(5),
+    lampGlow: lampGlowTexture(),
+    meshFabric: meshFabricTexture(),
   };
   tex.rug.anisotropy = aniso;
   const m = createMaterials(tex);
@@ -206,19 +214,50 @@ export function createScene({ renderer, screenElement }) {
   add(createShelf(m, { length: 112, depth: 20 }), -200, 132, z0 + 10.2);
 
   // ── desk: the ecosystem, arranged calmly ──
+  const MAT_T = 0.34; // desk-mat thickness
+  add(createDeskMat(m), deskX + 22, DESK_TOP, deskZ + 16, 0.08);
   add(createIPad(m, padScreenTexture()), deskX - 54, DESK_TOP, deskZ - 2, 0.3);
   add(createIPhone(m, phoneScreenTexture()), deskX - 24, DESK_TOP, deskZ + 24, -0.32);
   add(createAirPods(m), deskX - 5, DESK_TOP, deskZ + 32, 0.5);
-  add(createMouse(), deskX + 40, DESK_TOP, deskZ + 22, 0.1);
+  add(createMouse(), deskX + 40, DESK_TOP + MAT_T, deskZ + 22, 0.1);
   add(createMug(m), deskX + 72, DESK_TOP, deskZ + 20);
   add(createHomePod(m), deskX + 76, DESK_TOP, deskZ - 20);
+  // lived-in: notebook + pen, books, a succulent, headphones on a stand, a photo frame
+  add(createNotebook(m), deskX - 62, DESK_TOP, deskZ + 20, 0.22);
+  add(createBooksStack(m), deskX - 66, DESK_TOP, deskZ - 28, -0.12);
+  add(createHeadphones(m), deskX + 46, DESK_TOP, deskZ - 30, -0.4);
+  add(createSucculent(m), deskX + 64, DESK_TOP, deskZ - 24);
+  add(createPhotoFrame(m, photoTexture(0)), deskX + 22, DESK_TOP, deskZ - 28, 0.12);
+  contact(rectSh, 20, 27, deskX - 62, deskZ + 20, DESK_TOP + 0.06, 0.22, 0.7);
+  contact(rectSh, 30, 36, deskX - 66, deskZ - 28, DESK_TOP + 0.06, -0.12, 0.7);
+  contact(blob, 18, 18, deskX + 46, deskZ - 30, DESK_TOP + 0.06, 0, 0.8);
+  contact(blob, 13, 13, deskX + 64, deskZ - 24, DESK_TOP + 0.06, 0, 0.8);
+  contact(rectSh, 17, 8, deskX + 22, deskZ - 28, DESK_TOP + 0.06, 0.12, 0.7);
+  contact(blob, 13, 13, deskX + 72, deskZ + 20, DESK_TOP + 0.06, 0, 0.7);
+  contact(blob, 11, 11, deskX + 76, deskZ - 20, DESK_TOP + 0.06, 0, 0.7);
 
-  // ── MacBook ──
+  // ── MacBook (on the desk mat) ──
   const mac = createMacBook({ screenElement, aniso });
-  mac.group.position.set(deskX, DESK_TOP, deskZ + 4);
+  mac.group.position.set(deskX, DESK_TOP + MAT_T, deskZ + 4);
   mac.group.rotation.y = 0.3;
   scene.add(mac.group);
-  contact(rectSh, 42, 34, deskX, deskZ + 4, DESK_TOP + 0.06, 0.3, 0.9);
+  contact(rectSh, 42, 34, deskX, deskZ + 4, DESK_TOP + MAT_T + 0.06, 0.3, 0.9);
+  contact(rectSh, 66, 38, deskX + 22, deskZ + 16, DESK_TOP + 0.06, 0.08, 0.5);
+
+  // USB-C cable from the MacBook's left port, slackly across the desk and down through the grommet
+  mac.group.updateMatrixWorld(true);
+  const port = mac.group.localToWorld(new THREE.Vector3(-15.55, 0.4, 3.0));
+  const cy = DESK_TOP + MAT_T + 0.3;
+  scene.add(createCable(m, [
+    port, new THREE.Vector3(port.x - 5, cy, port.z + 1.2), new THREE.Vector3(port.x - 13, cy - 0.1, port.z - 4),
+    new THREE.Vector3(deskX - 30, DESK_TOP + 0.25, deskZ - 14), new THREE.Vector3(deskX - 36, DESK_TOP + 0.22, deskZ - 24),
+    new THREE.Vector3(deskX - 34, DESK_TOP - 0.2, deskZ - 29), new THREE.Vector3(deskX - 34, DESK_TOP - 2.8, deskZ - 29.2),
+  ]));
+  const plug = new THREE.Mesh(new RoundedBoxGeometry(2.6, 0.7, 1.2, 2, 0.3), m.silver);
+  plug.position.set(port.x - 1.0, port.y, port.z);
+  plug.rotation.y = mac.group.rotation.y;
+  plug.castShadow = true;
+  scene.add(plug);
 
   // ── ground shadow catcher (the "void" stays the page background) ──
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.ShadowMaterial({ opacity: 0.26 }));

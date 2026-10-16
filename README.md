@@ -78,7 +78,9 @@ src/main.js              מצלמה, מעברים, אינטראקציה, לול�
 src/content.js           ← התוכן של האתר
 src/audio.js             צלילים (WebAudio, בלי קבצי אודיו)
 src/scene/index.js       החדר: קירות, חלון, אורות, סידור הרהיטים
-src/scene/props.js       שולחן, כיסא, צמחים, מנורות, ספרים…
+src/scene/props.js       שולחן, כיסא, צמח, מנורה, ספה/ספסל, מדף… + החומרים (שמן/שיער לבד/קרמיקה ב-Physical)
+src/scene/props-devices.js   מכשירים ואביזרי שולחן: iPhone/iPad/AirPods/HomePod/עכבר, מחברת, אוזניות, סוקולנט, מסגרת, כבל
+src/scene/merge.js       איחוד meshes סטטיים לפי חומר (פחות draw calls)   ·   src/scene/textures2.js  טקסטורות פרוצדורליות נוספות
 src/scene/macbook.js     ה-MacBook Air (מודל פרוצדורלי + המסך החי)
 src/screen-size.js       גודל המסך הלוגי — מספר קטן יותר = כפתורים וטקסט גדולים יותר
 src/scene/textures.js    טקסטורות שנוצרות בקוד (עץ, פוסטרים, מקלדת…)

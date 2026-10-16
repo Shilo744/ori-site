@@ -55,7 +55,7 @@ function deckGeometry(layout, pad) {
   const shape = rrShape(DECK.w, DECK.d, 1.0);
   const m = 0.075; // gap around every cap
   layout.keys.forEach((k) => shape.holes.push(roundedRectPath(THREE.Path, k.x, -k.z, k.w + 2 * m, k.d + 2 * m, CAP.r + m)));
-  shape.holes.push(roundedRectPath(THREE.Path, pad.x, -pad.z, pad.w + 0.14, pad.d + 0.14, pad.r + 0.07));
+  shape.holes.push(roundedRectPath(THREE.Path, pad.x, -pad.z, pad.w + 0.09, pad.d + 0.09, pad.r + 0.045)); // a hairline gap, not a black frame
   const geo = new THREE.ShapeGeometry(shape, 4);
   geo.rotateX(-Math.PI / 2);
   const pos = geo.attributes.position, uv = geo.attributes.uv;
@@ -107,6 +107,12 @@ export function createMacBook({ screenElement, aniso = 8, openAngleDeg = OPEN_DE
   well.position.y = WELL_Y;
   well.receiveShadow = true;
   group.add(well);
+
+  // the trackpad's gap reads as a soft grey seam (not a hard black outline): a mid-grey plate under its cut-out
+  const padWell = new THREE.Mesh(new THREE.ShapeGeometry(rrShape(pad.w + 0.2, pad.d + 0.2, pad.r + 0.1), 12), new THREE.MeshStandardMaterial({ color: 0x8c8f96, roughness: 0.6, metalness: 0.5 }));
+  padWell.rotation.x = -Math.PI / 2;
+  padWell.position.set(pad.x, WELL_Y + 0.0008, pad.z);
+  group.add(padWell);
 
   const dt = deckTextures({ w: DECK.w, d: DECK.d, kbHalfW: layout.halfW, kbTop: layout.top, kbBottom: layout.bottom, aniso });
   const deckMat = new THREE.MeshStandardMaterial({
