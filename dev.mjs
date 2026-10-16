@@ -8,7 +8,7 @@ const ctx = await esbuild.context({
   outfile: 'public/app.js',
   sourcemap: true,
   logLevel: 'info',
-  loader: { '.woff2': 'file' },
+  loader: { '.woff2': 'file', '.jpg': 'dataurl' },
 });
 
 await ctx.watch();

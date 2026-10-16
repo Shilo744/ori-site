@@ -12,6 +12,7 @@ await esbuild.build({
   format: 'iife',
   target: 'es2020',
   outfile: 'dist/app.js',
+  loader: { '.jpg': 'dataurl' },
   legalComments: 'none',
 });
 

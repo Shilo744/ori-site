@@ -24,7 +24,8 @@
     "test:drift3d": "node scripts/e2e-block.mjs drift",
     "test:driftrace": "node scripts/e2e-block.mjs drift-race",
     "test:intro": "node scripts/e2e-intro.mjs",
-    "test:cursors": "node scripts/test-cursors.mjs && node scripts/e2e-block.mjs cursors"
+    "test:cursors": "node scripts/test-cursors.mjs && node scripts/e2e-block.mjs cursors",
+    "test:favors": "node scripts/test-favors.mjs && node scripts/e2e-block.mjs favors3d"
   },
   "dependencies": {
     "three": "^0.170.0"

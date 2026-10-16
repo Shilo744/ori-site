@@ -1,0 +1,59 @@
+/* "Ori, Can You...?" — the in-game overlay: a glass clock, the place label, a stamina bar, the pause menu and the touch controls.
+   The shell (.g3d, .g3d-menu, .g3d-card, .g3d-btn) comes from game3d.css; everything here is prefixed fv-. */
+.g3d[data-game='favors'] { --fv-glass: rgba(20, 24, 36, 0.55); --fv-edge: rgba(255, 255, 255, 0.16); --fv-ink: #f5f6fa; --fv-ink2: rgba(235, 238, 250, 0.7); --fv-accent: #ff9f43; background: #bcd4ea; }
+.g3d[data-game='favors'].booting::after {
+  content: 'Ori, Can You...?'; font: 700 34px Inter, system-ui, sans-serif; font-style: normal; letter-spacing: -0.01em; color: #1d1d1f; text-shadow: none;
+  background: radial-gradient(ellipse at 50% 55%, #fdf3e3, #cfe0f1 75%);
+}
+.g3d[data-game='favors'] .g3d-card { background: linear-gradient(180deg, rgba(36, 40, 58, 0.96), rgba(22, 25, 38, 0.96)); }
+.g3d[data-game='favors'] .g3d-card h2 { font-style: normal; font-weight: 750; letter-spacing: -0.01em; }
+.g3d[data-game='favors'] .g3d-btn.primary { background: linear-gradient(135deg, #ffb25b, #ff7a59); color: #1d1208; box-shadow: 0 8px 28px rgba(255, 122, 89, 0.35); }
+.g3d[data-game='favors'] .g3d-btn:hover, .g3d[data-game='favors'] .g3d-btn:focus-visible { border-color: rgba(255, 178, 91, 0.7); }
+
+.fv-hud { position: absolute; inset: 0; pointer-events: none; z-index: 2; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--fv-ink); }
+.fv-hud[hidden] { display: none; }
+.fv-glass { background: var(--fv-glass); border: 1px solid var(--fv-edge); border-radius: 16px; -webkit-backdrop-filter: blur(16px) saturate(1.4); backdrop-filter: blur(16px) saturate(1.4); box-shadow: 0 8px 28px rgba(8, 10, 20, 0.28); }
+
+.fv-clock { position: absolute; top: max(14px, env(safe-area-inset-top)); left: max(14px, env(safe-area-inset-left)); padding: 10px 16px 11px; min-width: 128px; }
+.fv-clock b { display: block; font: 700 30px/1 Inter, system-ui, sans-serif; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.fv-clock span { display: block; margin-top: 4px; font-size: 12px; color: var(--fv-ink2); font-weight: 500; }
+.fv-day { height: 3px; margin-top: 9px; border-radius: 3px; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
+.fv-day i { display: block; height: 100%; width: 0; background: var(--fv-accent); border-radius: 3px; }
+
+.fv-place { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 50%; transform: translate(-50%, -6px); padding: 8px 16px; font: 600 14px/1 Inter, system-ui, sans-serif; opacity: 0; transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1); white-space: nowrap; border-radius: 999px; }
+.fv-place.on { opacity: 1; transform: translate(-50%, 0); }
+.fv-place small { color: var(--fv-ink2); font-weight: 500; margin-right: 6px; }
+
+.fv-tr { position: absolute; top: max(14px, env(safe-area-inset-top)); right: max(14px, env(safe-area-inset-right)); display: flex; gap: 10px; align-items: center; }
+.fv-btn { pointer-events: auto; width: 42px; height: 42px; border-radius: 999px; border: 0; display: grid; place-items: center; color: var(--fv-ink); padding: 0; transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease; }
+.fv-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fv-btn:hover { background-color: rgba(60, 66, 90, 0.7); transform: scale(1.06); }
+.fv-btn:active { transform: scale(0.94); }
+.fv-btn:focus-visible { outline: 2px solid var(--fv-accent); outline-offset: 2px; }
+
+.fv-stam { position: absolute; left: 50%; bottom: max(26px, env(safe-area-inset-bottom)); width: min(220px, 50vw); height: 6px; transform: translateX(-50%); border-radius: 6px; background: rgba(20, 24, 36, 0.4); border: 1px solid var(--fv-edge); overflow: hidden; opacity: 0; transition: opacity 0.3s ease; }
+.fv-stam.on { opacity: 1; }
+.fv-stam i { display: block; height: 100%; width: 100%; transform-origin: left; background: linear-gradient(90deg, #ffb25b, #ff7a59); border-radius: 6px; }
+.fv-stam.low i { background: linear-gradient(90deg, #ff6b6b, #ff3b3b); }
+
+.fv-keys { position: absolute; left: max(14px, env(safe-area-inset-left)); bottom: max(14px, env(safe-area-inset-bottom)); padding: 9px 13px; font-size: 12px; color: var(--fv-ink2); display: flex; flex-wrap: wrap; gap: 4px 14px; max-width: 420px; transition: opacity 0.6s ease; border-radius: 12px; }
+.fv-keys.off { opacity: 0; }
+.fv-keys kbd { font: 600 11px Inter, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.16); color: var(--fv-ink); margin-right: 2px; }
+
+.fv-toasts { position: absolute; top: 76px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.fv-toast { padding: 8px 16px; font: 600 14px/1.2 Inter, system-ui, sans-serif; border-radius: 999px; animation: fv-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fv-toast.out { opacity: 0; transform: translateY(-6px); transition: opacity 0.3s ease, transform 0.3s ease; }
+@keyframes fv-in { from { opacity: 0; transform: translateY(-8px) scale(0.96); } to { opacity: 1; transform: none; } }
+
+/* touch controls */
+.fv-touch { position: absolute; inset: 0; pointer-events: none; display: none; }
+.fv-touch.on { display: block; }
+.fv-pad { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: max(28px, env(safe-area-inset-bottom)); width: 132px; height: 132px; border-radius: 50%; pointer-events: auto; touch-action: none; background: rgba(20, 24, 36, 0.38); border: 1px solid var(--fv-edge); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.fv-pad i { position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); transition: transform 0.08s linear; }
+.fv-act { position: absolute; right: max(24px, env(safe-area-inset-right)); width: 68px; height: 68px; border-radius: 50%; pointer-events: auto; touch-action: none; border: 1px solid var(--fv-edge); color: var(--fv-ink); font: 700 13px Inter, system-ui, sans-serif; background: rgba(20, 24, 36, 0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.fv-act.sprint { bottom: max(30px, env(safe-area-inset-bottom)); }
+.fv-act.do { bottom: calc(max(30px, env(safe-area-inset-bottom)) + 84px); background: rgba(255, 159, 67, 0.7); }
+.fv-act.on { transform: scale(0.94); background: rgba(255, 178, 91, 0.85); }
+
+@media (max-width: 640px) { .fv-clock b { font-size: 24px; } .fv-clock { min-width: 108px; } .fv-keys { display: none; } }
+@media (prefers-reduced-motion: reduce) { .fv-toast, .fv-place { animation: none; transition: none; } }

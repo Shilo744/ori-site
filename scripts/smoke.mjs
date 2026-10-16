@@ -15,6 +15,7 @@ import { runDaylight } from './lib/daylight-test.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
 import { runCursors } from './lib/cursor-test.mjs';
+import { runFavors3d } from './lib/favors3d-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
@@ -139,6 +140,9 @@ try {
 
     // NEON DRIFT gameplay: menu + garage, flyover, countdown, a race with rivals, results, records, time trial + ghost
     await runDriftRace(s, { ok, fail });
+
+    // Ori, Can You...? (src/game3d/favors): the neighbourhood, Ori on foot, the day clock, pause, clean quit
+    await runFavors3d(s, { ok, fail });
 
     // settings persistence + first-run onboarding (both reload the page)
     await runSettingsReload(s, { ok, fail });

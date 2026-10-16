@@ -1,12 +1,23 @@
-// NEON DRIFT host: opens the full-viewport overlay above the whole site, owns the WebGL renderer + the loop, pauses the room
-// while it runs, and tears everything down again on quit (geometries, materials, textures, renderer, GL context). The game itself
-// (menus, race, HUD) is game.js; the host only gives it a renderer, an overlay, the keyboard and the clock.
+// The 3D game host: opens the full-viewport overlay above the whole site, owns the WebGL renderer + the loop, pauses the room
+// while it runs, and tears everything down again on quit (geometries, materials, textures, renderer, GL context). It runs one game at a time
+// from the GAMES table (NEON DRIFT, and "Ori, Can You...?"); a game only gets a renderer, an overlay, its input and the clock.
+// A game controller offers: open(), update(dt, input), render(dt), resize(w, h), pause(), resume(), paused, onEscape(), onReset(),
+// onCamera(), onKey(e), state(), dispose() and a `hud` with message()/clearMessage(); optionally attachInput(input) and onAction(name).
 import * as THREE from 'three';
 import { createGame } from './game.js';
 import { createKeyboard } from './input.js';
 import { createHud } from './hud.js';
 import { BIOMES } from './biomes.js';
 import { defineDriftAchievements } from './achievements3d.js';
+import { createFavorsGame } from './favors/game.js';
+import { createInput as createFavorsInput } from './favors/input.js';
+import { GAME as FAVORS } from './favors/content.js';
+
+/** The games the host can run: how to build the controller and its input, what it is called, the colour behind the canvas. */
+const GAMES = {
+  drift: { title: 'NEON DRIFT', create: (o) => createGame(o), input: (hooks) => createKeyboard(hooks), clear: 0x07030f },
+  favors: { title: FAVORS.title, create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea },
+};
 
 const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, storage: null, scores: null, achievements: null };
 const settings = { pixelRatioCap: 2, tier: 'high' };
@@ -28,16 +39,19 @@ function webglAvailable() {
 
 /**
  * Opens the game. Resolves with the running game (or null if it cannot run here). Only one game runs at a time.
- * @param {string} [id] game id ('drift')
- * @param {object} [opts] { quick: skip the menu and drive freely, biome, look, tier, seed, carType, paint }
+ * @param {string} [id] game id ('drift' | 'favors')
+ * @param {object} [opts] { quick: skip the menu and start at once, tier, seed, … } (drift: biome, look, carType, paint)
  */
 export function launchGame3D(id = 'drift', opts = {}) {
   if (current) return Promise.resolve(current.api);
+  const def = GAMES[id];
+  if (!def) return Promise.resolve(null);
   const overlay = document.createElement('div');
   overlay.className = 'g3d';
   overlay.id = 'g3d';
+  overlay.dataset.game = id;
   overlay.setAttribute('role', 'application');
-  overlay.setAttribute('aria-label', 'Neon Drift');
+  overlay.setAttribute('aria-label', def.title);
   const canvas = document.createElement('canvas');
   canvas.className = 'g3d-canvas';
   canvas.tabIndex = -1;
@@ -100,7 +114,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
 
   if (!webglAvailable()) {
     current = { api: null, quit };
-    fail('WebGL 2 is not available', 'NEON DRIFT needs a browser with WebGL 2 turned on. Everything else on the site still works.');
+    fail('WebGL 2 is not available', `${def.title} needs a browser with WebGL 2 turned on. Everything else on the site still works.`);
     return Promise.resolve(null);
   }
   try {
@@ -112,20 +126,22 @@ export function launchGame3D(id = 'drift', opts = {}) {
   }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
-  renderer.setClearColor(0x07030f, 1);
+  renderer.setClearColor(def.clear, 1);
   renderer.info.autoReset = false; // the composer renders several passes per frame: the session resets the counters once per frame
 
-  game = createGame({
+  game = def.create({
     renderer, overlay, quit, quick: !!opts.quick,
     storage: hooks.storage, scores: hooks.scores, achievements: hooks.achievements, emit: hooks.emit,
     biome: opts.biome, look: opts.look, tier: opts.tier || settings.tier, seed: opts.seed, carType: opts.carType, paint: opts.paint,
   });
-  kb = createKeyboard({
+  kb = def.input({
     onPause: () => game.onEscape(),
     onReset: () => game.onReset(),
     onCamera: () => game.onCamera(),
     onKey: onKeyModal,
-  });
+    onAction: (name) => game.onAction && game.onAction(name),
+  }, canvas);
+  if (game.attachInput) game.attachInput(kb);
 
   function onKeyModal(e) {
     if (modal === 'msg') {
@@ -244,15 +260,20 @@ export const game3dDebug = {
     g.render(1 / 60);
     return g.state();
   },
-  /** Puts the car at arc length s with a speed (m/s) and redraws: for screenshots and tests. */
-  teleport(s, speed = 60, lateral = 0) {
+  /** NEON DRIFT: puts the car at arc length s with a speed (m/s). Ori, Can You...?: stands Ori at a place ('cafe') or { x, z }. Redraws. */
+  teleport(...a) {
     const g = current?.api?.game;
     if (!g) return null;
-    g.teleport(s, speed, lateral);
+    g.teleport(...a);
     g.render(1 / 60);
     return g.state();
   },
-  camera(mode) { const g = current?.api?.game; if (g) { g.setCamera(mode); g.render(1 / 60); } },
+  /** Ori, Can You...?: a place's door, rect and walking distance from where Ori is. */
+  place(id) { return current?.api?.game?.place?.(id) ?? null; },
+  /** Ori, Can You...?: the game clock { hour, label, progress, done }; `setHour(h)` jumps the day. */
+  clock() { return current?.api?.game?.clockInfo?.() ?? null; },
+  setHour(h) { current?.api?.game?.setHour?.(h); current?.api?.game?.render?.(1 / 60); },
+  camera(mode, ...rest) { const g = current?.api?.game; if (g) { g.setCamera(mode, ...rest); g.render(1 / 60); } },
   /** Rebuilds the world: { biome, look, tier, seed } (a free drive stays a free drive, the menu stays the menu). */
   reconfigure(o) { current?.api?.game.reconfigure(o); },
   setSeed(n) { this.reconfigure({ seed: n }); },
