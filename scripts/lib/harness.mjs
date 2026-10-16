@@ -50,31 +50,56 @@ export async function serveDist() {
   return { url: `http://127.0.0.1:${port}/`, origin: `http://127.0.0.1:${port}`, close: () => new Promise((r) => server.close(r)) };
 }
 
-const ARGS = ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+// WebGL backends: the real GPU first (ANGLE on D3D11, high-performance adapter), SwiftShader (software) as the fallback.
+// `ORI_SOFTWARE_GL=1` forces software for deterministic / CI runs.
+const COMMON = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+const GPU_ARGS = [...COMMON, '--use-angle=d3d11', '--enable-gpu', '--enable-gpu-rasterization', '--enable-webgl', '--force_high_performance_gpu'];
+const SOFT_ARGS = [...COMMON, '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
+const isSoftwareRenderer = (r) => /swiftshader|llvmpipe|software|basic render/i.test(r || '');
+export const forceSoftware = () => process.env.ORI_SOFTWARE_GL === '1';
 
-async function launchOne(channel, headless) {
-  return chromium.launch({ channel, headless, args: ARGS });
+/** The WebGL renderer string the browser actually uses ('' when WebGL is unavailable). */
+async function readRenderer(page) {
+  return page.evaluate(() => {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2') || c.getContext('webgl');
+    if (!gl) return '';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return ext ? String(gl.getParameter(ext.UNMASKED_RENDERER_WEBGL)) : 'unknown';
+  });
 }
 
-/** Launches the system Chrome, falling back to Edge. If WebGL does not work headless, retries headed. */
+let announced = false;
+
+/**
+ * Launches the system Chrome (falling back to Edge) on the real GPU when it can, otherwise on SwiftShader.
+ * Returns { browser, channel, headless, renderer, software }.
+ */
 export async function launchBrowser({ headed = false } = {}) {
-  const tryModes = headed ? [false] : [true, false];
+  const modes = [];
+  if (!forceSoftware()) {
+    if (!headed) modes.push({ args: GPU_ARGS, headless: true, soft: false });
+    modes.push({ args: GPU_ARGS, headless: false, soft: false });
+  }
+  if (!headed) modes.push({ args: SOFT_ARGS, headless: true, soft: true });
+  modes.push({ args: SOFT_ARGS, headless: false, soft: true });
   let lastErr;
-  for (const headless of tryModes) {
+  for (const mode of modes) {
     for (const channel of ['chrome', 'msedge']) {
+      let browser;
       try {
-        const browser = await launchOne(channel, headless);
+        browser = await chromium.launch({ channel, headless: mode.headless, args: mode.args });
         const page = await browser.newPage();
-        const gl = await page.evaluate(() => {
-          const c = document.createElement('canvas');
-          return !!(c.getContext('webgl2') || c.getContext('webgl'));
-        });
+        const renderer = await readRenderer(page);
         await page.close();
-        if (gl) return { browser, channel, headless };
-        await browser.close();
-        lastErr = new Error(`WebGL unavailable in ${channel} (headless=${headless})`);
+        if (!renderer) throw new Error(`WebGL unavailable in ${channel} (headless=${mode.headless})`);
+        if (!mode.soft && isSoftwareRenderer(renderer)) throw new Error(`GPU mode fell back to software: ${renderer}`);
+        const software = isSoftwareRenderer(renderer);
+        if (!announced) { announced = true; console.error(`GL: ${renderer}  [${channel}, ${mode.headless ? 'headless' : 'headed'}${software ? ', software' : ', GPU'}]`); }
+        return { browser, channel, headless: mode.headless, renderer, software };
       } catch (e) {
         lastErr = e;
+        if (browser) await browser.close().catch(() => {});
       }
     }
   }

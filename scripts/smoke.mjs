@@ -14,6 +14,7 @@ import { runWm2 } from './lib/wm2-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
+import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -76,10 +77,13 @@ try {
     // window manager v2: drag / resize / zoom / snap / minimise to the Dock / geometry memory
     await runWm2(s, { ok, fail });
 
+    // System Settings panes, dark mode / accent / wallpaper (desktop + 3D wall art), Control Center sync
+    await runSettings(s, { ok, fail });
+
     // MacBook: lid, key presses, Sleep / Shut Down / Restart
     await runLid(s, { ok, fail });
 
-    // full gameplay checks for every game that has one (slow under software GL, so opt-in: --games)
+    // full gameplay checks for every game that has one (slower, so opt-in: --games)
     if (flag('games')) {
       for (const id of apps) {
         if (GAME_TESTS[id]) { log(`  ── game: ${id}`); await GAME_TESTS[id](s, { ok, fail }); }
@@ -104,7 +108,7 @@ try {
       await sleep(2500);
       const stats = await page.evaluate(() => window.__ori.stats());
       await page.evaluate(() => window.__ori.setView('free'));
-      log(`  stats: ${stats.calls} draw calls · ${stats.triangles} triangles · ${stats.geometries} geometries · ${stats.textures} textures · ~${stats.fps} fps (software GL)`);
+      log(`  stats: ${stats.calls} draw calls · ${stats.triangles} triangles · ${stats.geometries} geometries · ${stats.textures} textures · ~${stats.fps} fps`);
     }
 
     // time of day: reference hours, lamp, HUD button / T key, cross-fade (leaves the camera in the room view)
@@ -115,6 +119,9 @@ try {
 
     // 3D room interactions: hover outline + tag, clicks, discovery counter, achievements
     await runInteract(s, { ok, fail });
+
+    // settings persistence (reloads the page)
+    await runSettingsReload(s, { ok, fail });
 
     // core services (reloads the page to prove persistence, so it runs last)
     await runCoreContract(s, { ok, fail });

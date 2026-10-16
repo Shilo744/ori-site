@@ -64,6 +64,8 @@ npm run shot -- app:terminal T17-terminal   # חלון של אפליקציה (א
 
 `npm run smoke -- --games` מוסיף בדיקות משחק מלאות (קלט אמיתי במקלדת, פאוזה, שמירת שיא, צילומי משחק) לכל משחק שיש לו בדיקה ב-`scripts/lib/games.mjs`; `npm run test:game -- snake` מריץ משחק אחד.
 
+**חומרה:** ההרנס מעלה את Chrome על כרטיס המסך האמיתי (ANGLE/D3D11, headless; ב-RTX 3060: ~120fps, smoke מלא ב-~3 דקות) ושומר על SwiftShader כגיבוי אוטומטי. בכל הרצה מודפסת שורת `GL: <renderer>`. `ORI_SOFTWARE_GL=1` כופה רינדור תוכנה (דטרמיניסטי / CI; ~10x איטי יותר).
+
 הצילומים נשמרים ב-`shots/` (מחוץ ל-git; ה-smoke שומר ב-`shots/smoke/`). דגלים שימושיים: `--size=WxH`, `--time=18.5`, `--wait=ms`, `--keys=ArrowUp,Space`, `--no-build`, `--headed`.
 
 `npm run dom-snap -- before` / `-- after` שומר את ה-DOM המנורמל של כל האפליקציות/תפריטים/טרמינל ב-`shots/dom/<label>/` — להשוואה לפני/אחרי ריפקטור (`git diff --no-index --stat shots/dom/before shots/dom/after`).
