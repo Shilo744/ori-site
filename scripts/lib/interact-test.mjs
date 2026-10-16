@@ -61,8 +61,8 @@ export async function runInteract(session, { ok, fail }) {
     if (!new RegExp(th.tag).test(text)) { tagsOk = false; fail(`interact: ${th.id} hover tag was "${text}", expected /${th.tag}/`); }
     const hulls = await ev(() => window.__ori.interactions.visibleHulls());
     if (th.id !== 'plant' && hulls < 1) { outlinesOk = false; fail(`interact: ${th.id} shows no hover outline`); }
-    const cursor = await ev(() => window.__ori.renderer.domElement.style.cursor);
-    if (cursor !== 'pointer') { outlinesOk = false; fail(`interact: ${th.id} hover cursor is "${cursor}"`); }
+    const cursor = await ev(() => { const c = window.__ori.renderer.domElement; return { set: c.style.cursor, shown: getComputedStyle(c).cursor, hand: getComputedStyle(document.documentElement).getPropertyValue('--cur-hand').trim() }; });
+    if (cursor.set !== 'var(--cur-hand)' || !/^(image-set|-webkit-image-set)\(|^url\(/.test(cursor.shown) || !/, pointer$/.test(cursor.shown)) { outlinesOk = false; fail(`interact: ${th.id} hover cursor is "${cursor.set}" -> ${cursor.shown.slice(0, 60)}`); }
     if (th.id === 'lamp' || th.id === 'cat') await shot(`hover-${th.id}`);
     await page.mouse.click(p.x, p.y);
     const clicked = await until(([rx]) => new RegExp(rx).test(window.__ori.interactions.tagText), th.after, 30000);

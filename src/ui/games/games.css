@@ -40,13 +40,13 @@
 .mac .gk-pill.gk-violet { --c: var(--gk-violet); }
 .mac .gk-pill.bump { animation: gk-bump 0.28s cubic-bezier(.2, .9, .3, 1.4); }
 @keyframes gk-bump { 40% { transform: scale(1.14); } }
-.mac .gk-toggle { cursor: pointer; transition: background 0.15s, border-color 0.15s, transform 0.1s; }
+.mac .gk-toggle { transition: background 0.15s, border-color 0.15s, transform 0.1s; }
 .mac .gk-toggle:hover { background: rgba(255, 255, 255, 0.11); border-color: rgba(255, 255, 255, 0.2); }
 .mac .gk-toggle:active { transform: scale(0.96); }
 .mac .gk-toggle:focus-visible, .mac .gk-btn:focus-visible, .mac .gk-pb:focus-visible { outline: 2px solid var(--gk-cyan); outline-offset: 2px; }
 
 .mac .gk-toggle.gk-on { border-color: rgba(255, 61, 166, 0.7); box-shadow: 0 0 14px rgba(255, 61, 166, 0.35); }
-.mac .gk-toggle:disabled { opacity: 0.45; cursor: default; pointer-events: none; }
+.mac .gk-toggle:disabled { opacity: 0.45; pointer-events: none; }
 .mac .gk-fit { flex: none; }
 
 /* playfield frame */
@@ -85,7 +85,7 @@
 .mac .gk-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.4; color: var(--gk-dim); }
 .mac .gk-actions { display: flex; gap: 9px; justify-content: center; margin-top: 14px; }
 .mac .gk-btn {
-  height: 34px; padding: 0 20px; border-radius: 999px; font: 700 13px/1 Inter, system-ui, sans-serif; letter-spacing: 0.01em; color: var(--gk-ink); cursor: pointer;
+  height: 34px; padding: 0 20px; border-radius: 999px; font: 700 13px/1 Inter, system-ui, sans-serif; letter-spacing: 0.01em; color: var(--gk-ink);
   background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); transition: transform 0.1s, background 0.15s, box-shadow 0.15s, filter 0.15s;
 }
 .mac .gk-btn:hover { background: rgba(255, 255, 255, 0.15); }
@@ -99,7 +99,7 @@
 .mac.compact .gk-pad { display: flex; }
 @media (pointer: coarse) { .mac .gk-pad { display: flex; } }
 .mac .gk-dpad { position: relative; width: 156px; height: 156px; pointer-events: none; }
-.mac .gk-pb { pointer-events: auto; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.09); color: var(--gk-ink); cursor: pointer; backdrop-filter: blur(4px); touch-action: none; transition: transform 0.08s, background 0.12s; }
+.mac .gk-pb { pointer-events: auto; display: grid; place-items: center; border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.09); color: var(--gk-ink); backdrop-filter: blur(4px); touch-action: none; transition: transform 0.08s, background 0.12s; }
 .mac .gk-pb:active, .mac .gk-pb.on { background: rgba(53, 242, 255, 0.28); transform: scale(0.94); }
 .mac .gk-dpad .gk-pb { position: absolute; width: 52px; height: 52px; border-radius: 14px; }
 .mac .gk-pb svg { width: 24px; height: 24px; fill: currentColor; }

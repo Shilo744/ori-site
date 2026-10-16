@@ -23,6 +23,7 @@ import { startTrackers } from './ui/trackers.js';
 import { createNotificationUI } from './ui/notifications.js';
 import { startOnboarding } from './ui/onboarding.js';
 import { createIntro } from './ui/intro.js';
+import { installCursors } from './ui/cursors.js';
 import { listGames } from './ui/games/catalog.js';
 import { listApps as listRegisteredApps } from './ui/apps/registry.js';
 import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from './scene/stations.js';
@@ -30,6 +31,8 @@ import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
 import { initGame3D, launchGame3D, game3dDebug } from './game3d/host.js';
 import { scores } from './ui/games/scores.js';
+
+installCursors(); // one pointer for the whole page, from the very first frame (T57)
 
 // `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
 const FAST = new URLSearchParams(window.location.search).has('fast');

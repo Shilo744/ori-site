@@ -1,6 +1,6 @@
 // 3D interaction framework (T14): hover + click on objects in the room.
 //   • picking uses invisible, cheap proxy meshes (a few primitives per object), never the render geometry
-//   • hover = a soft inverted-hull outline (one shared shader, constant ~2 px) + a pointer cursor + a site-style `.tag`
+//   • hover = a soft inverted-hull outline (one shared shader, constant ~2 px) + the pointing-hand cursor + a site-style `.tag`
 //     label that follows the cursor; touch devices get the label as a short toast after a tap
 //   • click = the object's own action; the first click on each "discoverable" object counts towards "Discovered n/N"
 //     (persisted) and unlocks achievements
@@ -78,7 +78,7 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     hover = next;
     hoverT = 0;
     if (hover) { hover.hull.forEach((h) => { h.visible = true; }); hullMat.uniforms.uAlpha.value = 0; if (hover.onHover) hover.onHover(true); }
-    canvas.style.cursor = hover ? 'pointer' : '';
+    canvas.style.cursor = hover ? 'var(--cur-hand)' : ''; // the same hand as everywhere (ui/cursors.js)
     refreshTag();
   }
 

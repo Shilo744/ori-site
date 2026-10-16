@@ -44,7 +44,7 @@ body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open
 .g3d-best b { color: #fff; font-variant-numeric: tabular-nums; }
 .g3d-tr { top: max(14px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); display: flex; gap: 10px; align-items: flex-start; }
 .g3d-map { width: 150px; height: 150px; border-radius: 16px; background: var(--panel); border: 1px solid var(--edge); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
-.g3d-pausebtn { pointer-events: auto; width: 40px; height: 40px; border-radius: 12px; border: 1px solid #ffffff2b; background: var(--panel); color: #fff; display: grid; place-items: center; cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.g3d-pausebtn { pointer-events: auto; width: 40px; height: 40px; border-radius: 12px; border: 1px solid #ffffff2b; background: var(--panel); color: #fff; display: grid; place-items: center; cursor: var(--cur-hand); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 .g3d-pausebtn svg { width: 18px; height: 18px; }
 .g3d-pausebtn:hover { background: #1a0f33e6; border-color: #19e3ff88; }
 
@@ -101,7 +101,7 @@ body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open
 .g3d-card p { margin: 4px 0 0; color: #ffffffa8; font-size: 13px; line-height: 1.5; }
 .g3d-small { font-size: 12px !important; color: #ffffff99; }
 .g3d-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
-.g3d-btn { font: 700 15px Inter, sans-serif; padding: 13px 18px; border-radius: 14px; border: 1px solid #ffffff26; background: #ffffff10; color: #fff; cursor: pointer; transition: transform .12s ease, background .12s ease, border-color .12s ease; }
+.g3d-btn { font: 700 15px Inter, sans-serif; padding: 13px 18px; border-radius: 14px; border: 1px solid #ffffff26; background: #ffffff10; color: #fff; cursor: var(--cur-hand); transition: transform .12s ease, background .12s ease, border-color .12s ease; }
 .g3d-btn:hover, .g3d-btn:focus-visible { background: #ffffff1f; border-color: #19e3ff99; outline: none; transform: translateY(-1px); }
 .g3d-btn:active { transform: translateY(1px) scale(.99); }
 .g3d-btn.primary { background: linear-gradient(135deg, #19e3ff, #7a5cff 60%, #ff3ea5); border-color: transparent; color: #08031a; box-shadow: 0 8px 28px #7a5cff55; }
@@ -119,11 +119,11 @@ body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open
 .g3d-logo { display: flex; flex-direction: column; font: 800 italic 40px/.9 Inter, sans-serif; letter-spacing: .06em; margin: 2px 0 6px; background: linear-gradient(100deg, #19e3ff, #7a5cff 50%, #ff3ea5); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 0 18px #7a5cff77); }
 .g3d-mm-panel h3 { margin: 8px 0 0; font-size: 10px; font-weight: 800; letter-spacing: .24em; text-transform: uppercase; color: #ffffff88; }
 .g3d-seg { display: flex; padding: 3px; border-radius: 13px; background: #ffffff10; gap: 3px; }
-.g3d-seg button { flex: 1; font: 700 13.5px Inter, sans-serif; padding: 9px 6px; border-radius: 10px; border: 0; background: transparent; color: #ffffffb8; cursor: pointer; transition: background .15s ease, color .15s ease; }
+.g3d-seg button { flex: 1; font: 700 13.5px Inter, sans-serif; padding: 9px 6px; border-radius: 10px; border: 0; background: transparent; color: #ffffffb8; cursor: var(--cur-hand); transition: background .15s ease, color .15s ease; }
 .g3d-seg button.on { background: linear-gradient(135deg, #19e3ff, #7a5cff); color: #08031a; box-shadow: 0 4px 16px #7a5cff55; }
 .g3d-seg button:focus-visible, .g3d-track:focus-visible, .g3d-car:focus-visible, .g3d-paints button:focus-visible { outline: 2px solid var(--cy); outline-offset: 2px; }
 .g3d-tracks { display: flex; flex-direction: column; gap: 7px; }
-.g3d-track { display: grid; grid-template-columns: 46px 1fr auto; grid-template-areas: 'sw b bt' 'sw s bt'; column-gap: 12px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 14px; border: 1px solid transparent; background: #ffffff0c; color: #fff; cursor: pointer; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+.g3d-track { display: grid; grid-template-columns: 46px 1fr auto; grid-template-areas: 'sw b bt' 'sw s bt'; column-gap: 12px; align-items: center; text-align: left; padding: 8px 12px 8px 8px; border-radius: 14px; border: 1px solid transparent; background: #ffffff0c; color: #fff; cursor: var(--cur-hand); transition: background .15s ease, border-color .15s ease, transform .15s ease; }
 .g3d-track:hover { background: #ffffff16; }
 .g3d-track.on { background: linear-gradient(135deg, #19e3ff1f, #ff3ea51f); border-color: #19e3ff88; box-shadow: 0 0 24px #19e3ff22; }
 .g3d-track .sw { grid-area: sw; width: 46px; height: 46px; border-radius: 12px; box-shadow: inset 0 0 0 1px #ffffff2a; }
@@ -133,7 +133,7 @@ body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open
 .g3d-track .bt em { font-style: normal; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; color: #ffffffcc; }
 .g3d-medal.none { color: #ffffff44; }
 .g3d-cars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
-.g3d-car { padding: 10px 9px 9px; border-radius: 14px; border: 1px solid transparent; background: #ffffff0c; color: #fff; cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 5px; transition: background .15s ease, border-color .15s ease; }
+.g3d-car { padding: 10px 9px 9px; border-radius: 14px; border: 1px solid transparent; background: #ffffff0c; color: #fff; cursor: var(--cur-hand); text-align: left; display: flex; flex-direction: column; gap: 5px; transition: background .15s ease, border-color .15s ease; }
 .g3d-car:hover { background: #ffffff16; }
 .g3d-car.on { background: linear-gradient(135deg, #19e3ff1f, #ff3ea51f); border-color: #19e3ff88; }
 .g3d-car b { font-size: 14px; font-weight: 800; font-style: italic; }
@@ -142,7 +142,7 @@ body.g3d-open #stage, body.g3d-open #hud, body.g3d-open #vignette, body.g3d-open
 .g3d-car .st i { height: 4px; border-radius: 2px; background: #ffffff1c; overflow: hidden; }
 .g3d-car .st u { display: block; height: 100%; background: linear-gradient(90deg, #19e3ff, #ff3ea5); text-decoration: none; }
 .g3d-paints { display: flex; gap: 9px; padding: 2px 2px 4px; }
-.g3d-paints button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ffffff33; background: var(--c); cursor: pointer; box-shadow: 0 0 0 0 var(--c); transition: transform .12s ease, box-shadow .15s ease; }
+.g3d-paints button { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #ffffff33; background: var(--c); cursor: var(--cur-hand); box-shadow: 0 0 0 0 var(--c); transition: transform .12s ease, box-shadow .15s ease; }
 .g3d-paints button:hover { transform: scale(1.1); }
 .g3d-paints button.on { border-color: #fff; box-shadow: 0 0 14px var(--c); transform: scale(1.12); }
 

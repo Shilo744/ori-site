@@ -2,6 +2,7 @@
 // keyboard, drives (autopilot + keys), pauses/resumes/quits cleanly and leaves no GPU memory behind.
 import { join } from 'node:path';
 import { SHOTS, sleep, settle } from './harness.mjs';
+import { scanCursors } from './cursor-test.mjs';
 
 export async function runDrift(session, { ok, fail }) {
   const { page } = session;
@@ -73,6 +74,11 @@ export async function runDrift(session, { ok, fail }) {
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__ori.game3d.paused, null, { timeout: 3000 });
   check(await g(() => !document.querySelector('#g3d .g3d-menu').hidden), 'Esc opens the pause menu');
+  { // one pointer everywhere (T57): the menu buttons use the shared hand, everything else the arrow
+    const cur = await g(scanCursors);
+    const btn = await g(() => { const d = document.createElement('div'); d.style.cursor = 'var(--cur-hand)'; document.body.appendChild(d); const hand = getComputedStyle(d).cursor; d.remove(); return { hand, btn: getComputedStyle(document.querySelector('#g3d .g3d-menu button')).cursor }; });
+    check(cur.count === 0 && btn.btn === btn.hand, `the game overlay uses the shared cursors (${cur.n} elements, ${cur.count} strays${cur.count ? ': ' + cur.bad.join(' | ') : ''})`);
+  }
   const t1 = await g(() => window.__ori.game3d.state().tick);
   await sleep(500);
   check((await g(() => window.__ori.game3d.state().tick)) === t1, 'the simulation stands still while paused');

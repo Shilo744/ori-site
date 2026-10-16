@@ -41,25 +41,10 @@
 .mac.flat { width: 100%; height: 100%; border-radius: 0; }
 /* NB: the transformed root must NOT clip (overflow:hidden breaks hit-testing inside CSS3D) — clip one level down. */
 .mac .scr { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
-.mac.locked { cursor: pointer; }
 .mac.locked * { pointer-events: none !important; }
-/* The pointer (T49): REAL CSS cursors (ui/cursors.js sets the variables) — zero latency, exactly where the hit-testing happens.
-   macOS keeps the arrow over buttons; links get the hand, text fields the I-beam, window edges the resize arrows. */
-.mac:not(.locked):not(.compact), .mac:not(.locked):not(.compact) * { cursor: var(--cur-arrow, default) !important; }
-.mac:not(.locked):not(.compact) a[href], .mac:not(.locked):not(.compact) a[href] * { cursor: var(--cur-hand, pointer) !important; }
-.mac:not(.locked):not(.compact) textarea, .mac:not(.locked):not(.compact) input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']) { cursor: var(--cur-text, text) !important; }
-.mac:not(.locked):not(.compact) [data-rz='n'], .mac:not(.locked):not(.compact) [data-rz='s'] { cursor: ns-resize !important; }
-.mac:not(.locked):not(.compact) [data-rz='e'], .mac:not(.locked):not(.compact) [data-rz='w'] { cursor: ew-resize !important; }
-.mac:not(.locked):not(.compact) [data-rz='ne'], .mac:not(.locked):not(.compact) [data-rz='sw'] { cursor: nesw-resize !important; }
-.mac:not(.locked):not(.compact) [data-rz='nw'], .mac:not(.locked):not(.compact) [data-rz='se'] { cursor: nwse-resize !important; }
-/* while a window is dragged / resized the shape is pinned on the root (desktop.js lockCursor), whatever is under the pointer */
-.mac[data-cl='grab']:not(.locked):not(.compact), .mac[data-cl='grab']:not(.locked):not(.compact) * { cursor: grabbing !important; }
-.mac[data-cl='ns']:not(.locked):not(.compact), .mac[data-cl='ns']:not(.locked):not(.compact) * { cursor: ns-resize !important; }
-.mac[data-cl='ew']:not(.locked):not(.compact), .mac[data-cl='ew']:not(.locked):not(.compact) * { cursor: ew-resize !important; }
-.mac[data-cl='nesw']:not(.locked):not(.compact), .mac[data-cl='nesw']:not(.locked):not(.compact) * { cursor: nesw-resize !important; }
-.mac[data-cl='nwse']:not(.locked):not(.compact), .mac[data-cl='nwse']:not(.locked):not(.compact) * { cursor: nwse-resize !important; }
+/* The pointer: every shape is chosen in cursors.css (T57). */
 .mac * { box-sizing: border-box; }
-.mac button { font: inherit; color: inherit; cursor: pointer; background: none; border: 0; padding: 0; }
+.mac button { font: inherit; color: inherit; background: none; border: 0; padding: 0; }
 .mac a { color: inherit; text-decoration: none; }
 .mac i, .mac em, .mac u { font-style: normal; text-decoration: none; }
 
@@ -150,7 +135,7 @@
 /* traffic lights */
 .mac .lights { position: absolute; z-index: 3; top: 19px; left: 16px; display: flex; gap: 9px; }
 .mac .lights i {
-  position: relative; width: 16px; height: 16px; border-radius: 50%; cursor: default;
+  position: relative; width: 16px; height: 16px; border-radius: 50%;
   box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.22);
 }
 .mac .lights .r { background: #ff5f57; }

@@ -33,6 +33,8 @@ export async function runWm2(session, { ok, fail }) {
   };
   const shot = (name) => snap(session, join(SHOTS, 'smoke', `${tag}-wm-${name}.png`));
   // the pointer is a real CSS cursor now (T49): what is shown is the computed cursor of the element under the pointer
+  // the shared cursor images (T57): what a shape computes to on a probe element
+  const refCursor = (name) => ev((n) => { const d = document.createElement('div'); d.style.cursor = `var(--cur-${n})`; document.body.appendChild(d); const c = getComputedStyle(d).cursor; d.remove(); return c; }, name);
   const cursorAt = (x, y) => ev(([cx, cy]) => { const e = document.elementFromPoint(cx, cy); return e ? getComputedStyle(e).cursor : ''; }, [x, y]);
   // input events and CSS transitions are only processed when the (software-rendered, ~1fps) page gets a frame: poll instead of sleeping
   const until = (fn, arg, timeout = 15000) => page.waitForFunction(fn, arg, { timeout }).then(() => true).catch(() => false);
@@ -80,19 +82,23 @@ export async function runWm2(session, { ok, fail }) {
 
   // ── resize: every handle moves the right edges; cursor shapes ──
   await ev(() => { window.__ori.desktop.reset(); }); await reset(); await open('terminal');
-  const kinds = { n: 'ns-resize', s: 'ns-resize', e: 'ew-resize', w: 'ew-resize', ne: 'nesw-resize', sw: 'nesw-resize', nw: 'nwse-resize', se: 'nwse-resize' };
+  const kinds = { n: 'ns', s: 'ns', e: 'ew', w: 'ew', ne: 'nesw', sw: 'nesw', nw: 'nwse', se: 'nwse' };
+  const want = {};
+  for (const k of new Set(Object.values(kinds))) want[k] = await refCursor(k);
   let cursorsOk = true;
   for (const [edge, kind] of Object.entries(kinds)) {
+    const wantCss = want[kind];
     const p = await center(`.win-terminal .rz[data-rz="${edge}"]`);
     await page.mouse.move(p.x - 1, p.y - 1);
     await page.mouse.move(p.x, p.y);
-    if (!(await until(([x, y, k]) => { const e = document.elementFromPoint(x, y); return !!e && getComputedStyle(e).cursor === k; }, [p.x, p.y, kind]))) {
+    if (!(await until(([x, y, k]) => { const e = document.elementFromPoint(x, y); return !!e && getComputedStyle(e).cursor === k; }, [p.x, p.y, wantCss]))) {
       cursorsOk = false;
       const info = await ev(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? `${e.tagName}.${e.className} at ${Math.round(x)},${Math.round(y)}; state=${window.__ori.state}` : 'none'; }, [p.x, p.y]);
-      fail(`wm2: cursor over the ${edge} handle should be ${kind}, got ${await cursorAt(p.x, p.y)} (hit: ${info})`);
+      fail(`wm2: cursor over the ${edge} handle should be the ${kind} image, got ${(await cursorAt(p.x, p.y)).slice(0, 70)} (hit: ${info})`);
     }
   }
-  check(cursorsOk, 'the real cursor changes to ew / ns / nwse / nesw-resize over the resize handles');
+  check(cursorsOk, 'the macOS-style resize cursors (our images, hot spot in the centre) show over all 8 handles');
+  check(Object.values(want).every((c) => /^(image-set|-webkit-image-set)\(|^url\(/.test(c) && /\b11 11,/.test(c)) && new Set(Object.values(want)).size === 4 && /-resize$/.test(want.ew) && /ns-resize$/.test(want.ns), 'the four resize shapes are distinct images (centre hot spot, system keyword only as fallback)');
   // the pointer is a real CSS cursor (T49): no drawn glyph, the custom macOS arrow / hand / I-beam as cursor images
   const curs = await ev(() => {
     const g = (sel) => { const e = document.querySelector(sel); return e ? getComputedStyle(e).cursor : null; };
@@ -178,15 +184,15 @@ export async function runWm2(session, { ok, fail }) {
   const prev = await ev(() => { const s = document.querySelector('.mac .snap-prev'); return { on: s.classList.contains('on'), left: s.offsetLeft, w: s.offsetWidth }; });
   check(prev.on && prev.w < 500 && prev.left < 20, `dragging to the left edge shows a half-screen preview (width ${prev.w})`);
   await shot('snap-preview');
-  const drag1 = await ev(() => ({ cl: document.querySelector('.mac').dataset.cl, shown: getComputedStyle(document.querySelector('.mac .scr')).cursor }));
-  check(drag1.cl === 'grab' && drag1.shown === 'grabbing', 'while a window is dragged the closed hand is pinned, whatever is under the pointer');
+  const drag1 = await ev(() => ({ cl: document.querySelector('.mac').dataset.cl, html: document.documentElement.dataset.cl, shown: getComputedStyle(document.querySelector('.mac .scr')).cursor }));
+  check(drag1.cl === 'grab' && drag1.html === 'grab' && drag1.shown === (await refCursor('grabbing')) && /grabbing$/.test(drag1.shown), 'while a window is dragged the closed hand is pinned (screen and page), whatever is under the pointer');
   await page.mouse.up();
   const half = await ev(() => window.__ori.desktop.root.offsetWidth / 2);
   await untilRect('notes', { x: 0, y: zr.y, w: half, h: zr.h }); await settle(session, 2);
   let nr = await rect('notes');
   check(nr.x === 0 && nr.w === half && nr.h === zr.h, `releasing snaps the window to the left half (${nr.w}×${nr.h})`);
   check((await mode('notes')) === 'left', 'mode = left');
-  check(await until(() => !document.querySelector('.mac').dataset.cl, null), 'after a snap the drag cursor is released (no stuck grab shape)');
+  check(await until(() => !document.querySelector('.mac').dataset.cl && !document.documentElement.dataset.cl, null), 'after a snap the drag cursor is released (no stuck grab shape)');
   await shot('snapped-left');
   // drag it back out: the old size returns
   c = await center('.win-notes .pane > header .sp');

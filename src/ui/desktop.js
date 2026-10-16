@@ -225,10 +225,10 @@ export function createDesktop(opts = {}) {
     dock.querySelectorAll('.dk').forEach((b) => b.style.removeProperty('--s'));
   });
 
-  // ── cursor: real CSS cursors (cursors.js + desktop.css). A window drag / resize pins its shape on the root while it lasts ──
+  // ── cursor: real CSS cursors (cursors.js + cursors.css). A window drag / resize pins its shape while it lasts ──
   function lockCursor(kind) {
-    if (kind) root.dataset.cl = kind;
-    else delete root.dataset.cl;
+    // pinned on <html> too: a drag that overshoots the screen into the room keeps its shape (cursors.css)
+    if (kind) { root.dataset.cl = kind; document.documentElement.dataset.cl = kind; } else { delete root.dataset.cl; delete document.documentElement.dataset.cl; }
   }
 
   const api = {

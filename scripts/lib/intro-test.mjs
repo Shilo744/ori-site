@@ -28,6 +28,12 @@ export async function runIntro(session, { ok, fail }) {
   check(info.title === 'Ori Asher' && /Creative Developer · Portfolio 2026/.test(info.sub), 'the name and the tagline');
   check(!info.btnHidden && info.btnText === 'Enter' && info.focused, 'the Enter button is there (the room is ready) and has the focus');
   check(info.inertHud, 'the page behind is inert while the dialog is up');
+  const cur = await ev(() => {
+    const probe = (n) => { const d = document.createElement('div'); d.style.cursor = `var(--cur-${n})`; document.body.appendChild(d); const c = getComputedStyle(d).cursor; d.remove(); return c; };
+    const g = (s) => getComputedStyle(document.querySelector(s)).cursor;
+    return { arrow: probe('arrow'), hand: probe('hand'), root: g('#intro'), name: g('#intro-name'), btn: g('#intro-start'), snd: g('#intro-sound') };
+  });
+  check(/^(image-set|-webkit-image-set)\(|^url\(/.test(cur.arrow) && cur.root === cur.arrow && cur.name === cur.arrow && cur.btn === cur.hand && cur.snd === cur.hand, 'the opening screen uses the shared cursor: arrow over the veil, hand on Enter and Sound');
   const tones = await ev(() => {
     const r = document.getElementById('intro');
     const out = {};

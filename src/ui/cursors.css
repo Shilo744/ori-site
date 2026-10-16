@@ -1,0 +1,44 @@
+/* ONE pointer for the whole site (T57). The images come from ui/cursors.js (installCursors defines --cur-* on :root); this file is the only
+   place that decides which shape goes where — no other stylesheet writes a `cursor` keyword (a test greps for it). The keywords below are
+   only the fallback for the instant before the script runs. */
+:root {
+  --cur-arrow: default;
+  --cur-hand: pointer;
+  --cur-text: text;
+  --cur-grab: grab;
+  --cur-grabbing: grabbing;
+  --cur-ew: ew-resize;
+  --cur-ns: ns-resize;
+  --cur-nwse: nwse-resize;
+  --cur-nesw: nesw-resize;
+}
+
+/* ── the page: the room, the HUD, the intro, the overlays ── the arrow everywhere, the hand on whatever can be clicked, the I-beam on text */
+*, *::before, *::after { cursor: var(--cur-arrow); }
+a[href], button:not(:disabled), summary, label[for], select:not(:disabled), [role='button']:not([aria-disabled='true']), [role='link'], [role='tab'], [role='menuitem'], [role='switch'],
+input[type='checkbox']:not(:disabled), input[type='radio']:not(:disabled), input[type='range']:not(:disabled), input[type='button']:not(:disabled), input[type='submit']:not(:disabled),
+a[href] *, button:not(:disabled) *, summary *, [role='button']:not([aria-disabled='true']) *, [role='link'] *, [role='tab'] *, [role='menuitem'] * { cursor: var(--cur-hand); }
+textarea, [contenteditable='true'], [contenteditable=''],
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']):not([type='file']):not([type='color']) { cursor: var(--cur-text); }
+/* things that can be dragged declare it (data-grab, or draggable): the open hand; while dragging the closed one is pinned on <html> */
+[draggable='true'], [data-grab] { cursor: var(--cur-grab); }
+
+/* ── inside the laptop screen: macOS keeps the arrow over buttons and the Dock; links get the hand, text fields the I-beam, window edges
+   the resize shapes. (:where keeps these rules at the lowest specificity; !important because the apps style themselves.) ── */
+:where(.mac), :where(.mac) * { cursor: var(--cur-arrow) !important; }
+:where(.mac) a[href], :where(.mac) a[href] * { cursor: var(--cur-hand) !important; }
+:where(.mac) textarea,
+:where(.mac) input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='button']):not([type='submit']) { cursor: var(--cur-text) !important; }
+:where(.mac) [data-rz='n'], :where(.mac) [data-rz='s'] { cursor: var(--cur-ns) !important; }
+:where(.mac) [data-rz='e'], :where(.mac) [data-rz='w'] { cursor: var(--cur-ew) !important; }
+:where(.mac) [data-rz='ne'], :where(.mac) [data-rz='sw'] { cursor: var(--cur-nesw) !important; }
+:where(.mac) [data-rz='nw'], :where(.mac) [data-rz='se'] { cursor: var(--cur-nwse) !important; }
+/* the shut laptop (the screen is a button into the screen) */
+.mac.locked { cursor: var(--cur-hand) !important; }
+
+/* ── while a window is dragged / resized the shape is pinned on <html> (desktop.js lockCursor), whatever is under the pointer ── */
+html[data-cl='grab'], html[data-cl='grab'] * { cursor: var(--cur-grabbing) !important; }
+html[data-cl='ns'], html[data-cl='ns'] * { cursor: var(--cur-ns) !important; }
+html[data-cl='ew'], html[data-cl='ew'] * { cursor: var(--cur-ew) !important; }
+html[data-cl='nesw'], html[data-cl='nesw'] * { cursor: var(--cur-nesw) !important; }
+html[data-cl='nwse'], html[data-cl='nwse'] * { cursor: var(--cur-nwse) !important; }

@@ -14,6 +14,7 @@ import { runWm2 } from './lib/wm2-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
+import { runCursors } from './lib/cursor-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
@@ -126,6 +127,9 @@ try {
 
     // 3D room interactions: hover outline + tag, clicks, discovery counter, achievements
     await runInteract(s, { ok, fail });
+
+    // one pointer everywhere: the same cursor images on the room, HUD, screen, apps, handles (T57)
+    await runCursors(s, { ok, fail });
 
     // notifications, Notification Center, achievements UI (leaves the camera in the room)
     await runNotify(s, { ok, fail });
