@@ -19,6 +19,7 @@ import {
 import { createMacBook } from './macbook.js';
 import { createSkyMaterial } from './sky.js';
 import { createDaylight } from './daylight.js';
+import { createLife } from './life.js';
 
 const ROOM = { x0: -270, x1: 270, z0: -220, z1: 220, h: 290, t: 12 };
 const DESK_TOP = 76.6;
@@ -186,7 +187,7 @@ export function createScene({ renderer, screenElement }) {
   add(createChair(m), 40, 1.1, -104, Math.PI + 0.5);
   contact(blob, 100, 100, 40, -104, 1.2);
 
-  add(createFiddlePlant(m), 160, 0, -186);
+  const plant = add(createFiddlePlant(m), 160, 0, -186);
   contact(blob, 74, 74, 160, -186, 0.05);
 
   // round oak side table + a vase of dried stems
@@ -203,7 +204,7 @@ export function createScene({ renderer, screenElement }) {
   contact(blob, 44, 44, -118, -198, 0.05);
 
   // pill bench under the window
-  add(createBench(m, { length: 140, width: 44 }), x0 + 40, 0, -40, Math.PI / 2);
+  const bench = add(createBench(m, { length: 140, width: 44 }), x0 + 40, 0, -40, Math.PI / 2);
   contact(rectSh, 96, 190, x0 + 40, -40, 0.05, 0, 0.8);
 
   // felt panel with the macOS wallpaper as art
@@ -211,7 +212,7 @@ export function createScene({ renderer, screenElement }) {
   add(createFrame(m, { w: 124, h: 82, tex: wallArtTexture() }), deskX, 146, z0 + 3.9);
 
   // floating oak shelf with a few objects, to the left of the panel
-  add(createShelf(m, { length: 112, depth: 20 }), -200, 132, z0 + 10.2);
+  const shelf = add(createShelf(m, { length: 112, depth: 20 }), -200, 132, z0 + 10.2);
 
   // ── desk: the ecosystem, arranged calmly ──
   const MAT_T = 0.34; // desk-mat thickness
@@ -220,8 +221,8 @@ export function createScene({ renderer, screenElement }) {
   add(createIPhone(m, phoneScreenTexture()), deskX - 24, DESK_TOP, deskZ + 24, -0.32);
   add(createAirPods(m), deskX - 5, DESK_TOP, deskZ + 32, 0.5);
   add(createMouse(), deskX + 40, DESK_TOP + MAT_T, deskZ + 22, 0.1);
-  add(createMug(m), deskX + 72, DESK_TOP, deskZ + 20);
-  add(createHomePod(m), deskX + 76, DESK_TOP, deskZ - 20);
+  const mug = add(createMug(m), deskX + 72, DESK_TOP, deskZ + 20);
+  const homepod = add(createHomePod(m), deskX + 76, DESK_TOP, deskZ - 20);
   // lived-in: notebook + pen, books, a succulent, headphones on a stand, a photo frame
   add(createNotebook(m), deskX - 62, DESK_TOP, deskZ + 20, 0.22);
   add(createBooksStack(m), deskX - 66, DESK_TOP, deskZ - 28, -0.12);
@@ -309,10 +310,17 @@ export function createScene({ renderer, screenElement }) {
     target: sun.target.position,
   });
 
-  /** Per-frame hook (called from the render loop with dt seconds, time, and the camera state). */
-  const update = (dt) => {
+  // ambient life: cat, clock, steam, dust + light shaft, plant sway, HomePod ring, candle, robot vacuum
+  const life = createLife({
+    scene, renderer, ROOM, mats: m, daylight, sun, aniso, rug: rugC, win,
+    parts: { plant, mug, homepod, shelf, bench },
+  });
+
+  /** Per-frame hook (called from the render loop with dt seconds, elapsed time, and the camera state). */
+  const update = (dt, t = 0, state = 'overview') => {
     daylight.update(dt);
     mac.update(dt);
+    life.update(dt, t, state);
   };
-  return { scene, mac, update, daylight, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
+  return { scene, mac, update, daylight, life, lights: { sun, fill, hemi, lamp: lampLight }, ROOM };
 }

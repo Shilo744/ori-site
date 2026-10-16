@@ -12,6 +12,7 @@ import { runArcade } from './lib/arcade-test.mjs';
 import { runLid } from './lib/lid-test.mjs';
 import { runWm2 } from './lib/wm2-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
+import { runLife } from './lib/life-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -107,6 +108,9 @@ try {
 
     // time of day: reference hours, lamp, HUD button / T key, cross-fade (leaves the camera in the room view)
     await runDaylight(s, { ok, fail });
+
+    // ambient life: clock, cat, vacuum, steam, light shaft, HomePod ring, flat-mode / screen-state throttling
+    await runLife(s, { ok, fail });
 
     // core services (reloads the page to prove persistence, so it runs last)
     await runCoreContract(s, { ok, fail });

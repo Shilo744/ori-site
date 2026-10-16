@@ -12,7 +12,8 @@
     "dom-snap": "node scripts/dom-snap.mjs",
     "stats": "node scripts/stats.mjs",
     "test:game": "node scripts/e2e-game.mjs",
-    "test:games": "node scripts/test-games.mjs"
+    "test:games": "node scripts/test-games.mjs",
+    "test:life": "node scripts/e2e-life.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

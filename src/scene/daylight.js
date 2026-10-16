@@ -234,6 +234,8 @@ export function createDaylight({ scene, renderer, sun, hemi, fill, mats, skyMat,
     get transitionSeconds() { return transitionS; },
     set transitionSeconds(v) { transitionS = Math.max(0.01, +v || 1.5); },
     get hours() { return shown.hours; },
+    /** true while a fixed hour was set by hand (the test harness) instead of following the real clock */
+    get manual() { return manualHours != null; },
     setMode,
     cycleMode() { setMode(MODES[(MODES.indexOf(mode) + 1) % MODES.length]); return mode; },
     setHours,

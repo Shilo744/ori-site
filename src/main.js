@@ -478,7 +478,7 @@ function frame() {
 
   // display glow on the keys when close
   const near = THREE.MathUtils.clamp(1 - (dist - 40) / 400, 0, 1);
-  mac.glow.intensity = near * 1800 * mac.openness * daylight.state.screen;
+  mac.glow.intensity = near * 1800 * mac.openness * daylight.state.screen * world.life.flicker;
 
   world.update(dt, t, state);
 
@@ -543,6 +543,8 @@ window.__ori = {
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
   daylight,
+  /** The room's ambient life (cat, clock, steam, vacuum…): handles for T14 and the tests. */
+  life: world.life,
   /** Time of day in hours (0–24): jumps there instantly (mode stays whatever it was; the clock override wins until setMode). */
   setTime(hours) {
     timeOfDay = hours;

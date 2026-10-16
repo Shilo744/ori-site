@@ -12,6 +12,11 @@ const PRESETS = {
   plant:  { pos: P(285, 118, 4),    target: P(160, 94, -186),  fov: 44 },
   iphone: { pos: P(-2, 100, -112),  target: P(-14, 77, -152),  fov: 24 },
   ipad:   { pos: P(-16, 118, -108), target: P(-44, 77, -178),  fov: 26 },
+  mug:    { pos: P(112, 104, -120),  target: P(84, 84, -156),   fov: 22 },
+  homepod: { pos: P(122, 110, -150), target: P(86, 82, -196),   fov: 22 },
+  clock:  { pos: P(150, 178, -70),  target: P(226, 190, -220), fov: 36 },
+  floor:  { pos: P(120, 190, 200),  target: P(-10, 0, -20),    fov: 46 },
+  shaft:  { pos: P(190, 130, 170),  target: P(-130, 60, -60),  fov: 52 },
 };
 
 /** Returns `{ pos, target, fov }` for a preset name, or null if the name is unknown. */
@@ -32,4 +37,4 @@ export function getView(name, world) {
   return PRESETS[name] || null;
 }
 
-export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'mac-side', 'iphone', 'ipad'];
+export const VIEW_NAMES = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'mac-side', 'iphone', 'ipad', 'mug', 'homepod', 'clock', 'floor', 'shaft'];
