@@ -1,4 +1,4 @@
-// Runs ONE browser check block of the smoke suite on its own:  npm run test:life | test:daylight | test:interact | test:settings | test:notify | test:drift3d | wm2   (or  node scripts/e2e-block.mjs <life|daylight|wm2|interact|settings|notify|drift> [--size=WxH] [--no-build])
+// Runs ONE browser check block of the smoke suite on its own:  npm run test:life | test:daylight | test:interact | test:settings | test:notify | test:drift3d | test:driftrace | wm2   (or  node scripts/e2e-block.mjs <life|daylight|wm2|interact|settings|notify|drift> [--size=WxH] [--no-build])
 import { build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, parseSize } from './lib/harness.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runDaylight } from './lib/daylight-test.mjs';
@@ -7,8 +7,9 @@ import { runInteract } from './lib/interact-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
+import { runDriftRace } from './lib/drift-race-test.mjs';
 
-const BLOCKS = { drift: runDrift, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
+const BLOCKS = { drift: runDrift, 'drift-race': runDriftRace, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
 const args = process.argv.slice(2);
 const name = args.find((a) => !a.startsWith('--'));
 const flag = (n) => args.includes(`--${n}`);

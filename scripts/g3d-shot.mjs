@@ -15,9 +15,9 @@ try {
   const s = await newSession(browser, server.origin, size);
   await loadSite(s, server.origin);
   const { page } = s;
-  const opts = { biome: args.biome || 'city', look: args.look, tier: args.tier, seed: args.seed ? +args.seed : undefined, carType: args.car, paint: args.paint ? Number(args.paint) : undefined };
+  const opts = { quick: !args.menu, biome: args.biome || 'city', look: args.look, tier: args.tier, seed: args.seed ? +args.seed : undefined, carType: args.car, paint: args.paint ? Number(args.paint) : undefined };
   await page.evaluate((o) => window.__ori.game3d.launch('drift', o), opts);
-  await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 30000 });
   await page.evaluate(() => window.__ori.game3d.autopilot(true));
   for (let i = 0; i < (at ? at.length : steps.length); i++) {
     if (at) await page.evaluate(([s, v]) => { window.__ori.game3d.teleport(s, v); window.__ori.game3d.step(30); }, [at[i], +(args.speed || 62)]);

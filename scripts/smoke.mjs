@@ -17,6 +17,7 @@ import { runInteract } from './lib/interact-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
+import { runDriftRace } from './lib/drift-race-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -127,6 +128,9 @@ try {
 
     // NEON DRIFT (src/game3d): overlay, paused room, driving, pause menu, clean quit, no GPU leaks
     await runDrift(s, { ok, fail });
+
+    // NEON DRIFT gameplay: menu + garage, flyover, countdown, a race with rivals, results, records, time trial + ghost
+    await runDriftRace(s, { ok, fail });
 
     // settings persistence + first-run onboarding (both reload the page)
     await runSettingsReload(s, { ok, fail });

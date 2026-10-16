@@ -1,19 +1,22 @@
 // NEON DRIFT host: opens the full-viewport overlay above the whole site, owns the WebGL renderer + the loop, pauses the room
-// while it runs, and tears everything down again on quit (geometries, materials, textures, renderer, GL context).
+// while it runs, and tears everything down again on quit (geometries, materials, textures, renderer, GL context). The game itself
+// (menus, race, HUD) is game.js; the host only gives it a renderer, an overlay, the keyboard and the clock.
 import * as THREE from 'three';
-import { createSession } from './session.js';
+import { createGame } from './game.js';
 import { createKeyboard } from './input.js';
 import { createHud } from './hud.js';
 import { BIOMES } from './biomes.js';
+import { defineDriftAchievements } from './achievements3d.js';
 
-const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {} };
-const settings = { biome: 'city', seed: undefined, look: undefined, tier: 'high', pixelRatioCap: 2, carType: 'gt', paint: 0xff2d6f };
+const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, storage: null, scores: null, achievements: null };
+const settings = { pixelRatioCap: 2, tier: 'high' };
 let current = null;
 let lastMemory = null; // renderer.info.memory right after the last session was disposed (leak checks)
 
-/** Wires the host to the page: `pauseRoom()/resumeRoom()` stop/restart the room render loop, `duck(v)` scales the room audio. */
+/** Wires the host to the page: `pauseRoom()/resumeRoom()` stop/restart the room loop, `duck(v)` scales the room audio, and the core services. */
 export function initGame3D(h) {
   Object.assign(hooks, h);
+  if (hooks.achievements) defineDriftAchievements(hooks.achievements);
 }
 
 function webglAvailable() {
@@ -26,6 +29,7 @@ function webglAvailable() {
 /**
  * Opens the game. Resolves with the running game (or null if it cannot run here). Only one game runs at a time.
  * @param {string} [id] game id ('drift')
+ * @param {object} [opts] { quick: skip the menu and drive freely, biome, look, tier, seed, carType, paint }
  */
 export function launchGame3D(id = 'drift', opts = {}) {
   if (current) return Promise.resolve(current.api);
@@ -46,18 +50,16 @@ export function launchGame3D(id = 'drift', opts = {}) {
   requestAnimationFrame(() => overlay.classList.add('in'));
 
   let renderer = null;
-  let session = null;
-  let hud = null;
+  let game = null;
+  let msgHud = null;
   let kb = null;
   let raf = 0;
-  let paused = false;
-  let modal = null; // 'menu' | 'msg' | null
+  let modal = null; // 'msg' while a message card is up
   let last = performance.now();
   let fpsFrames = 0;
   let fpsT0 = performance.now();
   let fps = 0;
   let gone = false;
-  const sessionOpts = () => ({ renderer, biome: opts.biome ?? settings.biome, seed: opts.seed ?? settings.seed, look: opts.look ?? settings.look, tier: opts.tier ?? settings.tier, carType: opts.carType || settings.carType, paint: opts.paint ?? settings.paint });
 
   const teardown = () => {
     if (gone) return;
@@ -68,8 +70,8 @@ export function launchGame3D(id = 'drift', opts = {}) {
     canvas.removeEventListener('webglcontextlost', onLost);
     canvas.removeEventListener('webglcontextrestored', onRestored);
     kb?.dispose();
-    hud?.dispose();
-    session?.dispose();
+    msgHud?.dispose();
+    game?.dispose();
     if (renderer) {
       renderer.dispose();
       lastMemory = { ...renderer.info.memory };
@@ -85,16 +87,15 @@ export function launchGame3D(id = 'drift', opts = {}) {
     hooks.emit('game3d:closed', { id });
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
   };
-
   const quit = () => teardown();
 
   function fail(title, body) {
-    // no renderer: show a friendly card with a way back
-    hud = hud || createHud(overlay, { onPause() {}, onResume() {}, onRestart() {}, onQuit: quit });
-    hud.root.hidden = true;
+    // no renderer: a friendly card with a way back
+    msgHud = createHud(overlay, { onPause() {}, onResume() {}, onRestart() {}, onQuitToMenu() {}, onQuit: quit });
+    msgHud.root.hidden = true;
     modal = 'msg';
-    hud.message(title, body, [{ label: 'Back to desktop', primary: true, run: quit }]);
-    kb = kb || createKeyboard({ onKey: onKeyModal });
+    msgHud.message(title, body, [{ label: 'Back to desktop', primary: true, run: quit }]);
+    kb = createKeyboard({ onKey: onKeyModal });
   }
 
   if (!webglAvailable()) {
@@ -102,7 +103,6 @@ export function launchGame3D(id = 'drift', opts = {}) {
     fail('WebGL 2 is not available', 'NEON DRIFT needs a browser with WebGL 2 turned on. Everything else on the site still works.');
     return Promise.resolve(null);
   }
-
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   } catch (err) {
@@ -115,42 +115,25 @@ export function launchGame3D(id = 'drift', opts = {}) {
   renderer.setClearColor(0x07030f, 1);
   renderer.info.autoReset = false; // the composer renders several passes per frame: the session resets the counters once per frame
 
-  session = createSession(sessionOpts());
-  hud = createHud(overlay, {
-    onPause: () => pause(),
-    onResume: () => resume(),
-    onRestart: () => { session.restart(); resume(); },
-    onQuit: quit,
+  game = createGame({
+    renderer, overlay, quit, quick: !!opts.quick,
+    storage: hooks.storage, scores: hooks.scores, achievements: hooks.achievements, emit: hooks.emit,
+    biome: opts.biome, look: opts.look, tier: opts.tier || settings.tier, seed: opts.seed, carType: opts.carType, paint: opts.paint,
   });
   kb = createKeyboard({
-    onPause: () => pause(),
-    onReset: () => session.resetToRoad(),
-    onCamera: () => session.toggleCamera(),
+    onPause: () => game.onEscape(),
+    onReset: () => game.onReset(),
+    onCamera: () => game.onCamera(),
     onKey: onKeyModal,
   });
 
   function onKeyModal(e) {
-    if (!modal) return undefined;
-    if (e.code === 'Escape' || e.code === 'KeyP') { if (modal === 'menu') resume(); else quit(); return true; }
-    if (modal === 'menu' && (e.code === 'ArrowDown' || e.code === 'KeyS')) { hud.moveFocus(1); return true; }
-    if (modal === 'menu' && (e.code === 'ArrowUp' || e.code === 'KeyW')) { hud.moveFocus(-1); return true; }
-    if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native';
-    return true;
-  }
-
-  function pause() {
-    if (paused || gone) return;
-    paused = true;
-    modal = 'menu';
-    kb.clear();
-    hud.showMenu();
-  }
-  function resume() {
-    if (!paused) return;
-    paused = false;
-    modal = null;
-    hud.hideMenu();
-    last = performance.now();
+    if (modal === 'msg') {
+      if (e.code === 'Escape') { quit(); return true; }
+      if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native';
+      return true;
+    }
+    return game.onKey(e);
   }
 
   function onResize() {
@@ -158,22 +141,22 @@ export function launchGame3D(id = 'drift', opts = {}) {
     const h = window.innerHeight;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
     renderer.setSize(w, h, false);
-    session.resize(w, h);
-    if (paused) session.render(0); // a resized canvas is blank until it is drawn again
+    game.resize(w, h);
+    if (game.paused) game.render(0); // a resized canvas is blank until it is drawn again
   }
   function onVis() {
-    if (document.hidden) pause();
+    if (document.hidden) game.pause();
     else last = performance.now();
   }
   function onLost(e) {
     e.preventDefault();
     cancelAnimationFrame(raf);
     modal = 'msg';
-    hud.message('Graphics interrupted', 'The browser reset the graphics card. The game continues as soon as it is back.', [{ label: 'Back to desktop', run: quit }]);
+    game.hud.message('Graphics interrupted', 'The browser reset the graphics card. The game continues as soon as it is back.', [{ label: 'Back to desktop', run: quit }]);
   }
   function onRestored() {
-    hud.clearMessage();
-    modal = paused ? 'menu' : null;
+    game.hud.clearMessage();
+    modal = null;
     last = performance.now();
     raf = requestAnimationFrame(frame);
   }
@@ -186,10 +169,9 @@ export function launchGame3D(id = 'drift', opts = {}) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
-    if (!paused) {
-      session.update(dt, kb);
-      session.render(dt);
-      hud.update(session.hud());
+    if (!game.paused) {
+      game.update(dt, kb);
+      game.render(dt);
     }
     fpsFrames++;
     if (now - fpsT0 >= 500) {
@@ -198,28 +180,34 @@ export function launchGame3D(id = 'drift', opts = {}) {
       fpsT0 = now;
     }
   }
-  raf = requestAnimationFrame(frame);
 
   const api = {
     id,
     quit,
-    pause,
-    resume,
-    get paused() { return paused; },
+    pause: () => game.pause(),
+    resume: () => game.resume(),
+    get paused() { return game.paused; },
     get fps() { return fps; },
-    get session() { return session; },
+    get game() { return game; },
+    get session() { return game.session; },
     get renderer() { return renderer; },
-    /** Rebuilds the world with other options: { biome, seed, look, tier } (the settings stay for the next launch). */
-    rebuild(o = {}) {
-      Object.assign(settings, o);
-      for (const k of Object.keys(o)) delete opts[k]; // the launch options no longer win over the new settings
-      session.dispose();
-      session = createSession(sessionOpts());
-      session.resize(window.innerWidth, window.innerHeight);
-    },
   };
   current = { api, quit };
   hooks.emit('game3d:opened', { id });
+  if (opts.quick) {
+    game.open(); // tests and screenshots: ready on return
+    raf = requestAnimationFrame(frame);
+  } else {
+    // the first build takes a moment: let the overlay paint before it blocks the thread
+    overlay.classList.add('booting');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (gone) return;
+      game.open();
+      overlay.classList.remove('booting');
+      last = performance.now();
+      raf = requestAnimationFrame(frame);
+    }));
+  }
   return Promise.resolve(api);
 }
 
@@ -231,6 +219,8 @@ export const game3dDebug = {
   get overlayOpen() { return !!current; },
   /** renderer.info.memory right after the last quit: all zeros when nothing leaked. */
   get lastMemory() { return lastMemory; },
+  /** The biome definitions (tests/dev tweak them: e.g. switch props off to bisect a leak). */
+  biomes: BIOMES,
   launch: (id, opts) => launchGame3D(id, opts),
   quit: () => current?.quit(),
   pause: () => current?.api?.pause(),
@@ -242,38 +232,33 @@ export const game3dDebug = {
     const m = a.renderer.info.memory;
     return { calls: r.calls, triangles: r.triangles, geometries: m.geometries, textures: m.textures, programs: a.renderer.info.programs?.length ?? 0, fps: Math.round(a.fps * 10) / 10, pixelRatio: a.renderer.getPixelRatio() };
   },
-  state: () => current?.api?.session.state() ?? null,
+  /** The game as the tests see it: phase, the player's car, lap / place … (null until a race exists). */
+  state: () => current?.api?.game.state() ?? null,
+  /** The controller (menus, race, records) for tests and dev tools. */
+  get game() { return current?.api?.game ?? null; },
   /** Runs n fixed physics steps (1/120 s each) with the autopilot / last input and redraws. */
   step(n = 1) {
-    const a = current?.api;
-    if (!a) return null;
-    a.session.step(n);
-    a.session.render(1 / 60);
-    return a.session.state();
+    const g = current?.api?.game;
+    if (!g) return null;
+    g.step(n);
+    g.render(1 / 60);
+    return g.state();
   },
-  setSeed(n) {
-    settings.seed = n;
-    current?.api?.rebuild({ seed: n });
-  },
-  setBiome(id) {
-    settings.biome = id;
-    settings.seed = undefined;
-    current?.api?.rebuild({ biome: id, seed: undefined });
-  },
-  setLook(id) { settings.look = id; current?.api?.rebuild({ look: id }); },
-  setTier(t) { settings.tier = t; current?.api?.rebuild({ tier: t }); },
   /** Puts the car at arc length s with a speed (m/s) and redraws: for screenshots and tests. */
   teleport(s, speed = 60, lateral = 0) {
-    const a = current?.api;
-    if (!a) return null;
-    a.session.teleport(s, speed, lateral);
-    a.session.render(1 / 60);
-    return a.session.state();
+    const g = current?.api?.game;
+    if (!g) return null;
+    g.teleport(s, speed, lateral);
+    g.render(1 / 60);
+    return g.state();
   },
-  camera(mode, o) { current?.api?.session.setCamera(mode, o); current?.api?.session.render(1 / 60); },
-  autopilot(on = true) { if (current?.api) current.api.session.autopilot = on; },
-  get seed() { return settings.seed ?? null; },
-  /** The biome definitions (tests/dev tweak them: e.g. switch props off to bisect a leak). */
-  biomes: BIOMES,
-  get biome() { return settings.biome; },
+  camera(mode) { const g = current?.api?.game; if (g) { g.setCamera(mode); g.render(1 / 60); } },
+  /** Rebuilds the world: { biome, look, tier, seed } (a free drive stays a free drive, the menu stays the menu). */
+  reconfigure(o) { current?.api?.game.reconfigure(o); },
+  setSeed(n) { this.reconfigure({ seed: n }); },
+  setBiome(id) { this.reconfigure({ biome: id, seed: undefined }); },
+  setLook(id) { this.reconfigure({ look: id }); },
+  setTier(t) { settings.tier = t; this.reconfigure({ tier: t }); },
+  autopilot(on = true) { if (current?.api) current.api.game.autopilot = on; },
+  get biome() { return current?.api?.game?.prefs.biome ?? null; },
 };

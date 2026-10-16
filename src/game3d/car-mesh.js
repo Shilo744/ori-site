@@ -8,11 +8,49 @@ import { buildCarParts, CAR_SPECS } from './car-parts.js';
 import { glowTexture, beamTexture } from './textures3d.js';
 
 /**
- * @param {object} o { type: 'hatch'|'gt'|'hyper', paint: hex, glow: hex (underglow), beam: number 0..1 (headlight strength) }
+ * Everything the cars of one session share: the geometry of each body type, the glass / trim / tyre / rim materials and the
+ * textures. Build one kit per session (cheap), pass it to every `createCarMesh`, dispose it once.
+ */
+export function createCarKit() {
+  const cache = new Map();
+  const own = [];
+  const mine = (o) => { own.push(o); return o; };
+  const common = {
+    glassMat: mine(new THREE.MeshStandardMaterial({ color: 0x07080f, metalness: 0.9, roughness: 0.06, envMapIntensity: 1.4 })),
+    trimMat: mine(new THREE.MeshStandardMaterial({ color: 0x0d0e14, metalness: 0.2, roughness: 0.55 })),
+    headMat: mine(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.95, 1).multiplyScalar(4), toneMapped: false })),
+    tireMat: mine(new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.88, metalness: 0 })),
+    rimMat: mine(new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.28 })),
+    ghostMat: mine(new THREE.MeshBasicMaterial({ color: 0x7ff3ff, transparent: true, opacity: 0.3, depthWrite: false })),
+    glowTex: mine(glowTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0.3)')),
+    shadowTex: mine(glowTexture('rgba(255,255,255,0.85)', 'rgba(255,255,255,0.35)')),
+    beamTex: mine(beamTexture()),
+  };
+  return {
+    common,
+    /** The shared geometry of a body type. */
+    parts(type) {
+      if (!cache.has(type)) {
+        const p = buildCarParts(type);
+        for (const g of [p.paint, p.glass, p.trim, p.tail, p.head, p.wheels.tire, p.wheels.rim]) mine(g);
+        cache.set(type, p);
+      }
+      return cache.get(type);
+    },
+    dispose() { own.forEach((o) => o.dispose()); cache.clear(); },
+  };
+}
+
+/**
+ * @param {object} o { type: 'hatch'|'gt'|'hyper', paint: hex, glow: hex (underglow), beam: number 0..1 (headlight strength),
+ *   kit: shared resources (createCarKit), ghost: a see-through replay car }
  * @returns {{ group: THREE.Group, update: Function, setPaint: Function, dispose: Function, spec: object }}
  */
-export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, beam = 0.35 } = {}) {
-  const parts = buildCarParts(type);
+export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, beam = 0.35, kit = null, ghost = false } = {}) {
+  const ownKit = kit ? null : createCarKit();
+  const K = kit || ownKit;
+  const parts = K.parts(type);
+  const C = K.common;
   const spec = parts.spec;
   const root = new THREE.Group(); // placed and oriented on the road surface
   const body = new THREE.Group(); // rolls and pitches
@@ -20,15 +58,15 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
   const own = [];
   const mine = (o) => { own.push(o); return o; };
 
-  const paintMat = mine(new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.3, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.2, emissive: paint, emissiveIntensity: 0.1 }));
-  const glassMat = mine(new THREE.MeshStandardMaterial({ color: 0x07080f, metalness: 0.9, roughness: 0.06, envMapIntensity: 1.4 }));
-  const trimMat = mine(new THREE.MeshStandardMaterial({ color: 0x0d0e14, metalness: 0.2, roughness: 0.55 }));
-  const tailMat = mine(new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.03, 0.08).multiplyScalar(1.5), toneMapped: false }));
-  const headMat = mine(new THREE.MeshBasicMaterial({ color: new THREE.Color(0.8, 0.95, 1).multiplyScalar(4), toneMapped: false }));
-  const tireMat = mine(new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.88, metalness: 0 }));
-  const rimMat = mine(new THREE.MeshStandardMaterial({ vertexColors: true, metalness: 0.85, roughness: 0.28 }));
+  const paintMat = ghost ? C.ghostMat : mine(new THREE.MeshPhysicalMaterial({ color: paint, metalness: 0.3, roughness: 0.34, clearcoat: 1, clearcoatRoughness: 0.05, envMapIntensity: 1.2, emissive: paint, emissiveIntensity: 0.1 }));
+  const glassMat = ghost ? C.ghostMat : C.glassMat;
+  const trimMat = ghost ? C.ghostMat : C.trimMat;
+  const tailMat = ghost ? C.ghostMat : mine(new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.03, 0.08).multiplyScalar(1.5), toneMapped: false }));
+  const headMat = ghost ? C.ghostMat : C.headMat;
+  const tireMat = ghost ? C.ghostMat : C.tireMat;
+  const rimMat = ghost ? C.ghostMat : C.rimMat;
 
-  const add = (geo, mat) => { const m = new THREE.Mesh(mine(geo), mat); body.add(m); return m; };
+  const add = (geo, mat) => { const m = new THREE.Mesh(geo, mat); body.add(m); return m; };
   add(parts.paint, paintMat);
   add(parts.glass, glassMat);
   add(parts.trim, trimMat);
@@ -37,8 +75,8 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
 
   // wheels
   const wheels = [];
-  const tireGeo = mine(parts.wheels.tire);
-  const rimGeo = mine(parts.wheels.rim);
+  const tireGeo = parts.wheels.tire;
+  const rimGeo = parts.wheels.rim;
   for (const [x, z, front] of [[spec.axle, -spec.track, true], [spec.axle, spec.track, true], [-spec.axle, -spec.track, false], [-spec.axle, spec.track, false]]) {
     const pivot = new THREE.Group();
     pivot.position.set(x, 0, z);
@@ -53,28 +91,26 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
   }
 
   // headlight beams: two open cones with a fading gradient, additive
-  const beamTex = mine(beamTexture());
-  if (beam > 0.01) {
-    const beamMat = mine(new THREE.MeshBasicMaterial({ map: beamTex, color: 0xcfe8ff, transparent: true, opacity: beam, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-    const cone = mine(new THREE.ConeGeometry(2.6, 26, 14, 1, true));
-    cone.rotateZ(-Math.PI / 2); // tip at the car, opening forwards (+x)
-    cone.translate(13 + spec.L / 2 - 0.1, 0, 0);
+  if (beam > 0.01 && !ghost) {
+    const beamMat = mine(new THREE.MeshBasicMaterial({ map: C.beamTex, color: 0xcfe8ff, transparent: true, opacity: beam, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    const cone = mine(new THREE.ConeGeometry(3.4, 28, 14, 1, true));
+    cone.rotateZ(Math.PI / 2); // the tip at the headlight, opening forwards (+x); the gradient fades away from the car
+    cone.translate(14 + spec.L / 2 - 0.1, 0, 0);
     for (const z of [-1, 1]) {
       const b = new THREE.Mesh(cone, beamMat);
-      b.scale.set(1, 0.4, 0.4);
+      b.scale.set(1, 0.42, 0.42);
       b.position.set(0, spec.body[3][1] - 0.04, z * (spec.W / 2 - 0.34));
       body.add(b);
     }
   }
 
   // underglow + contact shadow + brake glow + boost flames
-  const glowTex = mine(glowTexture('rgba(255,255,255,1)', 'rgba(255,255,255,0.3)'));
+  const glowTex = C.glowTex;
   const underMat = mine(new THREE.MeshBasicMaterial({ map: glowTex, color: glow, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
   const under = new THREE.Mesh(mine(new THREE.PlaneGeometry(spec.L * 0.95, spec.W * 1.5)), underMat);
   under.rotation.x = -Math.PI / 2;
   under.position.y = -spec.wheelR + 0.07;
-  const shadowTex = mine(glowTexture('rgba(255,255,255,0.85)', 'rgba(255,255,255,0.35)'));
-  const shadow = new THREE.Mesh(mine(new THREE.PlaneGeometry(spec.L * 1.35, spec.W * 1.9)), mine(new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false, color: 0x000000 })));
+  const shadow = new THREE.Mesh(mine(new THREE.PlaneGeometry(spec.L * 1.35, spec.W * 1.9)), mine(new THREE.MeshBasicMaterial({ map: C.shadowTex, transparent: true, depthWrite: false, color: 0x000000 })));
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = -spec.wheelR + 0.035;
   const brakeMat = mine(new THREE.MeshBasicMaterial({ map: glowTex, color: new THREE.Color(1, 0.1, 0.2).multiplyScalar(2), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, side: THREE.DoubleSide }));
@@ -93,7 +129,7 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
     root.add(fl);
     flames.push(fl);
   }
-  root.add(shadow, under, brakeGlow);
+  if (!ghost) root.add(shadow, under, brakeGlow);
 
   const fr = {};
   const nm = {};
@@ -130,7 +166,7 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
     }
     underMat.opacity = 0.5 + (st.boosting ? 0.5 : 0) + (st.drifting ? 0.2 : 0);
     brakeMat.opacity += ((st.brake > 0.2 ? 0.85 : 0) - brakeMat.opacity) * Math.min(1, dt * 16);
-    tailMat.color.setRGB(1, 0.03, 0.08).multiplyScalar(1.5 + st.brake * 2.4);
+    if (!ghost) tailMat.color.setRGB(1, 0.03, 0.08).multiplyScalar(1.5 + st.brake * 2.4);
     flick += dt * 60;
     for (const fl of flames) {
       fl.visible = !!st.boosting;
@@ -145,8 +181,8 @@ export function createCarMesh({ type = 'gt', paint = 0xff2d6f, glow = 0x19e3ff, 
     spec,
     paintMat,
     update,
-    setPaint(hex) { paintMat.color.set(hex); paintMat.emissive.set(hex); },
-    dispose() { own.forEach((o) => o.dispose()); },
+    setPaint(hex) { if (!ghost) { paintMat.color.set(hex); paintMat.emissive.set(hex); } },
+    dispose() { own.forEach((o) => o.dispose()); if (ownKit) ownKit.dispose(); },
   };
 }
 

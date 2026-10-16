@@ -15,8 +15,8 @@ export async function runDrift(session, { ok, fail }) {
   check(!(await g(() => window.__ori.game3d.running)), 'not running before launch');
 
   // ── launch ──
-  await g(() => window.__ori.game3d.launch('drift'));
-  await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 20000 });
+  await g(() => window.__ori.game3d.launch('drift', { quick: true }));
+  await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 20000 });
   check(await g(() => !!document.getElementById('g3d') && document.body.classList.contains('g3d-open')), 'the overlay is in the page and the body is flagged');
   const rect = await g(() => { const r = document.querySelector('#g3d canvas').getBoundingClientRect(); return { w: r.width, h: r.height, top: r.top, left: r.left, z: getComputedStyle(document.getElementById('g3d')).zIndex }; });
   check(rect.w === session.width && rect.h === session.height && rect.top === 0 && rect.left === 0, `the canvas covers the viewport (${rect.w}x${rect.h})`);
@@ -111,8 +111,8 @@ export async function runDrift(session, { ok, fail }) {
   check(room1.geo === room0.geo && room1.tex === room0.tex, `the room's own memory is untouched (geometries ${room0.geo} → ${room1.geo}, textures ${room0.tex} → ${room1.tex})`);
 
   // ── WebGL context loss: a card on screen, the game carries on after the browser restores the context ──
-  await g(() => window.__ori.game3d.launch('drift'));
-  await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 20000 });
+  await g(() => window.__ori.game3d.launch('drift', { quick: true }));
+  await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 20000 });
   await sleep(300);
   await g(() => { const gl = document.querySelector('#g3d canvas').getContext('webgl2'); window.__lose = gl.getExtension('WEBGL_lose_context'); window.__lose.loseContext(); });
   await page.waitForFunction(() => { const m = document.querySelector('#g3d .g3d-msg'); return m && !m.hidden; }, null, { timeout: 5000 });
@@ -127,8 +127,8 @@ export async function runDrift(session, { ok, fail }) {
 
   // ── the three biomes at their tiers: world budget, the right look, and a clean teardown each time ──
   for (const [biome, tier, car] of [['city', 'high', 'gt'], ['desert', 'high', 'hyper'], ['coast', 'high', 'hatch'], ['city', 'medium', 'gt'], ['coast', 'low', 'gt']]) {
-    await g((o) => window.__ori.game3d.launch('drift', o), { biome, tier, carType: car });
-    await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 30000 });
+    await g((o) => window.__ori.game3d.launch('drift', o), { quick: true, biome, tier, carType: car });
+    await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 30000 });
     await g(() => { window.__ori.game3d.autopilot(true); window.__ori.game3d.step(900); });
     await sleep(500);
     const w = await g(() => ({ stats: window.__ori.game3d.stats(), state: window.__ori.game3d.state() }));
@@ -142,8 +142,8 @@ export async function runDrift(session, { ok, fail }) {
     check(m && m.geometries === 0 && m.textures === 0, `${biome}/${tier}: everything released on quit (geometries ${m?.geometries}, textures ${m?.textures})`);
   }
   // switching biome / look / tier while running rebuilds the world without leaking
-  await g(() => window.__ori.game3d.launch('drift', { biome: 'city' }));
-  await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 30000 });
+  await g(() => window.__ori.game3d.launch('drift', { quick: true, biome: 'city' }));
+  await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 30000 });
   const sw = await g(() => {
     const d = window.__ori.game3d;
     const out = [];
@@ -158,8 +158,8 @@ export async function runDrift(session, { ok, fail }) {
 
   // ── launch / quit x5: no growth ──
   for (let i = 0; i < 5; i++) {
-    await g(() => window.__ori.game3d.launch('drift'));
-    await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 20000 });
+    await g(() => window.__ori.game3d.launch('drift', { quick: true }));
+    await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state(), null, { timeout: 20000 });
     await sleep(250);
     await g(() => window.__ori.game3d.quit());
     await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 5000 });

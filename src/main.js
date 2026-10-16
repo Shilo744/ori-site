@@ -28,6 +28,7 @@ import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from '
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
 import { initGame3D, launchGame3D, game3dDebug } from './game3d/host.js';
+import { scores } from './ui/games/scores.js';
 
 // `?fast=1` — tests only: skips the typewriter intro / boot delays and shortens camera flights.
 const FAST = new URLSearchParams(window.location.search).has('fast');
@@ -609,6 +610,9 @@ initGame3D({
   resumeRoom,
   duck: (v) => sound.setDuck(v),
   emit: (name, data) => bus.emit(name, data),
+  storage,
+  scores,
+  achievements,
 });
 
 function frame() {
