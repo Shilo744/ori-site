@@ -16,7 +16,7 @@ if (!target) {
 }
 const size = parseSize(opt('size', '1280x800')) || { width: 1280, height: 800 };
 const safe = (s) => s.replace(/[^a-z0-9._-]+/gi, '-');
-const name = safe(pos[1] || target.replace(':', '-'));
+const name = safe(pos[1] || (target === 'all' ? 'views' : target.replace(':', '-')));
 const file = join(SHOTS, `${name}.png`);
 
 if (!flag('no-build')) build();
@@ -35,6 +35,23 @@ try {
   for (const code of args.filter((a) => a.startsWith('--eval=')).map((a) => a.slice(7))) await page.evaluate(code);
 
   const [kind, id] = target.split(':');
+  // several room views in one browser session: `npm run shot -- all T12-before` (all presets) or `-- desk,shelf,plant name` → shots/<name>-<view>.png
+  const ALL = ['overview', 'desk', 'window', 'shelf', 'bench', 'plant', 'mac-close', 'mac-keys', 'iphone', 'ipad'];
+  const list = target === 'all' ? ALL : target.includes(',') ? target.split(',') : null;
+  if (list) {
+    if (size.width >= 860) await backToRoom(s);
+    for (const v of list) {
+      if (!(await page.evaluate((n) => window.__ori.setView(n), v))) throw new Error(`unknown view "${v}"`);
+      await sleep(+opt('wait', 600));
+      await snap(s, join(SHOTS, `${name}-${v}.png`));
+      console.log(`saved ${name}-${v}.png`);
+    }
+    if (s.errors.length) { code = 1; s.errors.forEach((e) => console.error(`✗ ${e.kind}: ${e.text.split('\n')[0]}`)); }
+    await s.context.close();
+    await browser.close();
+    await server.close();
+    process.exit(code);
+  }
   if (kind === 'app' || kind === 'game') {
     await page.evaluate(() => window.__ori.desktop.reset());
     const okOpen = await page.evaluate((a) => window.__ori.openApp(a), id);
