@@ -77,6 +77,30 @@ html, body {
 body.in-screen #hud-found, body.flat-mode #hud-found { display: none; }
 body.in-screen:not(.flat-mode) #hud-trophies, body.flat-mode #hud-trophies { display: none; }
 
+/* Look around (T40) */
+.nav-chev { position: fixed; top: 50%; z-index: 22; width: 40px; height: 64px; padding: 0; display: grid; place-items: center; border: 0; cursor: pointer; transform: translateY(-50%); transition: background 0.15s, opacity 0.2s, transform 0.15s; }
+.nav-chev[hidden] { display: none; }
+.nav-chev.left { left: clamp(8px, 1.4vw, 20px); }
+.nav-chev.right { right: clamp(8px, 1.4vw, 20px); }
+.nav-chev svg { width: 22px; height: 22px; }
+.nav-chev:hover { background: #3a46e0; }
+.nav-chev:disabled { opacity: 0.25; cursor: default; pointer-events: none; }
+.nav-chev .bd { position: absolute; top: -9px; left: 50%; min-width: 20px; height: 20px; padding: 0 5px; margin-left: -10px; border-radius: 10px; background: #3a46e0; color: #fff; font: 700 11px/20px var(--mono); font-style: normal; text-align: center; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+.nav-chev .bd[hidden] { display: none; }
+.nav-chev.hint { animation: chevHint 1.1s ease-in-out 4; }
+@keyframes chevHint { 0%, 100% { transform: translateY(-50%) scale(1); } 50% { transform: translateY(-50%) scale(1.14); background: #3a46e0; } }
+.nav-chev.left.hint { animation-name: chevHintL; }
+@keyframes chevHintL { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(-5px, -50%); background: #3a46e0; } }
+.nav-chev.right.hint { animation-name: chevHintR; }
+@keyframes chevHintR { 0%, 100% { transform: translate(0, -50%); } 50% { transform: translate(5px, -50%); background: #3a46e0; } }
+.st-dots { position: fixed; left: 50%; bottom: 78px; z-index: 22; transform: translateX(-50%); display: flex; gap: 8px; padding: 7px 10px; background: rgba(0, 0, 0, 0.82); }
+.st-dots[hidden] { display: none; }
+.st-dots button { width: 10px; height: 10px; padding: 0; border: 0; border-radius: 50%; background: rgba(255, 255, 255, 0.38); cursor: pointer; transition: background 0.15s, transform 0.15s; }
+.st-dots button:hover { background: #fff; }
+.st-dots button.on { background: #fff; transform: scale(1.3); }
+body.in-screen .nav-chev, body.in-screen .st-dots, body.flat-mode .nav-chev, body.flat-mode .st-dots { display: none; }
+@media (prefers-reduced-motion: reduce) { .nav-chev.hint { animation: none; } }
+
 #prompt, #hint {
   position: fixed;
   left: 50%;

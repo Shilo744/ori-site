@@ -24,6 +24,7 @@ import { createNotificationUI } from './ui/notifications.js';
 import { startOnboarding } from './ui/onboarding.js';
 import { listGames } from './ui/games/catalog.js';
 import { listApps as listRegisteredApps } from './ui/apps/registry.js';
+import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from './scene/stations.js';
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
 
@@ -255,6 +256,7 @@ function exitScreen() {
   }
   if (state !== 'screen') return;
   state = 'exiting';
+  stationIdx = DESK_INDEX; // coming back from the laptop you are at the desk
   document.body.classList.remove('in-screen');
   desktop.setLocked(true);
   hintEl.classList.remove('on');
@@ -284,16 +286,93 @@ function resize() {
   OVERVIEW.pos.set(...OVERVIEW_BASE).sub(OVERVIEW.target).multiplyScalar(kO).add(OVERVIEW.target);
   FAR_INTRO.pos.set(...FAR_BASE).sub(FAR_INTRO.target).multiplyScalar(kF).add(FAR_INTRO.target);
 
+  STATIONS.forEach((s, i) => { if (!s.desk) stationView(s, camera.aspect, stationViews[i]); });
   computeScreenView();
   if (state === 'flat' && !wantsFlat()) { leaveFlat('screen'); setView(screenView); }
   else if (state === 'screen' && wantsFlat() && !tween) goFlat();
   if (!tween) {
     if (state === 'screen') setView(screenView);
-    else if (state === 'overview') setView(OVERVIEW);
-    else if (state === 'intro' || state === 'ready') setView(FAR_INTRO);
+    else if (state === 'overview' || state === 'ready') setView(restView());
+    else if (state === 'intro') setView(FAR_INTRO);
   }
 }
 window.addEventListener('resize', resize);
+
+// ── "Look around": three stations in the room (Window & bench ‹ Desk › Plant & clock) ──
+const stationViews = STATIONS.map(() => ({ pos: new THREE.Vector3(), target: new THREE.Vector3(), fov: 30 }));
+let stationIdx = DESK_INDEX;
+/** The camera view the room rests in: the desk uses the (fitted) overview / first-view framing, the others their own. */
+function restView() {
+  if (stationIdx === DESK_INDEX) return state === 'ready' ? FAR_INTRO : OVERVIEW;
+  return stationViews[stationIdx];
+}
+const navL = $('nav-left'), navR = $('nav-right'), dotsEl = $('st-dots');
+STATIONS.forEach((s, i) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.setAttribute('aria-label', s.label);
+  b.title = s.label;
+  b.addEventListener('click', () => goStation(i));
+  dotsEl.appendChild(b);
+});
+let lastActivity = performance.now();
+let navState = '';
+function syncNav() {
+  const live = state === 'ready' || state === 'overview';
+  navL.hidden = navR.hidden = dotsEl.hidden = !live;
+  if (!live) return;
+  const b = badges(stationIdx, interactions.found());
+  for (const [el, n] of [[navL, b.left], [navR, b.right]]) {
+    const bd = el.querySelector('.bd');
+    bd.hidden = n === 0;
+    bd.textContent = String(n);
+  }
+  navL.disabled = stationIdx === 0;
+  navR.disabled = stationIdx === STATIONS.length - 1;
+  navL.setAttribute('aria-label', `Look left${b.left ? ` — ${b.left} undiscovered` : ''}`);
+  navR.setAttribute('aria-label', `Look right${b.right ? ` — ${b.right} undiscovered` : ''}`);
+  [...dotsEl.children].forEach((d, i) => d.classList.toggle('on', i === stationIdx));
+}
+/** Moves the camera to station `i` (0 = Window & bench, 1 = Desk, 2 = Plant & clock). */
+function goStation(i, { instant = false } = {}) {
+  if (state !== 'ready' && state !== 'overview') return false;
+  const next = Math.max(0, Math.min(STATIONS.length - 1, i));
+  lastActivity = performance.now();
+  navL.classList.remove('hint'); navR.classList.remove('hint');
+  if (next === stationIdx && !tween) return false;
+  stationIdx = next;
+  const v = restView();
+  if (instant || system.get('reduceMotion')) { tween = null; setView(v); } else flyTo(v, 900);
+  syncNav();
+  sound.blip(520 + next * 60, 0.05, 'triangle', 0.04);
+  bus.emit('station:change', { index: next, id: STATIONS[next].id });
+  return true;
+}
+navL.addEventListener('click', () => goStation(stationIdx - 1));
+navR.addEventListener('click', () => goStation(stationIdx + 1));
+bus.on('room:discover', () => syncNav());
+bus.on('room:reset', () => syncNav());
+// swipe (touch / pen) on the room
+{
+  let o = null;
+  window.addEventListener('pointerdown', (e) => { o = e.pointerType === 'mouse' || !(e.target === renderer.domElement) ? null : { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('pointerup', (e) => {
+    if (!o) return;
+    const dx = e.clientX - o.x, dy = e.clientY - o.y;
+    o = null;
+    if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6) goStation(stationIdx + (dx < 0 ? 1 : -1));
+  });
+}
+// after a while with no input, point the arrow towards the nearest thing nobody has found yet
+setInterval(() => {
+  if ((state !== 'ready' && state !== 'overview') || system.get('reduceMotion')) return;
+  if (performance.now() - lastActivity < (FAST ? 1500 : 10000)) return;
+  const n = nearestUndiscovered(stationIdx, interactions.found());
+  if (!n) return;
+  (n.dir < 0 ? navL : navR).classList.add('hint');
+  lastActivity = performance.now() + 60000; // once per idle spell
+}, 800);
+['pointermove', 'pointerdown', 'keydown'].forEach((ev) => window.addEventListener(ev, () => { lastActivity = performance.now(); }, { passive: true }));
 
 // ── input ──────────────────────────────────────────────────────────────
 window.addEventListener('pointermove', (e) => {
@@ -342,6 +421,11 @@ soundBtn.addEventListener('click', () => {
 });
 
 window.addEventListener('keydown', (e) => {
+  // ← → / A D look around while you are looking at the room
+  if ((state === 'ready' || state === 'overview') && !e.ctrlKey && !e.metaKey && !e.altKey && !(e.target.closest && e.target.closest('input, textarea'))) {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { goStation(stationIdx - 1); e.preventDefault(); return; }
+    if (e.code === 'ArrowRight' || e.code === 'KeyD') { goStation(stationIdx + 1); e.preventDefault(); return; }
+  }
   // T cycles the time of day (only while looking at the room, never while typing)
   if ((e.key === 't' || e.key === 'T') && !e.ctrlKey && !e.metaKey && !e.altKey && state !== 'screen' && state !== 'flat' && state !== 'entering' && !(e.target.closest && e.target.closest('input, textarea'))) {
     sound.click();
@@ -568,6 +652,7 @@ function frame() {
 
   if (world.life.homepod.active && sound.padOn()) world.life.homepod.setLevel(sound.padLevel()); // the HomePod ring follows the music
   if (nudgeT < 1) { nudgeT = Math.min(1, nudgeT + dt * 3.2); mac.group.scale.setScalar(1 + 0.045 * Math.sin(Math.PI * nudgeT)); if (nudgeT >= 1) mac.group.scale.setScalar(1); }
+  if (state !== navState) { navState = state; syncNav(); }
   world.update(dt, t, state);
 
   if (state !== 'flat') {
@@ -629,6 +714,9 @@ window.__ori = {
   kit,
   /** ids of the game windows whose render loop is running (tests: only the active one may be). */
   loops: () => kit.loopsRunning(),
+  /** Look-around stations: ids, current index, badges. `setStation('window' | 'desk' | 'plant', instant = true)`. */
+  stations: () => ({ ids: STATIONS.map((s) => s.id), index: stationIdx, id: STATIONS[stationIdx].id, badges: badges(stationIdx, interactions.found()), things: STATIONS.map((s) => s.things) }),
+  setStation: (name, instant = true) => goStation(typeof name === 'number' ? name : STATIONS.findIndex((s) => s.id === name), { instant }),
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
   daylight,

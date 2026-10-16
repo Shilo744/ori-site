@@ -25,6 +25,7 @@ export async function runInteract(session, { ok, fail }) {
   const flat = session.width < 860;
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const until = (fn, arg, timeout = 30000) => page.waitForFunction(fn, arg, { timeout }).then(() => true).catch(() => false);
+  const center = (sel) => ev((q) => { const r = document.querySelector(q).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
   const shot = (name) => snap(session, join(SHOTS, 'smoke', `${tag}-interact-${name}.png`));
 
   if (flat) {
@@ -33,6 +34,7 @@ export async function runInteract(session, { ok, fail }) {
   }
 
   await readyFlow(); // the real first-visit flow: START → "ready" (nothing entered yet) → laptop click → Esc → overview
+  await lookAroundFlow(); // T40: three stations — every one of the 11 things can be reached with a real mouse
 
   // start from a clean slate, in the room
   await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.core.wallpaper.set('sunrise'); window.__ori.core.achievements.reset(); window.__ori.interactions.reset(); window.__ori.daylight.setMode('day', { instant: true }); });
@@ -144,7 +146,7 @@ export async function runInteract(session, { ok, fail }) {
     await until(() => window.__ori.interactions.hintAlpha > 0.65, null, 3000); // shoot at the peak of the pulse
     await shot('ready-hint');
     check(await until(() => window.__ori.interactions.hintId === null && window.__ori.interactions.visibleHulls() === 0, null, 8000), 'ready: the hint ends by itself');
-    check(/poke around the room/i.test(await ev(() => document.getElementById('prompt').textContent)), 'ready: the prompt says "Click the laptop to start — or poke around the room"');
+    check(/look around/i.test(await ev(() => document.getElementById('prompt').textContent)), 'ready: the prompt says "Click the laptop to start — or look around with the arrows"');
     check((await ev(() => document.getElementById('hud').classList.contains('on') && getComputedStyle(document.getElementById('hud-found')).display !== 'none')) && (await ev(() => document.getElementById('hud-found').textContent)) === 'Discovered 0/11', 'ready: the HUD with "Discovered 0/11" is already there');
     const mv = async (p) => { await page.mouse.move(p.x - 3, p.y - 3); await page.mouse.move(p.x, p.y, { steps: 2 }); };
     // every headline thing is comfortably hoverable from the far first view
@@ -165,8 +167,12 @@ export async function runInteract(session, { ok, fail }) {
     await until(() => window.__ori.interactions.hoverId === 'lamp', null, 5000);
     await shot('ready-hover-lamp');
     const lampBefore = await ev(() => window.__ori.daylight.lamp.on);
-    await page.mouse.click(lamp.x, lamp.y);
-    check(await until((b) => window.__ori.daylight.lamp.on !== b || window.__ori.core.storage.get('room:found', []).includes('lamp'), lampBefore, 5000), 'ready: clicking the lamp toggles it');
+    const lampNow = await ev(() => window.__ori.interactions.screenPos('lamp')); // the camera sways: aim again right before clicking
+    await mv(lampNow);
+    await until(() => window.__ori.interactions.hoverId === 'lamp', null, 5000);
+    await page.mouse.click(lampNow.x, lampNow.y);
+    const lampOk = await until((b) => window.__ori.daylight.lamp.on !== b || window.__ori.core.storage.get('room:found', []).includes('lamp'), lampBefore, 5000);
+    check(lampOk, 'ready: clicking the lamp toggles it' + (lampOk ? '' : ' ' + JSON.stringify(await ev(() => ({ state: window.__ori.state, hover: window.__ori.interactions.hoverId, found: window.__ori.interactions.found(), tag: window.__ori.interactions.tagText })))));
     await sleep(300);
     check((await ev(() => window.__ori.state)) === 'ready', 'ready: …without entering the screen');
     check((await ev(() => document.getElementById('hud-found').textContent)) === 'Discovered 1/11', 'ready: the discovery counter counts it (1/11)');
@@ -191,5 +197,79 @@ export async function runInteract(session, { ok, fail }) {
     await mv(lamp2);
     check(await until(() => window.__ori.interactions.hoverId === 'lamp', null, 5000), '…where the room is still interactive');
     await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.interactions.reset(); window.__ori.daylight.lamp.auto(); });
+  }
+
+  /** T40: chevrons / keys / swipe move the camera between Window & bench ‹ Desk › Plant & clock; all 11 things are reachable. */
+  async function lookAroundFlow() {
+    await ev(() => { const o = window.__ori; o.core.storage.remove('room:found'); o.interactions.reset(); o.core.achievements.reset(); o.core.system.set('reduceMotion', false); o.setView('free'); o.setStation('desk', true); });
+    await sleep(300);
+    const st = () => ev(() => window.__ori.stations());
+    const s0 = await st();
+    check(s0.id === 'desk' && s0.badges.left === 3 && s0.badges.right === 2, `stations: you start at the Desk with 3 things to the left and 2 to the right (${JSON.stringify(s0.badges)})`);
+    const nav = () => ev(() => ({ l: !document.getElementById('nav-left').hidden, r: !document.getElementById('nav-right').hidden, dots: document.querySelectorAll('#st-dots button').length, lb: document.querySelector('#nav-left .bd').textContent, rb: document.querySelector('#nav-right .bd').textContent, lbh: document.querySelector('#nav-left .bd').hidden }));
+    const n0 = await nav();
+    check(n0.l && n0.r && n0.dots === 3 && n0.lb === '3' && n0.rb === '2', `the chevrons show badges "${n0.lb}" and "${n0.rb}" and three station dots`);
+    // idle hint: the arrow towards something undiscovered pulses
+    check(await until(() => document.getElementById('nav-left').classList.contains('hint') || document.getElementById('nav-right').classList.contains('hint'), null, 8000), 'after a few idle seconds one chevron pulses towards the nearest undiscovered thing');
+    const mv = async (p) => { await page.mouse.move(p.x - 3, p.y - 3); await page.mouse.move(p.x, p.y, { steps: 2 }); };
+    const poke = async (id) => {
+      const p = await ev((k) => window.__ori.interactions.screenPos(k), id);
+      if (!p || !p.visible || p.x < 10 || p.y < 10 || p.x > session.width - 10 || p.y > session.height - 10) { fail(`interact: ${id} is off screen at station ${(await st()).id} (${JSON.stringify(p)})`); return false; }
+      await mv(p);
+      if (!(await until((k) => window.__ori.interactions.hoverId === k, id, 6000))) { fail(`interact: could not hover ${id} at station ${(await st()).id}`); return false; }
+      await page.mouse.click(p.x, p.y);
+      return until((k) => window.__ori.interactions.found().includes(k), id, 6000);
+    };
+    const settleCam = () => sleep(450);
+    // the left chevron (a real click) → Window & bench
+    const lp = await center('#nav-left');
+    await page.mouse.move(lp.x, lp.y);
+    await page.mouse.click(lp.x, lp.y);
+    check(await until(() => window.__ori.stations().id === 'window', null), 'the left chevron moves the camera to Window & bench');
+    await settleCam();
+    await shot('station-window');
+    let all = true;
+    for (const id of ['window', 'cat', 'vacuum']) if (!(await poke(id))) all = false;
+    check(all, 'window, cat and vacuum can be hovered and clicked from there');
+    const n1 = await nav();
+    check(n1.lbh && (await st()).badges.right === 8, 'at the left-most station there is nothing further left, and 8 things are still to the right');
+    // keys: D / ArrowRight
+    await page.keyboard.press('KeyD');
+    check(await until(() => window.__ori.stations().id === 'desk', null), 'D looks right (back to the Desk)');
+    await page.keyboard.press('ArrowRight');
+    check(await until(() => window.__ori.stations().id === 'plant', null), 'ArrowRight goes on to Plant & clock');
+    await settleCam();
+    await shot('station-plant');
+    all = true;
+    for (const id of ['plant', 'clock']) if (!(await poke(id))) all = false;
+    check(all, 'plant and clock can be hovered and clicked from there');
+    // swipe back (touch)
+    await ev(() => { const c = window.__ori.renderer.domElement; const o = (type, x) => c.dispatchEvent(new PointerEvent(type, { bubbles: true, pointerType: 'touch', pointerId: 9, isPrimary: true, clientX: x, clientY: 300 })); o('pointerdown', 520); o('pointerup', 700); });
+    await until(() => window.__ori.stations().id === 'desk', null);
+    check((await st()).id === 'desk', 'a touch swipe to the right moves back one station');
+    await settleCam();
+    all = true;
+    for (const id of ['lamp', 'homepod', 'mug', 'art', 'iphone', 'ipad']) if (!(await poke(id))) all = false;
+    check(all, 'lamp, HomePod, mug, wall art, iPhone and iPad can be hovered and clicked at the Desk');
+    const found = await ev(() => window.__ori.interactions.found().length);
+    check(found === 11 && (await ev(() => document.getElementById('hud-found').textContent)) === 'Discovered 11/11', `all 11 things were found with a real mouse (${found}/11)`);
+    const b2 = await st();
+    check(b2.badges.left === 0 && b2.badges.right === 0, 'both badges are at zero');
+    check(await ev(() => window.__ori.core.achievements.isUnlocked('room-explorer')), '"Room explorer" is reachable');
+    // reduce motion → instant cut
+    await ev(() => window.__ori.core.system.set('reduceMotion', true));
+    await ev(() => window.__ori.setStation('window', false));
+    check((await st()).id === 'window', 'with Reduce motion on, stations still switch (without the glide)');
+    await ev(() => { window.__ori.core.system.set('reduceMotion', false); });
+    // the laptop from a side station: smooth entry, and Esc comes back to the desk
+    await ev(() => window.__ori.setStation('plant', true));
+    await settleCam();
+    await ev(() => window.__ori.enterScreen());
+    check(await until(() => window.__ori.state === 'entering' || window.__ori.state === 'screen', null, 15000), 'entering the screen from a side station flies there (no snap)');
+    await until(() => window.__ori.state === 'screen', null, 30000);
+    await settle(session, 3);
+    await page.keyboard.press('Escape');
+    check(await until(() => window.__ori.state === 'overview' && window.__ori.stations().id === 'desk', null, 30000), 'Esc lands back at the Desk station');
+    await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.interactions.reset(); window.__ori.core.achievements.reset(); window.__ori.life.homepod.setActive(false); window.__ori.daylight.lamp.auto(); });
   }
 }
