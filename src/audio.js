@@ -30,6 +30,8 @@ export function unlock() {
 }
 
 export const isEnabled = () => enabled;
+/** The audio clock (seconds); 0 until the context exists. Used by schedulers (chiptune). */
+export const time = () => (ctx ? ctx.currentTime : 0);
 
 function applyGain() {
   if (!ctx) return;

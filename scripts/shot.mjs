@@ -1,7 +1,7 @@
 // Takes one screenshot into shots/.
 //   npm run shot -- overview                     room camera preset (overview|desk|window|shelf|bench|plant|mac-close|iphone|ipad)
 //   npm run shot -- app:terminal T17-neofetch    an app window (or `game:<id>`), second arg = file name (no extension)
-//   options: --size=1280x800  --time=18.5  --wait=800  --no-build  --headed  --keys="ArrowUp,Space"  --eval="js"
+//   options: --size=1280x800  --time=18.5  --wait=800  --no-build  --headed  --keys="ArrowUp,Space"  --eval="js"  --post="js"
 import { join } from 'node:path';
 import { SHOTS, build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, snap, parseSize, sleep } from './lib/harness.mjs';
 
@@ -62,6 +62,8 @@ try {
     if (!accepted) throw new Error(`unknown view "${target}"`);
   }
   for (const k of opt('keys', '').split(',').filter(Boolean)) { await page.keyboard.press(k); await sleep(120); }
+  // --post="js" (repeatable): run page code AFTER the app is open and the keys were pressed (e.g. load a board into a game)
+  for (const code of args.filter((x) => x.startsWith('--post=')).map((x) => x.slice(7))) await page.evaluate(code);
   await sleep(+opt('wait', kind === 'game' ? 900 : 600));
   await snap(s, file);
   console.log(`saved ${file}`);
