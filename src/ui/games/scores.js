@@ -35,6 +35,7 @@ export function touch(id) {
   const s = get(id);
   s.last = Date.now();
   storage.set(key(id), s);
+  bus.emit('game:play', { id });
 }
 
 export const best = (id) => get(id).best;

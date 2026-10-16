@@ -188,8 +188,10 @@ registerApp({
       recorded = true;
       return scores.record('2048', score);
     }
+    let playedTouched = false; // the run counts as "played" from its first move (opening the window must not)
     function newGame() {
       record();
+      playedTouched = false;
       cells = L.fromValues(Array(L.CELLS).fill(0), nextId);
       cells = L.spawn(L.spawn(cells, Math.random, nextId).cells, Math.random, nextId).cells;
       score = 0; won = false; keep = false; over = false; recorded = false; undoStack = [];
@@ -226,6 +228,7 @@ registerApp({
     function doMove(dir) {
       if (over || overlayOpen()) return;
       const r = L.move(cells, dir, nextId);
+      if (r.moved && !playedTouched) { playedTouched = true; scores.touch('2048'); }
       if (!r.moved) {
         board.classList.remove('nope');
         void board.offsetWidth;

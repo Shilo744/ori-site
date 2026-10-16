@@ -15,6 +15,7 @@ import { runDaylight } from './lib/daylight-test.mjs';
 import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
+import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(`--${n}`);
@@ -120,8 +121,12 @@ try {
     // 3D room interactions: hover outline + tag, clicks, discovery counter, achievements
     await runInteract(s, { ok, fail });
 
-    // settings persistence (reloads the page)
+    // notifications, Notification Center, achievements UI (leaves the camera in the room)
+    await runNotify(s, { ok, fail });
+
+    // settings persistence + first-run onboarding (both reload the page)
     await runSettingsReload(s, { ok, fail });
+    await runNotifyOnboarding(s, { ok, fail });
 
     // core services (reloads the page to prove persistence, so it runs last)
     await runCoreContract(s, { ok, fail });

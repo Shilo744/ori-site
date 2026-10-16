@@ -76,12 +76,13 @@ registerApp({
   titlebar: 'dark',
   chrome: 'game',
   aliases: [{ name: 'games' }],
-  mount(el, ctx) {
+  mount(el, ctx, args) {
     el.classList.add('gk', 'arc');
     el.innerHTML = `<nav class="arc-tabs" role="tablist">${TABS.map(([id, label]) => `<button type="button" role="tab" class="arc-tab" data-tab="${id}">${label}</button>`).join('')}</nav><div class="arc-body" tabindex="-1"></div>`;
     const body = el.querySelector('.arc-body');
     let tab = ctx.storage.get('arcade:tab', 'games');
     let lb = null; // selected leaderboard table id
+    if (args && TABS.some(([id]) => id === args.tab)) tab = args.tab;
     if (!TABS.some(([id]) => id === tab)) tab = 'games';
 
     function paintCovers() {
@@ -144,7 +145,7 @@ registerApp({
     const offs = [bus.on('game:score', () => render()), bus.on('achievement:unlock', () => render()), bus.on('achievement:reset', () => render())];
     render(false);
     return {
-      onOpen: () => render(),
+      onOpen: (a) => { if (a && TABS.some(([id]) => id === a.tab)) { tab = a.tab; ctx.storage.set('arcade:tab', tab); } render(false); },
       destroy: () => offs.forEach((off) => off()),
     };
   },

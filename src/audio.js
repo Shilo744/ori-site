@@ -242,6 +242,13 @@ export function noiseHit(dur = 0.15, vol = 0.16, freq = 900, type = 'lowpass', d
   src.stop(t + dur + 0.02);
 }
 
+/** Achievement unlocked: a bright little fanfare. */
+export function trophy() {
+  arp([784, 988, 1175, 1568], 0.075, 'triangle', 0.075);
+  blip(2349, 0.5, 'sine', 0.05, 0.3);
+  blip(3136, 0.4, 'sine', 0.03, 0.34);
+}
+
 /** The MacBook lid shutting: a soft low knock plus a muffled tap. */
 export function thud() {
   sweep(130, 46, 0.2, 'sine', 0.26);

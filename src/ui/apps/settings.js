@@ -12,6 +12,8 @@ import { system } from '../../core/system.js';
 import { theme, ACCENTS } from '../../core/theme.js';
 import { wallpaper } from '../../core/wallpaper.js';
 import { notifications } from '../../core/notify.js';
+import { achievements } from '../../core/achievements.js';
+import { scores } from '../games/scores.js';
 
 const g = (body) => `<svg viewBox="0 0 24 24" aria-hidden="true">${body}</svg>`;
 const GLYPH = {
@@ -109,7 +111,9 @@ const BUILD = {
       <h2>MacBook Air</h2><p>13-inch, ${C.year}</p>
     </div>
     ${grp(...[['Name', `${C.name}’s MacBook`], ['Role', C.title], ['Location', C.location], ['Email', C.contact.email], ['Portfolio', String(C.year)]]
-      .map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><b>${esc(v)}</b></div>`))}`,
+      .map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><b>${esc(v)}</b></div>`))}
+    <h3 class="st-h">Progress</h3>
+    ${grp(row('Reset progress', '<button class="st-btn danger" data-reset type="button">Reset…</button>', 'Clears achievements, high scores and what you have found in the room'))}`,
   appearance: () => {
     const cur = theme.appearance;
     return `<h3 class="st-h first">Appearance</h3>
@@ -183,6 +187,24 @@ registerApp({
       const wp = e.target.closest('[data-wp]');
       if (wp) { wallpaper.set(wp.dataset.wp); sound.pop(); return; }
       if (e.target.closest('[data-act-clear]')) { notifications.clear(); render(); }
+      const rs = e.target.closest('[data-reset]');
+      if (rs) {
+        if (!rs.classList.contains('armed')) { // two-step: the button asks once
+          rs.classList.add('armed');
+          rs.textContent = 'Click again to confirm';
+          sound.blip(330, 0.06, 'triangle', 0.05);
+          setTimeout(() => { if (rs.isConnected) { rs.classList.remove('armed'); rs.textContent = 'Reset…'; } }, 3500);
+          return;
+        }
+        achievements.reset();
+        scores.reset();
+        storage.remove('onboarded');
+        bus.emit('progress:reset');
+        sound.pop();
+        rs.classList.remove('armed');
+        rs.textContent = 'Progress reset';
+        rs.disabled = true;
+      }
     });
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('.st-sl')) dragging = true; });
     window.addEventListener('pointerup', () => { dragging = false; });

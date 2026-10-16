@@ -2,6 +2,7 @@
 import { registerApp } from './registry.js';
 import { ICON, I } from './icons.js';
 import { esc, LIGHTS } from './shared.js';
+import { bus } from '../../core/bus.js';
 
 const noteDefs = (C) => ({
   about: () => ({
@@ -62,6 +63,7 @@ registerApp({
       if (!NOTES[id]) return;
       el.querySelectorAll('.nli').forEach((b) => b.classList.toggle('on', b.dataset.note === id));
       const n = NOTES[id]();
+      bus.emit('note:view', id);
       el.querySelector('.note').innerHTML = `${n.html}<div class="note-date">${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>`;
     };
     el.addEventListener('click', (e) => {

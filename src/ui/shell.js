@@ -33,7 +33,7 @@ const MENUBAR = `
         <span class="mbi sm wifi"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M1.8 8.6a15.6 15.6 0 0 1 20.4 0M5.2 12.3a10.6 10.6 0 0 1 13.6 0M8.6 16a5.6 5.6 0 0 1 6.8 0" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="12" cy="19.4" r="1.7" fill="currentColor"/></svg></span>
         <button class="mbi sm" data-act="spot" aria-label="Spotlight"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="10.2" cy="10.2" r="6.4" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="m15 15 6 6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg></button>
         <button class="mbi sm" data-act="cc" aria-label="Control Center"><svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><rect x="2.6" y="4" width="18.8" height="6.2" rx="3.1" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="16.4" cy="7.1" r="1.9" fill="currentColor"/><rect x="2.6" y="13.8" width="18.8" height="6.2" rx="3.1" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="7.6" cy="16.9" r="1.9" fill="currentColor"/></svg></button>
-        <span class="mbi clock" id="mb-clock"></span>
+        <button class="mbi clock" id="mb-clock" data-act="nc" aria-label="Notification Center"></button>
       </div>`;
 
 const CC_ICON = {
@@ -85,6 +85,9 @@ export function shellHTML() {
 
     <div class="cc" hidden>${CONTROL_CENTER}
     </div>
+
+    <div class="nc" hidden role="dialog" aria-label="Notification Center"></div>
+    <div class="nb-stack" aria-live="polite"></div>
 
     <div class="spot" hidden>
       <div class="spot-box">

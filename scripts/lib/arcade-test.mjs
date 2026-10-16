@@ -85,7 +85,7 @@ export async function runArcade(session, { ok, fail }) {
   await clickCenter('.win-arcade [data-tab="games"]');
 
   // live refresh when a trophy unlocks
-  await page.evaluate(() => window.__ori.core.achievements.unlock('hungry'));
+  await page.evaluate(() => { window.__ori.core.achievements.reset(); window.__ori.core.achievements.unlock('hungry'); }); // (the site now unlocks others on its own while it is being used: start from zero)
   await clickCenter('.win-arcade [data-tab="trophies"]');
   await sleep(200);
   check(/1 of \d+ unlocked/.test(await text('.win-arcade .ach-head')), 'unlocking a trophy updates the Achievements tab');

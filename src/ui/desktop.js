@@ -9,6 +9,7 @@ import { shellHTML } from './shell.js';
 import { createWM } from './wm.js';
 import { createMenubar } from './menubar.js';
 import { createOverlays } from './overlays.js';
+import { createNotificationCenter } from './notification-center.js';
 import { esc } from './apps/shared.js';
 import { cursorForEdge } from './wm-interact.js';
 import { wallpaper } from '../core/wallpaper.js';
@@ -91,6 +92,7 @@ export function createDesktop(opts = {}) {
   const power = { restart: () => restart(), shutdown: () => shutdown(), sleep: () => sleep() };
   const menubar = createMenubar({ root, menuLayer: q('.menus'), appLabel: mbApp, cc: q('.cc'), wm, scale, power });
   const overlays = createOverlays({ root, wm, closeMenus: () => menubar.close() });
+  const nc = createNotificationCenter({ root, open: (id, args) => wm.open(id, args), closeOthers: () => { menubar.close(); overlays.closeSpot(); } });
 
   // ── power ──
   function restart() {
@@ -139,6 +141,7 @@ export function createDesktop(opts = {}) {
     if (boot.dataset.wake === 'sleep') { wake(); return; }
     if (boot.dataset.wake) { restart(); return; }
     overlays.onClickAway(t);
+    nc.onClickAway(t);
     if (menubar.handleClick(e)) return;
     overlays.onClickAwayCC(t);
     if (menubar.isOpen() && !t.closest('.menu')) menubar.close();
@@ -146,8 +149,9 @@ export function createDesktop(opts = {}) {
     const act = t.closest('[data-act]');
     if (act) {
       const a = act.dataset.act;
-      if (a === 'spot') { overlays.openSpot(); return; }
-      if (a === 'cc') { overlays.toggleCC(); sound.click(); return; }
+      if (a === 'spot') { nc.close(); overlays.openSpot(); return; }
+      if (a === 'cc') { nc.close(); overlays.toggleCC(); sound.click(); return; }
+      if (a === 'nc') { overlays.cc.hidden = true; nc.toggle(); sound.click(); return; }
       const entry = wm.entryOf(act.closest('.win'));
       if (!entry) return;
       sound.click();
@@ -285,10 +289,13 @@ export function createDesktop(opts = {}) {
     },
     hideCursor() { cur.hidden = true; },
     probeCursor,
+    openSpotlight: () => overlays.openSpot(),
+    notificationCenter: nc,
     /** Closes menus / Spotlight / Control Center. Returns true if something was open. */
     closeOverlays() {
-      const had = !overlays.spotHidden() || menubar.isOpen() || !overlays.cc.hidden;
+      const had = !overlays.spotHidden() || menubar.isOpen() || !overlays.cc.hidden || nc.isOpen();
       overlays.closeSpot();
+      nc.close();
       menubar.close();
       return !!had;
     },

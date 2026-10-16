@@ -17,6 +17,9 @@
 .mac .st-badge.off { color: var(--t3); }
 .mac .st-btn { padding: 4px 12px; border-radius: 6px; font-size: 12.5px; background: var(--raised); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.18), 0 1px 1px rgba(0, 0, 0, 0.1); }
 .mac .st-btn:hover { background: var(--raised-h); }
+.mac .st-btn.danger { color: #ff3b30; }
+.mac .st-btn.armed { background: #ff3b30; color: #fff; }
+.mac .st-btn:disabled { opacity: 0.5; pointer-events: none; }
 .mac .st-kbd { font: 500 12px var(--mono); color: var(--label2); padding: 3px 8px; border-radius: 6px; background: var(--fill); white-space: nowrap; }
 
 /* toggle switch */

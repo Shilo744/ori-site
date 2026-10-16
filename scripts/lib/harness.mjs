@@ -142,7 +142,7 @@ export async function newSession(browser, origin, { width = 1280, height = 800 }
 /** Loads the page (with ?fast=1 unless told otherwise) and waits for the first rendered frame. */
 export async function loadSite(session, origin, { fast = true, hash = '' } = {}) {
   const { page } = session;
-  await page.goto(`${origin}/${fast ? '?fast=1' : ''}${hash}`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${origin}/${fast ? '?fast=1&quiet=1' : ''}${hash}`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__ori && window.__ori.ready, null, { timeout: 60000 });
 }
 

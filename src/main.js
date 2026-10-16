@@ -18,6 +18,12 @@ import { evalState as evalDaylight, makeState as makeDaylightState } from './sce
 import { system } from './core/system.js';
 import { wallpaper } from './core/wallpaper.js';
 import { theme } from './core/theme.js';
+import { defineCatalog } from './core/achievements-catalog.js';
+import { startTrackers } from './ui/trackers.js';
+import { createNotificationUI } from './ui/notifications.js';
+import { startOnboarding } from './ui/onboarding.js';
+import { listGames } from './ui/games/catalog.js';
+import { listApps as listRegisteredApps } from './ui/apps/registry.js';
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
 
@@ -221,6 +227,9 @@ function enterScreen() {
         desktop.opened = true;
         desktop.open('home');
       }
+      bus.emit('screen:enter');
+      startOnboarding({ fast: FAST, openSpotlight: () => desktop.openSpotlight(), open: (id, args) => desktop.open(id, args), isLive: () => state === 'screen' || state === 'flat' });
+      runPendingOpen();
       if (wantsFlat()) { goFlat(); return; }
       hintEl.classList.add('on');
       setTimeout(() => hintEl.classList.remove('on'), 4200);
@@ -346,6 +355,36 @@ window.addEventListener('keydown', (e) => {
     if (state === 'screen' || state === 'flat') exitScreen();
   }
 });
+
+// ── opening apps from outside the screen (a toast, the Trophies tag): enter the laptop first, then open ──
+let pendingOpen = null;
+function openApp(id, args) {
+  if (state === 'screen' || state === 'flat') { desktop.open(id, args); return; }
+  pendingOpen = { id, args };
+  if (state === 'overview' || state === 'ready') enterScreen();
+}
+const runPendingOpen = () => { if (pendingOpen) { const p = pendingOpen; pendingOpen = null; desktop.open(p.id, p.args); } };
+
+// ── achievements catalogue, trackers, notification banners / toasts, onboarding, Trophies tag ──
+defineCatalog({ apps: listRegisteredApps({ hidden: false, category: 'app' }).length, games: listGames().length });
+startTrackers({ hours: () => daylight.targetHours, night: () => nightLevel(), gameIds: () => listGames().map((g) => g.id) });
+const notifUI = createNotificationUI({
+  stack: desktop.root.querySelector('.nb-stack'), toasts: document.getElementById('toasts'),
+  isScreenLive: () => state === 'screen' || state === 'flat', open: openApp, sound,
+});
+if (new URLSearchParams(location.search).has('quiet')) notifUI.quiet = true; // browser tests: keep banners off the UI under test
+bus.on('achievement:unlock', () => sound.trophy());
+const trophiesEl = document.getElementById('hud-trophies');
+function syncTrophies(pop = false) {
+  const c = achievements.counts();
+  trophiesEl.textContent = `Trophies ${c.unlocked}/${c.total}`;
+  if (pop) { trophiesEl.classList.remove('pop'); void trophiesEl.offsetWidth; trophiesEl.classList.add('pop'); }
+}
+syncTrophies();
+bus.on('achievement:unlock', () => syncTrophies(true));
+bus.on('achievement:reset', () => syncTrophies());
+trophiesEl.addEventListener('click', () => { sound.click(); openApp('arcade', { tab: 'trophies' }); });
+bus.on('progress:reset', () => { interactions.reset(); });
 
 // ── interactive things in the room: hover outline + tag, click actions, "Discovered n/N" (T14) ──
 const interactions = createInteractions({
@@ -593,6 +632,8 @@ window.__ori = {
   /** Camera preset: overview | desk | window | shelf | bench | plant | mac-close | iphone | ipad | screen | free */
   setView: debugSetView,
   daylight,
+  /** Notification banners (duration, count(), dismissAll()). */
+  banners: notifUI,
   /** The room's ambient life (cat, clock, steam, vacuum…): handles for T14 and the tests. */
   life: world.life,
   /** Room interactions (hover / click / discovery): ids(), found(), screenPos(id), activate(id), hoverId, reset(). */

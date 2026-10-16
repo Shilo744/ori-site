@@ -1,0 +1,89 @@
+/* Notification banners, Notification Center and the page-level toasts (T16). Surfaces use the desktop tokens (light / dark). */
+
+/* ── banners inside the screen ── */
+.mac .nb-stack.quiet, #toasts.quiet { visibility: hidden; pointer-events: none; }
+.mac .nb-stack { position: absolute; top: 40px; right: 10px; width: 318px; z-index: 6600; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+.mac .nb {
+  position: relative; pointer-events: auto; display: flex; gap: 11px; padding: 11px 13px 12px 11px; border-radius: 16px;
+  background: var(--pop); color: var(--menu-fg); -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.22), 0 12px 34px rgba(0, 0, 0, 0.34);
+  transform: translateX(118%); opacity: 0; transition: transform 0.4s cubic-bezier(.2, .9, .25, 1), opacity 0.25s ease;
+}
+.mac .nb.in { transform: none; opacity: 1; }
+.mac .nb.out { transform: translateX(118%); opacity: 0; transition-duration: 0.32s; }
+.mac .nb.act { cursor: pointer; }
+.mac .nb-ic { flex: none; width: 34px; height: 34px; border-radius: 9px; overflow: hidden; display: block; }
+.mac .nb-ic svg { width: 100%; height: 100%; display: block; }
+.mac .nb-ic.trophy, .mac .nc-ic.trophy { display: grid; place-items: center; color: #fff; background: linear-gradient(#ffcf5a, #ff9d2e); }
+.mac .nb-ic.trophy svg { width: 20px; height: 20px; }
+.mac .nb-tx { flex: 1; min-width: 0; }
+.mac .nb-top { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; line-height: 1.2; color: var(--t2); }
+.mac .nb-top b { font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; font-size: 10.5px; }
+.mac .nb-tx strong { display: block; margin-top: 2px; font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.mac .nb-tx p { margin: 1px 0 0; font-size: 12.5px; line-height: 1.3; color: var(--label2); }
+.mac .nb-x {
+  position: absolute; left: -7px; top: -7px; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--raised); color: var(--label2); box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.25); opacity: 0; transition: opacity 0.12s;
+}
+.mac .nb-x svg { width: 8px; height: 8px; }
+.mac .nb:hover .nb-x { opacity: 1; }
+.mac.compact .nb-stack { right: 6px; width: min(318px, calc(100% - 12px)); }
+.mac.reduce-motion .nb, .mac.reduce-motion .nc { transition-duration: 0s; }
+
+/* ── Notification Center ── */
+.mac .nc {
+  position: absolute; top: 36px; right: 8px; width: 344px; max-height: calc(100% - 46px); overflow-y: auto; z-index: 6100; padding: 12px 12px 14px;
+  border-radius: 18px; background: var(--pop); color: var(--menu-fg); scrollbar-width: thin;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.25), 0 16px 44px rgba(0, 0, 0, 0.35);
+  opacity: 0; transform: translateX(16px); transition: opacity 0.18s ease, transform 0.26s cubic-bezier(.2, .9, .25, 1);
+}
+.mac .nc.in { opacity: 1; transform: none; }
+.mac .nc[hidden] { display: none; }
+.mac .nc-h { display: flex; align-items: center; justify-content: space-between; margin: 2px 4px 8px; }
+.mac .nc-h b { font-size: 15px; font-weight: 700; letter-spacing: -0.01em; }
+.mac .nc-clear { padding: 3px 11px; border-radius: 999px; font-size: 12px; background: var(--fill-s); color: var(--label2); }
+.mac .nc-clear:hover { background: var(--fill-i); }
+.mac .nc-list { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.mac .nc-more { text-align: center; font-size: 11.5px; color: var(--t3); padding: 2px 0 0; }
+.mac .nc-empty { padding: 18px 0; text-align: center; font-size: 13px; color: var(--t3); }
+.mac .nc-n { display: flex; gap: 10px; padding: 9px 10px; border-radius: 13px; background: var(--pop-tile); }
+.mac .nc-n.act { cursor: pointer; }
+.mac .nc-n.act:hover { background: var(--fill-s); }
+.mac .nc-ic { flex: none; width: 30px; height: 30px; border-radius: 8px; overflow: hidden; display: block; }
+.mac .nc-ic svg { width: 100%; height: 100%; display: block; }
+.mac .nc-ic.trophy svg { width: 18px; height: 18px; }
+.mac .nc-n > div { min-width: 0; flex: 1; }
+.mac .nc-top { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--t2); }
+.mac .nc-top b { font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.mac .nc-n strong { display: block; font-size: 13px; font-weight: 600; }
+.mac .nc-n p { margin: 1px 0 0; font-size: 12px; color: var(--label2); line-height: 1.3; }
+.mac .nc-widgets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mac .nc-w { min-height: 140px; border-radius: 16px; padding: 11px 12px; background: var(--pop-tile); overflow: hidden; }
+.mac .nc-w.wide { grid-column: 1 / -1; min-height: 0; }
+.mac .nc-cal > b { display: block; margin-bottom: 5px; font-size: 11.5px; color: #ff3b30; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; }
+.mac .nc-cal-h, .mac .nc-cal-g { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+.mac .nc-cal-h i { font-size: 8.5px; color: var(--t3); font-weight: 600; }
+.mac .nc-cal-g i { font-size: 9.5px; line-height: 15px; font-variant-numeric: tabular-nums; }
+.mac .nc-cal-g i.o { color: var(--t4); }
+.mac .nc-cal-g i.t { background: #ff3b30; color: #fff; border-radius: 50%; font-weight: 700; }
+.mac .nc-wx { position: relative; height: 100%; min-height: 118px; margin: -11px -12px; padding: 11px 12px; color: #fff; background: linear-gradient(#3a8cf0, #82c3ff); }
+.mac .nc-wx .c { font-weight: 600; font-size: 13px; }
+.mac .nc-wx .t { font-size: 34px; font-weight: 300; line-height: 1.05; letter-spacing: -0.03em; }
+.mac .nc-wx .s { position: absolute; left: 12px; bottom: 11px; font-size: 12px; font-weight: 600; line-height: 1.25; }
+.mac .nc-wx .s em { font-weight: 500; opacity: 0.9; }
+.mac .nc-wc { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.mac .nc-wc b { display: block; font-size: 16px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.mac .nc-wc span { display: block; font-size: 10.5px; color: var(--label2); }
+.mac .nc-wc em { display: block; font-size: 9.5px; font-style: normal; color: var(--t3); }
+.mac.compact .nc { right: 4px; width: min(344px, calc(100% - 8px)); }
+
+/* ── page-level toasts (the room view: the screen is too small to read banners) ── */
+#toasts { position: fixed; z-index: 40; top: clamp(60px, 7vw, 96px); right: clamp(12px, 2vw, 28px); display: flex; flex-direction: column; align-items: flex-end; gap: 6px; pointer-events: none; }
+.nt { display: flex; align-items: center; gap: 9px; max-width: min(380px, 86vw); padding: 9px 13px; background: #000; color: #fff; font: 12.5px/1.3 var(--mono); letter-spacing: 0.02em; transform: translateX(30px); opacity: 0; transition: transform 0.35s cubic-bezier(.2, .9, .25, 1), opacity 0.25s; }
+.nt.in { transform: none; opacity: 1; }
+.nt.out { transform: translateX(30px); opacity: 0; }
+.nt.act { pointer-events: auto; cursor: pointer; }
+.nt.act:hover { background: #3a46e0; }
+.nt-ic { flex: none; width: 20px; height: 20px; color: #ffcf5a; display: block; }
+.nt-ic svg { width: 100%; height: 100%; display: block; }
+.nt span { min-width: 0; overflow-wrap: anywhere; }

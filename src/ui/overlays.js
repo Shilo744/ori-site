@@ -60,11 +60,11 @@ export function createOverlays({ root, wm, closeMenus }) {
     if (e.key === 'Escape') { closeSpot(); e.stopPropagation(); }
     else if (e.key === 'ArrowDown') { spotSel = Math.min(spotList.length - 1, spotSel + 1); renderSpot(); e.preventDefault(); }
     else if (e.key === 'ArrowUp') { spotSel = Math.max(0, spotSel - 1); renderSpot(); e.preventDefault(); }
-    else if (e.key === 'Enter' && spotList[spotSel]) { const g = spotList[spotSel].go; closeSpot(); g(); }
+    else if (e.key === 'Enter' && spotList[spotSel]) { const g = spotList[spotSel].go; closeSpot(); bus.emit('spotlight:use'); g(); }
   });
   spotRes.addEventListener('click', (e) => {
     const r = e.target.closest('[data-sr]');
-    if (r) { const g = spotList[+r.dataset.sr].go; closeSpot(); g(); }
+    if (r) { const g = spotList[+r.dataset.sr].go; closeSpot(); bus.emit('spotlight:use'); g(); }
   });
   window.addEventListener('keydown', (e) => {
     if (root.classList.contains('locked') || !root.isConnected) return;

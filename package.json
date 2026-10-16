@@ -17,7 +17,8 @@
     "test:life": "node scripts/e2e-block.mjs life",
     "test:daylight": "node scripts/e2e-block.mjs daylight",
     "test:interact": "node scripts/e2e-block.mjs interact",
-    "test:settings": "node scripts/e2e-block.mjs settings"
+    "test:settings": "node scripts/e2e-block.mjs settings",
+    "test:notify": "node scripts/e2e-block.mjs notify"
   },
   "dependencies": {
     "three": "^0.170.0"
