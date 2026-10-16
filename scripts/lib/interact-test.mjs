@@ -32,6 +32,8 @@ export async function runInteract(session, { ok, fail }) {
     return;
   }
 
+  await readyFlow(); // the real first-visit flow: START → "ready" (nothing entered yet) → laptop click → Esc → overview
+
   // start from a clean slate, in the room
   await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.core.wallpaper.set('sunrise'); window.__ori.core.achievements.reset(); window.__ori.interactions.reset(); window.__ori.daylight.setMode('day', { instant: true }); });
   if ((await ev(() => window.__ori.state)) !== 'overview') {
@@ -128,4 +130,66 @@ export async function runInteract(session, { ok, fail }) {
   await ev(() => window.__ori.exitScreen());
   await until(() => window.__ori.state === 'overview', null, 60000);
   await ev(() => { window.__ori.setView('free'); window.__ori.core.achievements.reset(); window.__ori.core.storage.remove('room:found'); window.__ori.core.wallpaper.set('sunrise'); window.__ori.interactions.reset(); window.__ori.daylight.setMode('auto', { instant: true }); });
+
+  /** T39: a new visitor presses START and must be able to hover / click the room BEFORE entering the laptop. */
+  async function readyFlow() {
+    await ev(() => { const o = window.__ori; o.core.storage.remove('room:found'); o.core.storage.remove('daylight:mode'); o.core.achievements.reset(); });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForFunction(() => window.__ori && window.__ori.ready, null, { timeout: 60000 });
+    await page.click('#intro-start', { timeout: 15000 });
+    await until(() => window.__ori.state === 'ready', null);
+    // (no mouse movement yet) the first-visit hint pulses one thing's outline when nobody has touched anything
+    check(await until(() => window.__ori.interactions.hintId === 'lamp', null, 8000), 'ready: after a moment, the floor lamp outline softly pulses as a hint');
+    check(await until(() => window.__ori.interactions.visibleHulls() > 0, null, 3000), 'ready: …and the outline is really drawn');
+    await until(() => window.__ori.interactions.hintAlpha > 0.65, null, 3000); // shoot at the peak of the pulse
+    await shot('ready-hint');
+    check(await until(() => window.__ori.interactions.hintId === null && window.__ori.interactions.visibleHulls() === 0, null, 8000), 'ready: the hint ends by itself');
+    check(/poke around the room/i.test(await ev(() => document.getElementById('prompt').textContent)), 'ready: the prompt says "Click the laptop to start — or poke around the room"');
+    check((await ev(() => document.getElementById('hud').classList.contains('on') && getComputedStyle(document.getElementById('hud-found')).display !== 'none')) && (await ev(() => document.getElementById('hud-found').textContent)) === 'Discovered 0/11', 'ready: the HUD with "Discovered 0/11" is already there');
+    const mv = async (p) => { await page.mouse.move(p.x - 3, p.y - 3); await page.mouse.move(p.x, p.y, { steps: 2 }); };
+    // every headline thing is comfortably hoverable from the far first view
+    let allHover = true;
+    // (the cat, window, vacuum and clock are outside the desk framing of the first view; the desk, lamp, HomePod, mug, art and iPad are in it)
+    for (const [id, text] of [['lamp', /^Floor lamp/], ['homepod', /^HomePod/], ['mug', /^Coffee/], ['art', /^Wall art/], ['ipad', /^iPad/]]) {
+      const p = await ev((k) => window.__ori.interactions.screenPos(k), id);
+      if (!p || !p.visible) { allHover = false; fail(`interact: ${id} is not on screen in the first view`); continue; }
+      await mv(p);
+      const got = await until((k) => window.__ori.interactions.hoverId === k, id, 5000);
+      const tagText = await ev(() => window.__ori.interactions.tagText);
+      if (!got || !text.test(tagText)) { allHover = false; fail(`interact: ready: hovering ${id} gave "${tagText}" (hover ${await ev(() => window.__ori.interactions.hoverId)})`); }
+    }
+    check(allHover, 'ready: lamp, HomePod, mug, wall art and iPad are all hoverable from the first view (tag + outline)');
+    // clicking the lamp runs its action and does NOT enter the screen
+    const lamp = await ev(() => window.__ori.interactions.screenPos('lamp'));
+    await mv(lamp);
+    await until(() => window.__ori.interactions.hoverId === 'lamp', null, 5000);
+    await shot('ready-hover-lamp');
+    const lampBefore = await ev(() => window.__ori.daylight.lamp.on);
+    await page.mouse.click(lamp.x, lamp.y);
+    check(await until((b) => window.__ori.daylight.lamp.on !== b || window.__ori.core.storage.get('room:found', []).includes('lamp'), lampBefore, 5000), 'ready: clicking the lamp toggles it');
+    await sleep(300);
+    check((await ev(() => window.__ori.state)) === 'ready', 'ready: …without entering the screen');
+    check((await ev(() => document.getElementById('hud-found').textContent)) === 'Discovered 1/11', 'ready: the discovery counter counts it (1/11)');
+    // empty space does nothing but nudge the laptop
+    await ev(() => { document.getElementById('prompt').classList.remove('nudge'); });
+    await page.mouse.move(40, session.height - 40);
+    await sleep(120);
+    await page.mouse.click(40, session.height - 40);
+    await sleep(250);
+    check((await ev(() => window.__ori.state)) === 'ready' && (await ev(() => document.getElementById('prompt').classList.contains('nudge'))), 'ready: a click on empty space only nudges the laptop');
+    // the laptop (3D hit) enters
+    const mac = await ev(() => window.__ori.interactions.screenPos('mac'));
+    await mv(mac);
+    await sleep(150);
+    await page.mouse.click(mac.x, mac.y);
+    check(await until(() => window.__ori.state === 'entering' || window.__ori.state === 'screen', null, 15000), 'ready: clicking the laptop enters the screen');
+    await until(() => window.__ori.state === 'screen', null, 30000);
+    await settle(session, 3);
+    await page.keyboard.press('Escape');
+    check(await until(() => window.__ori.state === 'overview', null, 30000), 'Esc from the screen lands in the overview…');
+    const lamp2 = await ev(() => window.__ori.interactions.screenPos('lamp'));
+    await mv(lamp2);
+    check(await until(() => window.__ori.interactions.hoverId === 'lamp', null, 5000), '…where the room is still interactive');
+    await ev(() => { window.__ori.core.storage.remove('room:found'); window.__ori.interactions.reset(); window.__ori.daylight.lamp.auto(); });
+  }
 }

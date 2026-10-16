@@ -41,7 +41,9 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
   let lastLabel = '';
 
   const total = () => [...items.values()].filter((i) => i.discoverable).length;
-  const active = () => getState() === 'overview';
+  const active = () => { const s = getState(); return s === 'overview' || s === 'ready'; }; // the first view after START counts: that is where visitors meet the room
+  let touched = false; // the visitor has hovered / clicked something (stops the first-visit hint)
+  let hintState = null; // { item, t0, dur }: a soft outline pulse that says "you can touch things"
 
   // ── tag + counter ──
   function labelOf(item) {
@@ -70,6 +72,7 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
   // ── hover ──
   function setHover(next) {
     if (hover === next) return;
+    if (next && next.discoverable) { touched = true; endHint(); } // hovering the laptop is the main call-to-action, not "touching the room"
     if (say) { say = null; } // a message from a click belongs to that object only
     if (hover) { hover.hull.forEach((h) => { h.visible = false; }); if (hover.onHover) hover.onHover(false); }
     hover = next;
@@ -104,6 +107,8 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
   }
 
   function trigger(item, event) {
+    touched = true;
+    endHint();
     discover(item);
     let msg;
     try { msg = item.onClick && item.onClick({ item, event, engine: { fx: api, say: sayTag } }); } catch (e) { console.error(e); }
@@ -127,7 +132,7 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     ptr.x = e.clientX;
     ptr.y = e.clientY;
     const item = pickAt(e.clientX, e.clientY);
-    if (item && !item.dom) trigger(item, e);
+    if (item && !item.dom) { e.stopPropagation(); trigger(item, e); }
   });
 
   // ── tween helpers for the objects' own reactions ──
@@ -164,6 +169,8 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
    */
   function register(def) {
     const item = { discoverable: true, ...def, hull: [], proxies: def.proxies || [] };
+    item.base = item.proxies.map((p) => p.scale.clone());
+    item.radius = item.proxies.reduce((m, p) => { p.geometry.computeBoundingSphere(); return Math.max(m, p.geometry.boundingSphere.radius * Math.max(p.scale.x, p.scale.y, p.scale.z)); }, 0.5);
     item.proxies.forEach((p) => {
       p.material = proxyMat;
       p.userData.iid = def.id;
@@ -201,13 +208,36 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     return item;
   }
 
+  // keep every thing hoverable from the far first view: inflate its pick proxies so they cover at least `MIN_PX` on screen
+  const MIN_PX = 15, wp = new THREE.Vector3();
+  function inflateProxies() {
+    const h = Math.max(1, canvas.clientHeight);
+    const perPx = (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) / h; // world cm per pixel at distance 1
+    items.forEach((it) => {
+      if (!it.proxies.length) return;
+      it.proxies[0].getWorldPosition(wp);
+      const need = MIN_PX * perPx * wp.distanceTo(camera.position); // world radius that is 15 px big
+      const k = Math.min(3.5, Math.max(1, need / (it.radius * (it.worldScale || 1))));
+      if (Math.abs(k - (it.k || 1)) < 0.03) return;
+      it.k = k;
+      it.proxies.forEach((p, i) => p.scale.copy(it.base[i]).multiplyScalar(k));
+    });
+  }
+  function endHint() {
+    if (!hintState) return;
+    if (hover !== hintState.item) hintState.item.hull.forEach((x) => { x.visible = false; });
+    hintState = null;
+  }
+
   function update(dt, t) {
     if (!active()) {
+      if (hintState) endHint();
       if (hover) setHover(null);
       if (say) { say = null; refreshTag(); }
       tagEl.classList.remove('on');
       return;
     }
+    inflateProxies();
     hullMat.uniforms.uH.value = canvas.height;
     hullMat.uniforms.uPx.value = 1.8 * (canvas.height / Math.max(1, canvas.clientHeight));
     for (let i = tweens.length - 1; i >= 0; i--) {
@@ -221,16 +251,21 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
       const hit = pickAt(ptr.x, ptr.y);
       if (hit !== hover && !(hover && hover.dom)) setHover(hit);
     } else if (!ptr.inside && hover && !hover.dom) setHover(null);
-    if (hover) {
+    if (hover && hover.hull.length) {
       hoverT = Math.min(1, hoverT + dt * 7);
       hullMat.uniforms.uAlpha.value = (0.25 + 0.65 * ease(hoverT)) * (0.92 + 0.08 * Math.sin(t * 5));
+    }
+    if (hintState && !(hover && hover.hull.length)) {
+      const age = (performance.now() - hintState.t0) / 1000;
+      if (age > hintState.dur) endHint();
+      else { hintState.item.hull.forEach((x) => { x.visible = true; }); hullMat.uniforms.uAlpha.value = 0.12 + 0.8 * Math.pow(0.5 + 0.5 * Math.sin(age * 5.2 - 1.2), 2); }
     }
     if (say && performance.now() > say.until) { say = null; refreshTag(); }
     else if (hover && !say) refreshTag(); // live labels (the clock) change text without a new hover
   }
 
   updateCounter();
-  return {
+  const api2 = {
     register,
     registerDom,
     update,
@@ -239,6 +274,20 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     total,
     ids: () => [...items.keys()],
     get hoverId() { return hover ? hover.id : null; },
+    /** True once the visitor has hovered or clicked any thing in the room. */
+    get touched() { return touched; },
+    get hintId() { return hintState ? hintState.item.id : null; },
+    /** Current opacity of the outline while a hint pulses (tests: shoot at the peak). */
+    get hintAlpha() { return hintState ? hullMat.uniforms.uAlpha.value : 0; },
+    /** Softly pulses the outline of the first undiscovered thing in `order` (first-visit hint). Returns its id or null. */
+    hint(order = ['lamp', 'homepod', 'mug', 'art', 'ipad', 'plant', 'cat', 'window']) {
+      if ((hover && hover.discoverable) || hintState) return null;
+      const onScreen = (i) => { const p = api2.screenPos(i.id); return p && p.visible && p.x > 20 && p.y > 20 && p.x < window.innerWidth - 20 && p.y < window.innerHeight - 20; };
+      const item = order.map((id) => items.get(id)).find((i) => i && !found.has(i.id) && i.hull.length && onScreen(i));
+      if (!item) return null;
+      hintState = { item, t0: performance.now(), dur: 3.4 };
+      return item.id;
+    },
     /** Number of outline hulls currently shown (tests). */
     visibleHulls: () => [...items.values()].reduce((n, i) => n + i.hull.filter((h) => h.visible).length, 0),
     /** The tag text on screen (tests). */
@@ -256,4 +305,5 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     activate(id) { const it = items.get(id); if (it && !it.dom && active()) trigger(it, null); },
     fx: api,
   };
+  return api2;
 }

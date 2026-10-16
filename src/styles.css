@@ -85,7 +85,9 @@ body.in-screen #hud-found, body.flat-mode #hud-found { display: none; }
   white-space: nowrap;
 }
 #prompt.on, #hint.on { opacity: 1; }
-#prompt.on { animation: blink 1.6s steps(2, jump-none) infinite; }
+#prompt.on { animation: blink 1.6s steps(2, jump-none) infinite; pointer-events: auto; cursor: pointer; }
+#prompt.on.nudge { animation: promptNudge 0.6s ease; }
+@keyframes promptNudge { 0% { transform: translateX(-50%) scale(1); } 30% { transform: translateX(-50%) scale(1.1); background: #3a46e0; } 100% { transform: translateX(-50%) scale(1); } }
 @keyframes blink { 50% { opacity: 0.55; } }
 
 /* intro */

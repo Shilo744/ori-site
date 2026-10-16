@@ -292,20 +292,36 @@ window.addEventListener('pointermove', (e) => {
 });
 
 stage.addEventListener('click', (e) => {
-  if (state === 'ready') { enterScreen(); return; }
+  if (state === 'ready') {
+    // first view: a click enters the screen only when it lands on the laptop; things in the room are handled by
+    // scene/interactions.js (it stops the event); anything else just nudges the laptop
+    if (e.target.closest('.mac') || hitsMac(e.clientX, e.clientY)) enterScreen(); else nudgeLaptop();
+    return;
+  }
   if (state !== 'overview') return;
   // the screen DOM is hidden while the lid is shut, so a closed laptop is picked in 3D
   if (e.target.closest('.mac') || (!mac.lidOpen && hitsMac(e.clientX, e.clientY))) enterScreen();
 });
 // canvas + screen clicks (screen element is a CSS3D child, so listen on it too)
 desktop.root.addEventListener('click', () => {
-  if (state === 'overview') enterScreen();
+  if (state === 'overview' || state === 'ready') enterScreen();
 });
+promptEl.addEventListener('click', () => { if (state === 'ready') enterScreen(); });
+
+// a click on empty space in the first view: the laptop hops a little ("this is the thing to click")
+let nudgeT = 1;
+function nudgeLaptop() {
+  nudgeT = 0;
+  sound.blip(520, 0.05, 'triangle', 0.04);
+  promptEl.classList.remove('nudge');
+  void promptEl.offsetWidth;
+  promptEl.classList.add('nudge');
+}
 
 viewBtn.addEventListener('click', () => {
   sound.click();
   if (state === 'screen' || state === 'flat') exitScreen();
-  else if (state === 'overview') enterScreen();
+  else if (state === 'overview' || state === 'ready') enterScreen();
 });
 
 soundBtn.addEventListener('click', () => {
@@ -376,6 +392,10 @@ startBtn.addEventListener('click', () => {
   setTimeout(() => (intro.style.display = 'none'), 1000);
   state = 'ready';
   promptEl.classList.add('on');
+  hud.classList.add('on'); // the HUD (and the "Discovered n/11" counter) is there from the first view
+  viewBtn.hidden = false;
+  // first-visit hint: if nobody has touched anything after a few seconds, softly pulse one thing's outline
+  setTimeout(() => { if (state === 'ready' && !interactions.touched && !system.get('reduceMotion')) interactions.hint(); }, FAST ? 900 : 6000);
   // the laptop opens its lid and boots while the room fades in
   setTimeout(() => { sound.chime(); }, 500);
   setTimeout(() => mac.setLid(true, lidMs(1500)), lidMs(350));
@@ -508,6 +528,7 @@ function frame() {
   mac.glow.intensity = near * 1800 * mac.openness * daylight.state.screen * world.life.flicker;
 
   if (world.life.homepod.active && sound.padOn()) world.life.homepod.setLevel(sound.padLevel()); // the HomePod ring follows the music
+  if (nudgeT < 1) { nudgeT = Math.min(1, nudgeT + dt * 3.2); mac.group.scale.setScalar(1 + 0.045 * Math.sin(Math.PI * nudgeT)); if (nudgeT >= 1) mac.group.scale.setScalar(1); }
   world.update(dt, t, state);
 
   if (state !== 'flat') {
