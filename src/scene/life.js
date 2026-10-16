@@ -34,7 +34,7 @@ export function createLife({ scene, renderer, ROOM, mats, daylight, sun, aniso, 
 
   // ── cat on the bench (bench local x runs along its length; the cushion sits at −44) ──
   const cat = createCat();
-  cat.group.position.set(18, 38, -8);
+  cat.group.position.set(18, 45.4, -7); // on top of the folded blanket (seat 38 + blanket 7.5)
   cat.group.scale.setScalar(1.18);
   parts.bench.add(cat.group);
 

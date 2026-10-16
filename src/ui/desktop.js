@@ -218,11 +218,17 @@ export function createDesktop(opts = {}) {
   const cur = q('.cur');
   cur.dataset.k = 'arrow';
   let cursorKindLock = null; // while dragging / resizing a window the cursor keeps that shape
+  let lastProbe = null;
   function lockCursor(kind) {
     cursorKindLock = kind;
-    if (kind) cur.dataset.k = kind;
+    if (kind) { cur.dataset.k = kind; return; }
+    // released (pointerup / pointercancel / lost capture): drop the drag shape now and re-read what is under the pointer
+    // once the window has moved or snapped, so a stale grab / resize glyph can never stay behind
+    cur.dataset.k = 'arrow';
+    requestAnimationFrame(() => { if (lastProbe && !cursorKindLock) probeCursor(lastProbe.x, lastProbe.y); });
   }
   function probeCursor(cx, cy) {
+    lastProbe = { x: cx, y: cy };
     let kind = 'arrow';
     if (cursorKindLock) kind = cursorKindLock;
     else {

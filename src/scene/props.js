@@ -120,7 +120,7 @@ export function createDesk(m, topMat) {
     }));
     g.add(mesh(new THREE.CylinderGeometry(3.4, 3.4, 0.6, 32), m.silver, { x: sx * 74.6, y: 70.0, z: sz * 29.5 }));
     // leg detail: a dark levelling foot with a rubber pad, and a brushed collar below the top plate
-    const fx = sx * 78.5 + sx * 0.085 * -35, fz = sz * 31.5 + sz * 0.085 * 35;
+    const fx = sx * (78.5 + 0.085 * 35.2), fz = sz * (31.5 + 0.085 * 35.2); // the splayed leg reaches the floor 3 cm further out
     g.add(mesh(new THREE.CylinderGeometry(1.75, 1.95, 1.0, 22), m.black, { x: fx, y: 0.5, z: fz }));
     g.add(mesh(new THREE.CylinderGeometry(2.3, 2.1, 1.6, 24), m.silver, { x: sx * 75.9, y: 67.4, z: sz * 30 }));
   }

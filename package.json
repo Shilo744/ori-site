@@ -13,7 +13,8 @@
     "stats": "node scripts/stats.mjs",
     "test:game": "node scripts/e2e-game.mjs",
     "test:games": "node scripts/test-games.mjs",
-    "test:life": "node scripts/e2e-life.mjs"
+    "test:life": "node scripts/e2e-block.mjs life",
+    "test:daylight": "node scripts/e2e-block.mjs daylight"
   },
   "dependencies": {
     "three": "^0.170.0"

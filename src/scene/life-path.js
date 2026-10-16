@@ -11,6 +11,7 @@ export const OBSTACLES = [
   { name: 'side table', circle: [148, -118, 29] },
   { name: 'floor lamp', circle: [-118, -198, 22] },
   { name: 'bench', rect: [-252, -110, -208, 30] },
+  { name: 'sneakers', rect: [-234, 32, -196, 68] },
 ];
 /** Walls: the vacuum centre stays inside this box. */
 export const FLOOR_BOX = { x0: -262, x1: 262, z0: -208, z1: 208 };

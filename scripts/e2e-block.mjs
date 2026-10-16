@@ -1,10 +1,18 @@
-// Runs the ambient-life browser checks alone (no full smoke):  npm run test:life [-- --size=1280x800] [--no-build]
+// Runs ONE browser check block of the smoke suite on its own:  npm run test:life | test:daylight | wm2   (or  node scripts/e2e-block.mjs <life|daylight|wm2> [--size=WxH] [--no-build])
 import { build, serveDist, launchBrowser, newSession, loadSite, enterScreen, backToRoom, parseSize } from './lib/harness.mjs';
 import { runLife } from './lib/life-test.mjs';
+import { runDaylight } from './lib/daylight-test.mjs';
+import { runWm2 } from './lib/wm2-test.mjs';
 
+const BLOCKS = { life: runLife, daylight: runDaylight, wm2: runWm2 };
 const args = process.argv.slice(2);
+const name = args.find((a) => !a.startsWith('--'));
 const flag = (n) => args.includes(`--${n}`);
 const size = parseSize((args.find((a) => a.startsWith('--size=')) || '').split('=')[1]) || { width: 1280, height: 800 };
+if (!name || !BLOCKS[name]) {
+  console.error(`usage: node scripts/e2e-block.mjs <${Object.keys(BLOCKS).join('|')}> [--size=1280x800] [--no-build]`);
+  process.exit(2);
+}
 let failures = 0;
 const ok = (m) => console.log(`  ✓ ${m}`);
 const fail = (m) => { failures++; console.error(`  ✗ ${m}`); };
@@ -16,8 +24,8 @@ try {
   const s = await newSession(browser, server.origin, size);
   await loadSite(s, server.origin);
   await enterScreen(s);
-  if (size.width >= 860) await backToRoom(s);
-  await runLife(s, { ok, fail });
+  if (size.width >= 860 && name !== 'wm2') await backToRoom(s); // wm2 works on the screen itself
+  await BLOCKS[name](s, { ok, fail });
   s.errors.forEach((e) => fail(`${e.kind}: ${e.text.split('\n')[0]}`));
   await s.context.close();
 } catch (e) {
@@ -26,5 +34,5 @@ try {
   await browser.close();
   await server.close();
 }
-console.log(failures ? `\nLIFE FAILED (${failures})` : '\nLIFE OK');
+console.log(failures ? `\n${name.toUpperCase()} FAILED (${failures})` : `\n${name.toUpperCase()} OK`);
 process.exit(failures ? 1 : 0);

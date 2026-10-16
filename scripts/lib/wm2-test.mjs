@@ -168,6 +168,7 @@ export async function runWm2(session, { ok, fail }) {
   let nr = await rect('notes');
   check(nr.x === 0 && nr.w === half && nr.h === zr.h, `releasing snaps the window to the left half (${nr.w}×${nr.h})`);
   check((await mode('notes')) === 'left', 'mode = left');
+  check(await until(() => document.querySelector('.mac .cur').dataset.k !== 'grab', null), 'after a snap the drag cursor is released (no stuck grab glyph)');
   await shot('snapped-left');
   // drag it back out: the old size returns
   c = await center('.win-notes .pane > header .sp');

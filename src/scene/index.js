@@ -16,6 +16,7 @@ import {
   createMug, createMouse, createIPhone, createIPad, createAirPods, createHomePod, createDeskMat, createNotebook,
   createBooksStack, createSucculent, createHeadphones, createPhotoFrame, createCable,
 } from './props-devices.js';
+import { createBlanket, createSneakers } from './props-bench.js';
 import { createMacBook } from './macbook.js';
 import { createSkyMaterial } from './sky.js';
 import { createDaylight } from './daylight.js';
@@ -206,6 +207,11 @@ export function createScene({ renderer, screenElement }) {
   // pill bench under the window
   const bench = add(createBench(m, { length: 140, width: 44 }), x0 + 40, 0, -40, Math.PI / 2);
   contact(rectSh, 96, 190, x0 + 40, -40, 0.05, 0, 0.8);
+  // lived-in: a folded wool blanket on the seat (the cat sleeps on it) and white sneakers on the floor beside the bench
+  const blanket = createBlanket();
+  blanket.position.set(18, 38, -2);
+  bench.add(blanket);
+  add(createSneakers(m), x0 + 52, 0, 50, 0.5);
 
   // felt panel with the macOS wallpaper as art
   add(createPanel(m, { w: 236, h: 126, r: 30 }), deskX, 146, z0 + 1.2);
