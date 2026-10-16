@@ -4,6 +4,8 @@ import { generateTrack, validateTrack, trackHash, frameAt, closest, surfacePoint
 import { createCar, placeCar, stepCar, createSim, stateHash, collideCars, maxYawRate, aLat, DT, BODY } from '../src/game3d/physics.js';
 import { createDriver } from '../src/game3d/autodrive.js';
 import { mulberry32 } from '../src/game3d/rng.js';
+import { BIOMES, LOOKS, BIOME_IDS, LOOK_IDS } from '../src/game3d/biomes.js';
+import { pickZones, zoneDepth, inZone } from '../src/game3d/track-zones.js';
 
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log(`  ✓ ${name}`); };
@@ -149,6 +151,58 @@ test('banking leans into the corners: right turns lower the right edge', () => {
   }
   assert.ok(checked > 20);
   assert.ok(DS === 2 && WALL_MARGIN > 0 && wrapS(t, -1) > t.length - 2);
+});
+
+// ── biomes + special sections ──────────────────────────────────────────────
+console.log('world');
+test('three biomes with a seeded valid track each, a known look and complete dressing data', () => {
+  assert.deepEqual(BIOME_IDS, ['city', 'desert', 'coast']);
+  assert.deepEqual(LOOK_IDS.sort(), ['dawn', 'night', 'noon', 'sunset']);
+  const seeds = new Set();
+  for (const id of BIOME_IDS) {
+    const b = BIOMES[id];
+    assert.ok(LOOKS[b.look], `${id}: look`);
+    assert.ok(!seeds.has(b.seed), 'distinct seeds');
+    seeds.add(b.seed);
+    const t = trackFor(b.seed);
+    assert.ok(validateTrack(t).ok && !t.fallback, `${id}: track`);
+    assert.ok(t.length > 3000, `${id}: a proper lap (${t.length})`);
+    for (const k of ['asphalt', 'runoff', 'kerbA', 'kerbB', 'line', 'neonL', 'neonR']) assert.ok(Number.isInteger(b.road[k]), `${id}.road.${k}`);
+    assert.ok(['slope', 'viaduct'].includes(b.embank) && Number.isInteger(b.embankColor));
+    assert.ok(['skyline', 'mesas', 'mountains'].includes(b.horizon.kind));
+  }
+  for (const id of LOOK_IDS) {
+    const l = LOOKS[id];
+    for (const k of ['top', 'mid', 'horizon', 'below']) assert.ok(Number.isInteger(l[k]), `${id}.${k}`);
+    assert.ok(l.fog.far > l.fog.near && l.bloom.strength > 0 && l.light.intensity > 0);
+  }
+});
+test('zones: every seed gets one tunnel (200 m) and one bridge (170 m), clear of the start and of each other, deterministic', () => {
+  for (let seed = 1; seed <= 60; seed++) {
+    const t = trackFor(seed);
+    const z = pickZones(t, seed);
+    assert.deepEqual(z, pickZones(t, seed));
+    assert.equal(z.length, 2, `seed ${seed}: ${z.length} zones`);
+    const kinds = z.map((x) => x.kind).sort();
+    assert.deepEqual(kinds, ['bridge', 'tunnel']);
+    for (const x of z) {
+      assert.ok(x.s0 >= 220 && x.s1 <= t.length - 220, `seed ${seed}: ${x.kind} too close to the start`);
+      assert.ok(Math.abs(x.s1 - x.s0 - (x.kind === 'tunnel' ? 200 : 170)) < 1e-6);
+    }
+    assert.ok(z[1].s0 - z[0].s1 >= 160, `seed ${seed}: zones too close`);
+    const tun = z.find((x) => x.kind === 'tunnel');
+    for (let s = tun.s0; s <= tun.s1; s += 10) assert.ok(Math.abs(frameAt(t, s, {}).kappa) < 0.0045, `seed ${seed}: tunnel bends`);
+  }
+});
+test('zoneDepth fades in over 14 m and is 0 outside, inZone agrees', () => {
+  const t = trackFor(7);
+  const z = pickZones(t, 7);
+  const tun = z.find((x) => x.kind === 'tunnel');
+  assert.equal(zoneDepth(t, z, 'tunnel', tun.s0 - 5), 0);
+  assert.ok(zoneDepth(t, z, 'tunnel', tun.s0 + 7) > 0.4 && zoneDepth(t, z, 'tunnel', tun.s0 + 7) < 0.6);
+  assert.equal(zoneDepth(t, z, 'tunnel', (tun.s0 + tun.s1) / 2), 1);
+  assert.equal(zoneDepth(t, z, 'bridge', (tun.s0 + tun.s1) / 2), 0);
+  assert.ok(inZone(z, 'tunnel', tun.s0 + 1) && !inZone(z, 'tunnel', tun.s1 + 1));
 });
 
 // ── physics ────────────────────────────────────────────────────────────────

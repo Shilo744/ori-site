@@ -6,7 +6,7 @@ import { clamp } from './rng.js';
 const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
 
 export function createChaseCam() {
-  const st = { yaw: 0, fov: 62, pos: new THREE.Vector3(), look: new THREE.Vector3(), ready: false, mode: 0, boostK: 0 };
+  const st = { yaw: 0, fov: 62, pos: new THREE.Vector3(), look: new THREE.Vector3(), ready: false, mode: 0, boostK: 0, heroAngle: 2.45, heroDist: 6.2, heroHeight: 1.5 };
   const want = new THREE.Vector3();
   const lookWant = new THREE.Vector3();
 
@@ -27,7 +27,10 @@ export function createChaseCam() {
     const sy = Math.sin(st.yaw);
     const dist = st.mode === 1 ? 12 + sp * 4 : 6.9 + sp * 2.6 + st.boostK * 1.2;
     const height = st.mode === 1 ? 5.2 : 2.35 + sp * 0.55;
-    want.set(p.x - cy * dist, p.y + height, p.z - sy * dist);
+    if (st.mode === 2) { // hero shot (garage / inspection): a low three-quarter view from the front-left
+      const a = st.yaw + st.heroAngle;
+      want.set(p.x + Math.cos(a) * st.heroDist, p.y + st.heroHeight, p.z + Math.sin(a) * st.heroDist);
+    } else want.set(p.x - cy * dist, p.y + height, p.z - sy * dist);
     if (st.pos.lengthSq() === 0) st.pos.copy(want);
     const kxz = 1 - Math.exp(-dt * 14);
     const ky = 1 - Math.exp(-dt * 7);

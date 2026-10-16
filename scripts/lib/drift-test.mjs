@@ -125,6 +125,37 @@ export async function runDrift(session, { ok, fail }) {
   await g(() => window.__ori.game3d.quit());
   await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 5000 });
 
+  // ── the three biomes at their tiers: world budget, the right look, and a clean teardown each time ──
+  for (const [biome, tier, car] of [['city', 'high', 'gt'], ['desert', 'high', 'hyper'], ['coast', 'high', 'hatch'], ['city', 'medium', 'gt'], ['coast', 'low', 'gt']]) {
+    await g((o) => window.__ori.game3d.launch('drift', o), { biome, tier, carType: car });
+    await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 30000 });
+    await g(() => { window.__ori.game3d.autopilot(true); window.__ori.game3d.step(900); });
+    await sleep(500);
+    const w = await g(() => ({ stats: window.__ori.game3d.stats(), state: window.__ori.game3d.state() }));
+    const maxCalls = tier === 'low' ? 120 : 300;
+    check(w.state.biome === biome && w.state.speedKmh > 100, `${biome}/${tier}: world built, the car drives (${w.state.look}, ${w.state.speedKmh} km/h)`);
+    check(w.stats.calls <= maxCalls && w.stats.triangles <= 600000, `${biome}/${tier}: budget ${w.stats.calls} draw calls (≤ ${maxCalls}), ${(w.stats.triangles / 1000).toFixed(0)}k triangles (≤ 600k), ${w.stats.fps} fps`);
+    await g(() => window.__ori.game3d.quit());
+    await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 5000 });
+    await sleep(120);
+    const m = await g(() => window.__ori.game3d.lastMemory);
+    check(m && m.geometries === 0 && m.textures === 0, `${biome}/${tier}: everything released on quit (geometries ${m?.geometries}, textures ${m?.textures})`);
+  }
+  // switching biome / look / tier while running rebuilds the world without leaking
+  await g(() => window.__ori.game3d.launch('drift', { biome: 'city' }));
+  await page.waitForFunction(() => window.__ori.game3d.running, null, { timeout: 30000 });
+  const sw = await g(() => {
+    const d = window.__ori.game3d;
+    const out = [];
+    for (const [fn, arg] of [['setBiome', 'desert'], ['setLook', 'noon'], ['setTier', 'low'], ['setTier', 'high'], ['setBiome', 'coast']]) { d[fn](arg); out.push(d.state()); }
+    return out;
+  });
+  check(sw[0].biome === 'desert' && sw[1].look === 'Noon' && sw[4].biome === 'coast', 'biome / look / tier can be switched while running');
+  await g(() => window.__ori.game3d.quit());
+  await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 5000 });
+  const ms = await g(() => window.__ori.game3d.lastMemory);
+  check(ms && ms.geometries === 0 && ms.textures === 0, 'after switching worlds a quit still leaves nothing behind');
+
   // ── launch / quit x5: no growth ──
   for (let i = 0; i < 5; i++) {
     await g(() => window.__ori.game3d.launch('drift'));

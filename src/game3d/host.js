@@ -4,9 +4,10 @@ import * as THREE from 'three';
 import { createSession } from './session.js';
 import { createKeyboard } from './input.js';
 import { createHud } from './hud.js';
+import { BIOMES } from './biomes.js';
 
 const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {} };
-const settings = { seed: 7, pixelRatioCap: 2, carType: 'gt', paint: 0xff3ea5 };
+const settings = { biome: 'city', seed: undefined, look: undefined, tier: 'high', pixelRatioCap: 2, carType: 'gt', paint: 0xff2d6f };
 let current = null;
 let lastMemory = null; // renderer.info.memory right after the last session was disposed (leak checks)
 
@@ -56,7 +57,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
   let fpsT0 = performance.now();
   let fps = 0;
   let gone = false;
-  const seed = opts.seed ?? settings.seed;
+  const sessionOpts = () => ({ renderer, biome: opts.biome ?? settings.biome, seed: opts.seed ?? settings.seed, look: opts.look ?? settings.look, tier: opts.tier ?? settings.tier, carType: opts.carType || settings.carType, paint: opts.paint ?? settings.paint });
 
   const teardown = () => {
     if (gone) return;
@@ -112,8 +113,9 @@ export function launchGame3D(id = 'drift', opts = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.setClearColor(0x07030f, 1);
+  renderer.info.autoReset = false; // the composer renders several passes per frame: the session resets the counters once per frame
 
-  session = createSession({ renderer, seed, carType: opts.carType || settings.carType, paint: opts.paint ?? settings.paint });
+  session = createSession(sessionOpts());
   hud = createHud(overlay, {
     onPause: () => pause(),
     onResume: () => resume(),
@@ -207,9 +209,12 @@ export function launchGame3D(id = 'drift', opts = {}) {
     get fps() { return fps; },
     get session() { return session; },
     get renderer() { return renderer; },
-    setSeed(n) {
+    /** Rebuilds the world with other options: { biome, seed, look, tier } (the settings stay for the next launch). */
+    rebuild(o = {}) {
+      Object.assign(settings, o);
+      for (const k of Object.keys(o)) delete opts[k]; // the launch options no longer win over the new settings
       session.dispose();
-      session = createSession({ renderer, seed: n, carType: settings.carType, paint: settings.paint });
+      session = createSession(sessionOpts());
       session.resize(window.innerWidth, window.innerHeight);
     },
   };
@@ -248,8 +253,27 @@ export const game3dDebug = {
   },
   setSeed(n) {
     settings.seed = n;
-    current?.api?.setSeed(n);
+    current?.api?.rebuild({ seed: n });
   },
+  setBiome(id) {
+    settings.biome = id;
+    settings.seed = undefined;
+    current?.api?.rebuild({ biome: id, seed: undefined });
+  },
+  setLook(id) { settings.look = id; current?.api?.rebuild({ look: id }); },
+  setTier(t) { settings.tier = t; current?.api?.rebuild({ tier: t }); },
+  /** Puts the car at arc length s with a speed (m/s) and redraws: for screenshots and tests. */
+  teleport(s, speed = 60, lateral = 0) {
+    const a = current?.api;
+    if (!a) return null;
+    a.session.teleport(s, speed, lateral);
+    a.session.render(1 / 60);
+    return a.session.state();
+  },
+  camera(mode, o) { current?.api?.session.setCamera(mode, o); current?.api?.session.render(1 / 60); },
   autopilot(on = true) { if (current?.api) current.api.session.autopilot = on; },
-  get seed() { return settings.seed; },
+  get seed() { return settings.seed ?? null; },
+  /** The biome definitions (tests/dev tweak them: e.g. switch props off to bisect a leak). */
+  biomes: BIOMES,
+  get biome() { return settings.biome; },
 };
