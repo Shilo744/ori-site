@@ -10,7 +10,7 @@ import { createMaterials, outlineMaterial, OUTLINE_COLORS } from './materials.js
 import { BODY_SCALE } from './body.js';
 
 const OUTLINED = ['skin', 'shoes'];
-const CAST = ['skin', 'tee', 'jeans', 'shoes', 'hair'];
+const CAST = ['skin', 'tee', 'jeans', 'shoes']; // (the curls do not cast: ~140k triangles of shadow pass for a silhouette the head already gives)
 
 function skinnedGeometry(m) {
   const g = new THREE.BufferGeometry();

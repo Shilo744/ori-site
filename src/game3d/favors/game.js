@@ -4,14 +4,16 @@
 // right door simply does the favour.
 import * as THREE from 'three';
 import { createSky } from '../sky3d.js';
-import { createPost } from '../post.js';
+import { createFavorsPost } from './post-fx.js';
 import { buildMap, groundHeight, walkDistance, PLAYER_R } from './map.js';
 import { createController, moveDir, WALK_SPEED } from './controller.js';
 import { createCameraRig } from './camera-rig.js';
-import { createClock, skyAt } from './daycycle.js';
+import { createClock, skyAt, gradeAt } from './daycycle.js';
 import { createCrowd } from './crowd.js';
 import { createCrowd3d } from './crowd3d.js';
 import { buildBuildings } from './buildings3d.js';
+import { createMaterialLibrary } from './materials.js';
+import { weatherPlan, weatherAt, applyOvercast, createRain } from './weather.js';
 import { buildGround } from './ground3d.js';
 import { buildProps } from './props3d.js';
 import { createOri } from './ori3d.js';
@@ -58,6 +60,12 @@ export function createFavorsGame(o) {
   let hemi = null;
   let sun = null;
   let buildings = null;
+  let lib = null;
+  let rain = null;
+  let plan = null; // the weather of the day (weather.js)
+  let forcedWeather = null; // dev / tests: { rain, wet, overcast } held fixed
+  let weatherNow = { rain: 0, wet: 0, overcast: 0 };
+  let lampTick = 0;
   let ground = null;
   let props = null;
   let ori = null;
@@ -128,11 +136,13 @@ export function createFavorsGame(o) {
     lap('sky');
 
     const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    ground = buildGround(map, { aniso });
+    lib = createMaterialLibrary({ tier, aniso });
+    plan = weatherPlan(questSeed);
+    ground = buildGround(map, { lib });
     lap('ground');
-    buildings = buildBuildings(map, { aniso });
+    buildings = buildBuildings(map, { lib, aniso, shadows, tier });
     lap('buildings');
-    props = buildProps(map, { shadows, tier });
+    props = buildProps(map, { shadows, tier, lib });
     lap('props');
     scene.add(ground.group, buildings.group, props.group);
 
@@ -149,10 +159,11 @@ export function createFavorsGame(o) {
     findPlaces();
     beam = createBeam();
     scene.add(beam.group);
+    rain = createRain({ count: tier === 'high' ? 2600 : 1400 });
+    scene.add(rain.mesh);
     startQuests();
 
-    if (tier !== 'low') post = createPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
-    if (post) post.fx.uniforms.uVignette.value = 0.2;
+    if (tier !== 'low') post = createFavorsPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
     applySky(true);
     placeCamera(true);
     lap('setup');
@@ -268,6 +279,7 @@ export function createFavorsGame(o) {
     ctrl.teleport(map.spawn.x, map.spawn.z, map.spawn.heading);
     ctrl.state.stamina = 1;
     rig.state.yaw = map.spawn.heading;
+    plan = weatherPlan(questSeed);
     startQuests();
     api.resume();
     applySky(true);
@@ -292,6 +304,8 @@ export function createFavorsGame(o) {
     const h = clock.hour;
     if (!force && lastSky && Math.abs(h - lastSky.hour) < 0.004) return lastSky;
     const s = skyAt(h);
+    weatherNow = forcedWeather || weatherAt(plan, h);
+    applyOvercast(s, weatherNow.overcast);
     lastSky = s;
     const u = sky.material.uniforms;
     u.uTop.value.setRGB(...s.top);
@@ -306,7 +320,7 @@ export function createFavorsGame(o) {
     u.uGlow.value = s.isDay ? 0.8 : 0.25;
     u.uPower.value = s.isDay ? 3 : 1.5;
     u.uStars.value = s.stars;
-    u.uCover.value = 0.4;
+    u.uCover.value = 0.4 + 0.5 * weatherNow.overcast;
     hemi.color.setRGB(...s.hemiS);
     hemi.groundColor.setRGB(...s.hemiG);
     hemi.intensity = s.hemiI * HEMI_GAIN;
@@ -318,8 +332,9 @@ export function createFavorsGame(o) {
     renderer.toneMappingExposure = s.exp;
     scene.environmentIntensity = 0.08 + 0.3 * (1 - s.night);
     // windows: lit ones glow when it is dark; by day the glass reflects the sky
-    buildings.setLight({ win: s.win, lamps: s.lamps, glass: [s.hor[0] * 0.3 * (1 - s.night) + 0.03, s.hor[1] * 0.34 * (1 - s.night) + 0.045, s.hor[2] * 0.4 * (1 - s.night) + 0.07] });
+    buildings.setLight({ win: s.win, lamps: s.lamps, day: 1 - s.night, glass: [s.hor[0] * 0.3 * (1 - s.night) + 0.03, s.hor[1] * 0.34 * (1 - s.night) + 0.045, s.hor[2] * 0.4 * (1 - s.night) + 0.07] });
     props.setLight({ lamps: s.lamps });
+    lib.setWeather({ wet: weatherNow.wet, lamps: s.lamps });
     fill.intensity = s.lamps * 9;
     return s;
   }
@@ -338,6 +353,19 @@ export function createFavorsGame(o) {
     camera.position.set(c.x, Math.max(c.y, groundY + 0.6) + (c.by || 0), c.z);
     camera.lookAt(c.lx, c.ly + groundY * 0.5 + (c.by || 0), c.lz);
     if (Math.abs(camera.fov - c.fov) > 0.05) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
+  }
+
+  /** The street lamps closest to Ori: wet roads mirror their light (up to 8). */
+  function nearestLamps() {
+    const st = ctrl.state;
+    const list = [];
+    for (const p of map.props) {
+      if (p.type !== 'lamp') continue;
+      const d = Math.hypot(p.x - st.x, p.z - st.z);
+      if (d < 46) list.push({ x: p.x + 0.8, y: 5.4, z: p.z, i: 1 - d / 52, d });
+    }
+    list.sort((a, b) => a.d - b.d);
+    lib.setLamps(list.slice(0, 8));
   }
 
   function findPlaces() {
@@ -416,7 +444,11 @@ export function createFavorsGame(o) {
       for (const p of extras) p.update(dt, { speed: 0 });
       fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
       crowd3d.update(t);
-      ground.update(t, s);
+      lib.update(t);
+      buildings.update(camera.position.x, camera.position.z);
+      rain.update(camera, t, weatherNow.rain);
+      if (++lampTick % 12 === 1) nearestLamps();
+      ground.update(t, s, weatherNow.overcast);
       sky.update(camera, t);
       beam.update(t);
       if (shadows) {
@@ -430,7 +462,12 @@ export function createFavorsGame(o) {
       }
       placeCamera();
       renderer.info.reset();
-      if (post) post.render(dt, st.sprinting ? 0.12 : 0);
+      if (post) {
+        camera.updateMatrixWorld();
+        const gr = gradeAt(s);
+        post.setLook({ tint: gr.tint, sat: gr.sat, contrast: gr.contrast, vignette: gr.vignette, ao: gr.ao, bloomStrength: gr.bloom, focus: Math.hypot(camera.position.x - st.x, camera.position.y - groundY - 1, camera.position.z - st.z), sun: { dir: s.sunDir, color: s.sun, shafts: gr.shafts } });
+        post.render(dt);
+      }
       else renderer.render(scene, camera);
       const q = quests.state;
       const rankIdx = RANKS.reduce((a, r, i) => (q.score >= r.min ? i : a), 0);
@@ -523,6 +560,9 @@ export function createFavorsGame(o) {
       return extras.length;
     },
     setHour(h) { clock.set(h); applySky(true); syncQuests(); },
+    /** Dev / tests: hold the weather fixed ({ rain, wet, overcast } 0..1) or give it back to the day (null). */
+    setWeather(w) { forcedWeather = w ? { rain: w.rain ?? 0, wet: w.wet ?? w.rain ?? 0, overcast: w.overcast ?? w.rain ?? 0 } : null; applySky(true); return weatherNow; },
+    weather() { return { ...weatherNow, plan: { ...plan } }; },
     clockInfo() { return { hour: clock.hour, label: clock.label(), progress: clock.progress, done: clock.done }; },
     /** Dev / tests: do the favour for a task at once (as Space at its door would). */
     doFavour(uid) { const r = quests.complete(uid, 1); syncQuests(); return r; },
@@ -556,6 +596,8 @@ export function createFavorsGame(o) {
       extras.length = 0;
       crowd3d.dispose();
       buildings.dispose();
+      rain.dispose();
+      lib.dispose();
       ground.dispose();
       props.dispose();
       sky.dispose();

@@ -10,10 +10,12 @@ export class GeoBuilder {
     this.uv = [];
     this.c = [];
     this.extra = []; // optional per-vertex float (used for lit windows / pivots)
+    this.extra2 = []; // a second optional float (window size, wind weight)
     this.i = [];
     this.count = 0;
     this.color = [1, 1, 1];
     this.attr = 0;
+    this.attr2 = 0;
   }
 
   setColor(hex) { this.color = new THREE.Color(hex).toArray(); return this; }
@@ -24,6 +26,7 @@ export class GeoBuilder {
     this.uv.push(u, v);
     this.c.push(this.color[0], this.color[1], this.color[2]);
     this.extra.push(this.attr);
+    this.extra2.push(this.attr2);
     return this.count++;
   }
 
@@ -82,13 +85,14 @@ export class GeoBuilder {
     return this;
   }
 
-  build({ extraName = null } = {}) {
+  build({ extraName = null, extraName2 = null } = {}) {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(this.uv, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3));
     if (extraName) g.setAttribute(extraName, new THREE.Float32BufferAttribute(this.extra, 1));
+    if (extraName2) g.setAttribute(extraName2, new THREE.Float32BufferAttribute(this.extra2, 1));
     g.setIndex(this.count > 65535 ? new THREE.Uint32BufferAttribute(this.i, 1) : new THREE.Uint16BufferAttribute(this.i, 1));
     g.computeBoundingSphere();
     g.computeBoundingBox();

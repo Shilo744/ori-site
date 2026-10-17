@@ -108,10 +108,13 @@ export function scooterGeometry({ cell = 0.03 } = {}) {
   return { body: toGeometry(body), details: mergeGeos(parts) };
 }
 
+/** The blobs the street / park tree canopy is made from ([x, y, z, radius]); vegetation.js scatters leaf cards over the same ones. */
+export const TREE_BLOBS = [[0, 3.5, 0, 1.55], [0.95, 3.0, 0.4, 1.15], [-0.9, 3.1, -0.5, 1.25], [0.1, 4.4, 0.15, 1.05], [-0.5, 3.0, 0.9, 1.0], [0.6, 3.7, -0.9, 0.95]];
+
 /** A street / park tree: a trunk and a lumpy canopy of blended blobs, greens that get lighter towards the sun. */
 export function treeGeometry({ cell = 0.13, seed = 5 } = {}) {
   const rnd = mulberry32(seed);
-  const blobs = [[0, 3.5, 0, 1.55], [0.95, 3.0, 0.4, 1.15], [-0.9, 3.1, -0.5, 1.25], [0.1, 4.4, 0.15, 1.05], [-0.5, 3.0, 0.9, 1.0], [0.6, 3.7, -0.9, 0.95]];
+  const blobs = TREE_BLOBS;
   const lumps = [];
   for (let i = 0; i < 22; i++) { const b = blobs[i % blobs.length]; const a = rnd() * 6.283; const e = (rnd() - 0.2) * 1.2; lumps.push([b[0] + Math.cos(a) * Math.cos(e) * b[3] * 0.85, b[1] + Math.sin(e) * b[3] * 0.85, b[2] + Math.sin(a) * Math.cos(e) * b[3] * 0.85, 0.42 + rnd() * 0.3]); }
   const field = (x, y, z) => {

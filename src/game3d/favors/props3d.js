@@ -4,7 +4,9 @@ import * as THREE from 'three';
 import { mulberry32 } from '../rng.js';
 import { GeoBuilder } from './gfx.js';
 import { groundHeight } from './map.js';
-import { carGeometry, scooterGeometry, treeGeometry, plantGeometry, cafeSetGeometry } from './props-sdf.js';
+import { carGeometry } from './props-cars.js';
+import { scooterGeometry, treeGeometry, plantGeometry, cafeSetGeometry, TREE_BLOBS } from './props-sdf.js';
+import { palmGeometry, treeCards } from './vegetation.js';
 
 const CAR_COLORS = [0xe9e6df, 0x2d3139, 0xb23a3a, 0x3b6ea8, 0xd8b441, 0x6b8f71, 0xa9adb5, 0x7a4f8f];
 const SCOOTER_COLORS = [0xff6a3d, 0x2fb8d8, 0xf2c14e, 0x7be0a0];
@@ -149,7 +151,7 @@ function umbrellaGeos() {
 }
 
 /** Builds every prop of the map. */
-export function buildProps(map, { shadows = true, tier = 'high' } = {}) {
+export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   const rnd = mulberry32(map.seed + 91);
   const group = new THREE.Group();
   group.name = 'props';
@@ -160,24 +162,31 @@ export function buildProps(map, { shadows = true, tier = 'high' } = {}) {
   const meshes = [];
   const gy = (p) => groundHeight(map, p.x, p.z);
 
+  // one InstancedMesh per kind AND per chunk of the neighbourhood (so the ones behind the camera or out of the shadow box are never drawn)
   const instanced = (geo, material, list, place, { tint = null, name } = {}) => {
     if (!list || !list.length) return null;
-    const im = new THREE.InstancedMesh(geo, material, list.length);
-    im.name = name;
-    list.forEach((p, i) => {
-      im.setMatrixAt(i, place(p));
-      if (tint) im.setColorAt(i, new THREE.Color(tint(p, i)));
-    });
-    im.instanceMatrix.needsUpdate = true;
-    if (im.instanceColor) im.instanceColor.needsUpdate = true;
-    im.castShadow = shadows;
-    im.receiveShadow = true;
-    im.frustumCulled = false; // spread over the whole map: one cull test is not worth the pop-in
-    group.add(im);
+    const cells = new Map();
+    for (const p of list) { const k = Math.floor(p.x / 72) + ',' + Math.floor(p.z / 72); (cells.get(k) || cells.set(k, []).get(k)).push(p); }
+    let first = null;
+    for (const [key, items] of cells) {
+      const im = new THREE.InstancedMesh(geo, material, items.length);
+      im.name = name + ':' + key;
+      items.forEach((p, i) => {
+        im.setMatrixAt(i, place(p));
+        if (tint) im.setColorAt(i, new THREE.Color(tint(p, i)));
+      });
+      im.instanceMatrix.needsUpdate = true;
+      if (im.instanceColor) im.instanceColor.needsUpdate = true;
+      im.castShadow = shadows;
+      im.receiveShadow = true;
+      im.computeBoundingSphere();
+      group.add(im);
+      meshes.push(im);
+      first = first || im;
+    }
     geos.push(geo);
     mats.push(material);
-    meshes.push(im);
-    return im;
+    return first;
   };
   const vc = (color = 0xffffff, rough = 0.85, extra = {}) => new THREE.MeshStandardMaterial({ vertexColors: true, color, roughness: rough, metalness: 0, ...extra });
 
@@ -203,22 +212,46 @@ export function buildProps(map, { shadows = true, tier = 'high' } = {}) {
   const poolGeo = new THREE.PlaneGeometry(7.5, 7.5);
   poolGeo.rotateX(-Math.PI / 2);
   const pools = instanced(poolGeo, poolMat, byType.lamp, (p) => matrix(p.x + 0.8, gy(p) + 0.04, p.z, 0), { name: 'lamp-pools' });
-  if (pools) pools.castShadow = false;
+  group.children.filter((c) => c.name.startsWith('lamp-pools')).forEach((c) => { c.castShadow = false; });
+  void pools;
   mats.push(poolTex);
 
-  const pg = palmGeos();
-  const palmMat = vc(0xffffff, 0.9, { side: THREE.DoubleSide });
+  // palms: two shapes, a bark trunk with scar rings and a crown of alpha-cut fronds (they sway)
   const palmScale = (p) => 0.85 + ((Math.sin(p.x * 12.9 + p.z * 78.2) * 43758.5) % 1 + 1) % 1 * 0.5;
-  instanced(pg.trunk, vc(), byType.palm, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: 'palm-trunks' });
-  instanced(pg.crown, palmMat, byType.palm, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: 'palm-crowns' });
+  const barkMat = lib.std('bark', { vertexColors: true, normalScale: 1, wind: { amp: 0.06, speed: 1.1 } });
+  const frondMat = lib.std('frond', { vertexColors: true, normalScale: 0, roughness: 0.8, wind: { amp: 0.28, speed: 1.9 }, extra: { side: THREE.DoubleSide, alphaTest: 0.5 } });
+  const palmShapes = [palmGeometry(3), palmGeometry(11)];
+  palmShapes.forEach((ps, k) => {
+    const list = (byType.palm || []).filter((p) => (p.v + (p.x > 0 ? 1 : 0)) % 2 === k);
+    instanced(ps.trunk, barkMat, list, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: `palm-trunks${k}` });
+    instanced(ps.crown, frondMat, list, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: `palm-crowns${k}` });
+  });
+  mats.push(barkMat, frondMat);
 
+  // trees: the smooth canopy plus leaf cards around it
   const tg = tier === 'low' ? treeGeo() : treeGeometry({ cell: tier === 'high' ? 0.26 : 0.36 });
-  instanced(tg, vc(), byType.tree, (p) => matrix(p.x, gy(p), p.z, p.rot, 1 + (p.v % 3) * 0.12), { name: 'trees' });
+  const canopyMat = lib.plain({ roughness: 0.75, wind: { amp: 0.04, speed: 1.3 }, leaf: true });
+  const treePlace = (p) => matrix(p.x, gy(p), p.z, p.rot, 1 + (p.v % 3) * 0.12);
+  instanced(tg, canopyMat, byType.tree, treePlace, { name: 'trees' });
+  if (tier !== 'low') {
+    const cardsMat = lib.std('leaves', { vertexColors: true, normalScale: 0, roughness: 0.75, wind: { amp: 0.09, speed: 1.6 }, extra: { side: THREE.DoubleSide, alphaTest: 0.5 } });
+    instanced(treeCards(TREE_BLOBS, 5, tier === 'high' ? 170 : 90), cardsMat, byType.tree, treePlace, { name: 'tree-cards' });
+    mats.push(cardsMat, canopyMat);
+  }
 
-  const cg = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ cell: tier === 'high' ? 0.2 : 0.28 }); return { body: c.body, dark: c.details }; })();
-  const carBody = vc(0xffffff, 0.3, { metalness: 0.3 });
-  instanced(cg.body, carBody, byType.car, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => CAR_COLORS[p.v % CAR_COLORS.length], name: 'car-bodies' });
-  instanced(cg.dark, vc(0xffffff, 0.5, { metalness: 0.1 }), byType.car, (p) => matrix(p.x, 0, p.z, p.rot), { name: 'car-details' });
+  // cars: three body shapes, a glossy clear-coated paint that mirrors the sky, wheels and lamps as a second mesh
+  const CAR_KIND = ['hatch', 'sedan', 'hatch', 'van', 'sedan'];
+  const carBody = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.25, clearcoat: 0.9, clearcoatRoughness: 0.12, envMapIntensity: 2.2 });
+  lib.applyWet(carBody);
+  mats.push(carBody);
+  const carDetails = vc(0xffffff, 0.5, { metalness: 0.1 });
+  for (const kind of ['hatch', 'sedan', 'van']) {
+    const list = (byType.car || []).filter((p) => CAR_KIND[p.v % CAR_KIND.length] === kind);
+    if (!list.length) continue;
+    const cg = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ cell: tier === 'high' ? 0.2 : 0.28, kind }); return { body: c.body, dark: c.details }; })();
+    instanced(cg.body, carBody, list, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => CAR_COLORS[p.v % CAR_COLORS.length], name: `car-bodies-${kind}` });
+    instanced(cg.dark, carDetails, list, (p) => matrix(p.x, 0, p.z, p.rot), { name: `car-details-${kind}` });
+  }
 
   const sg = tier === 'low' ? scooterGeos() : (() => { const c = scooterGeometry({ cell: tier === 'high' ? 0.04 : 0.06 }); return { body: c.body, dark: c.details }; })();
   instanced(sg.body, vc(0xffffff, 0.45), byType.scooter, (p) => matrix(p.x, gy(p), p.z, p.rot, 1.2), { tint: (p) => SCOOTER_COLORS[p.v % SCOOTER_COLORS.length], name: 'scooter-bodies' });
@@ -241,7 +274,7 @@ export function buildProps(map, { shadows = true, tier = 'high' } = {}) {
       for (const s of [-1, 1]) plants.push({ x: d.x + d.nx * 1.0 + tx * s * 1.9, z: d.z + d.nz * 1.0 + tz * s * 1.9, rot: (pl.id.length * 1.7 + s) % 6.28, v: s });
       if (pl.id === 'cafe') for (const s of [-1.4, 1.4, 4.2]) sets.push({ x: d.x + d.nx * 2.7 + tx * s * 1.7, z: d.z + d.nz * 2.7 + tz * s * 1.7, rot: Math.atan2(d.nx, d.nz) + Math.PI / 2 });
     }
-    instanced(plantGeometry({ cell: tier === 'high' ? 0.05 : 0.07 }), vc(0xffffff, 0.8), plants, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.5 + 0.15 * p.v), { name: 'door-plants' });
+    instanced(plantGeometry({ cell: tier === 'high' ? 0.05 : 0.07 }), vc(0xffffff, 0.8), plants, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.0 + 0.1 * p.v), { name: 'door-plants' });
     instanced(cafeSetGeometry({ cell: tier === 'high' ? 0.045 : 0.06 }), vc(0xffffff, 0.6), sets, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.35), { name: 'cafe-sets' });
   }
 

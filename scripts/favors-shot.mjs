@@ -22,9 +22,10 @@ try {
   console.log(`opened in ${Date.now() - t0} ms`);
   for (let i = 0; i < shots.length; i++) {
     const { at, hour } = shots[i];
-    await page.evaluate(([at, hour, yaw, dist, pitch, back, off, face]) => {
+    await page.evaluate(([at, hour, yaw, dist, pitch, back, off, face, rain, wet]) => {
       const g3 = window.__ori.game3d;
       g3.setHour(hour);
+      if (rain != null || wet != null) g3.game.setWeather({ rain: rain ?? 0, wet: wet ?? rain ?? 0, overcast: rain ?? 0.5 });
       if (at.includes(':')) { const [x, z] = at.split(':').map(Number); g3.teleport({ x, z }); } else if (off) { const p = g3.place(at); g3.teleport({ x: p.door.x + p.door.nx * off, z: p.door.z + p.door.nz * off }, face ? Math.atan2(-p.door.nx, -p.door.nz) : Math.atan2(p.door.nx, p.door.nz)); } else g3.teleport(at);
       const g = g3.game;
       const heading = g.controller.state.heading;
@@ -32,7 +33,7 @@ try {
       if (dist) o.dist = dist;
       if (pitch != null) o.pitch = pitch;
       g3.camera(o);
-    }, [at, hour, args.yaw != null ? +args.yaw : null, args.dist ? +args.dist : null, args.pitch != null ? +args.pitch : null, !!args.front, args.off ? +args.off : 0, !!args.face]);
+    }, [at, hour, args.yaw != null ? +args.yaw : null, args.dist ? +args.dist : null, args.pitch != null ? +args.pitch : null, !!args.front, args.off ? +args.off : 0, !!args.face, args.rain != null ? +args.rain : null, args.wet != null ? +args.wet : null]);
     if (args.phone) { await page.evaluate((tab) => window.__ori.game3d.game.phone.open(tab), args.phone); await sleep(500); }
     for (const sel of String(args.click || '').split('|').filter(Boolean)) { await page.click(sel); await sleep(300); }
     await sleep(3300); // (jumping the clock rain-checks the early tasks: let his shrugs finish)

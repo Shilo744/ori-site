@@ -2,61 +2,27 @@
 // the sand and the sea. Flat quads merged by material; the sea is one animated shader plane. Heights: road 0, sand 0, kerb 0.14.
 import * as THREE from 'three';
 import { GeoBuilder } from './gfx.js';
-import { pavingTexture, asphaltTexture, lawnTexture, sandTexture, woodTexture } from './textures.js';
 import { KERB, ROAD_X, ROAD_Z, ROAD_W, BOUNDS } from './map.js';
+import { createSea } from './sea3d.js';
 
 const FAR = 700; // the roads and the ground run on into the fog
 
-const SEA_VERT = /* glsl */ `
-varying vec3 vWorld;
-#include <fog_pars_vertex>
-void main() {
-  vec4 wp = modelMatrix * vec4(position, 1.0);
-  vWorld = wp.xyz;
-  vec4 mvPosition = viewMatrix * wp;
-  gl_Position = projectionMatrix * mvPosition;
-  #include <fog_vertex>
-}`;
-const SEA_FRAG = /* glsl */ `
-varying vec3 vWorld;
-uniform float uTime, uSunVis, uShore, uNight;
-uniform vec3 uDeep, uShallow, uSunDir;
-#include <fog_pars_fragment>
-void main() {
-  float d = max(0.0, uShore - vWorld.x);            // metres out to sea
-  float w = sin(vWorld.z * 0.35 + uTime * 0.9 + sin(vWorld.x * 0.12 + uTime * 0.3) * 2.0) * 0.5 + 0.5;
-  float w2 = sin(vWorld.z * 0.9 - uTime * 1.3 + vWorld.x * 0.4) * 0.5 + 0.5;
-  vec3 col = mix(uShallow, uDeep, smoothstep(2.0, 70.0, d));
-  col += (w * 0.05 + w2 * 0.03) * (1.0 - uNight * 0.6);
-  // the sun's glitter and a line of foam where the waves reach the sand
-  float glitter = smoothstep(0.93, 1.0, w * w2) * uSunVis * (1.0 - uNight);
-  col += vec3(1.0, 0.95, 0.8) * glitter * 0.55;
-  float foam = smoothstep(0.0, 2.4, 2.4 - abs(d - (1.2 + sin(uTime * 0.8 + vWorld.z * 0.2) * 0.9)));
-  col = mix(col, vec3(0.95, 0.97, 1.0) * (1.0 - uNight * 0.6), foam * 0.7);
-  gl_FragColor = vec4(col, 1.0);
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
-  #include <fog_fragment>
-}`;
-
-export function buildGround(map, { aniso = 4 } = {}) {
+export function buildGround(map, { lib }) {
   const group = new THREE.Group();
   group.name = 'ground';
-  const texs = [pavingTexture(aniso), asphaltTexture(aniso), lawnTexture(aniso), sandTexture(aniso), woodTexture(aniso)];
-  const [tPave, tAsph, tLawn, tSand, tWood] = texs;
-  const std = (map_, color, extra = {}) => new THREE.MeshStandardMaterial({ map: map_, color, roughness: 0.95, metalness: 0, ...extra });
   const mats = {
-    base: std(tPave, 0xb4aea3),
-    slab: std(tPave, 0xcdc7bb),
-    road: std(tAsph, 0x66666b, { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }),
-    mark: new THREE.MeshStandardMaterial({ color: 0xf3f1ea, roughness: 0.8, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 }),
-    lawn: std(tLawn, 0x7bbf63),
-    path: std(tPave, 0xd9d3c6),
-    sand: std(tSand, 0xe9d6a6),
-    wood: std(tWood, 0xffffff),
-    court: new THREE.MeshStandardMaterial({ color: 0xc8553d, roughness: 0.7 }),
-    water: new THREE.MeshStandardMaterial({ color: 0x5ec3d8, roughness: 0.15, metalness: 0.1 }),
-    stone: std(tPave, 0xdcd6ca),
+    base: lib.std('paving', { color: 0xb4aea3, wet: 'ground' }),
+    slab: lib.std('paving', { color: 0xdcd6cb, wet: 'ground', normalScale: 0.8 }),
+    road: lib.std('asphalt', { color: 0xb4b4bc, wet: 'ground', normalScale: 0.8, extra: { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 } }),
+    mark: lib.plain({ color: 0xf3f1ea, roughness: 0.7, wet: 'ground', extra: { vertexColors: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 } }),
+    kerb: lib.std('concrete', { color: 0xd8d3c8, wet: 'ground', vertexColors: false, extra: { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 } }),
+    lawn: lib.std('lawn', { color: 0x8bc86a, wet: 'ground' }),
+    path: lib.std('paving', { color: 0xe6e0d2, wet: 'ground' }),
+    sand: lib.std('sand', { color: 0xf1dfb0, wet: 'ground' }),
+    wood: lib.std('wood', { color: 0xffffff, wet: 'ground' }),
+    court: lib.std('concrete', { color: 0xd2694c, wet: 'ground' }),
+    water: new THREE.MeshStandardMaterial({ color: 0x5ec3d8, roughness: 0.1, metalness: 0.1 }),
+    stone: lib.std('terrazzo', { color: 0xe8e2d6, wet: 'ground' }),
   };
   const add = (geo, mat, name, { shadow = true } = {}) => { const m = new THREE.Mesh(geo, mat); m.name = name; m.receiveShadow = shadow; group.add(m); return m; };
 
@@ -69,8 +35,23 @@ export function buildGround(map, { aniso = 4 } = {}) {
   // sidewalk slabs: a raised box per block, textured in metres
   {
     const b = new GeoBuilder();
-    for (const s of map.slabs) b.box(s.x0, -0.03, s.z0, s.x1, KERB, s.z1, { uvMeters: [4, 4], skip: { bottom: true } });
+    const kb = new GeoBuilder(); // the kerb stones along the edge of every slab
+    for (const s of map.slabs) {
+      b.box(s.x0, -0.03, s.z0, s.x1, KERB, s.z1, { uvMeters: [4, 4], skip: { bottom: true } });
+      const y = KERB + 0.004;
+      const w = 0.24;
+      kb.floor(s.x0, s.z0, s.x1, s.z0 + w, y, 2);
+      kb.floor(s.x0, s.z1 - w, s.x1, s.z1, y, 2);
+      kb.floor(s.x0, s.z0 + w, s.x0 + w, s.z1 - w, y, 2);
+      kb.floor(s.x1 - w, s.z0 + w, s.x1, s.z1 - w, y, 2);
+      // the face of the kerb (towards the road) is a slightly darker concrete band
+      kb.box(s.x0 - 0.02, -0.03, s.z0 - 0.02, s.x0, KERB, s.z1 + 0.02, { uvMeters: [2, 2], skip: { bottom: true, top: true, right: true } });
+      kb.box(s.x1, -0.03, s.z0 - 0.02, s.x1 + 0.02, KERB, s.z1 + 0.02, { uvMeters: [2, 2], skip: { bottom: true, top: true, left: true } });
+      kb.box(s.x0 - 0.02, -0.03, s.z0 - 0.02, s.x1 + 0.02, KERB, s.z0, { uvMeters: [2, 2], skip: { bottom: true, top: true, front: true } });
+      kb.box(s.x0 - 0.02, -0.03, s.z1, s.x1 + 0.02, KERB, s.z1 + 0.02, { uvMeters: [2, 2], skip: { bottom: true, top: true, back: true } });
+    }
     add(b.build(), mats.slab, 'slabs');
+    add(kb.build(), mats.kerb, 'kerbs', { shadow: false });
   }
   // asphalt + markings
   {
@@ -157,7 +138,7 @@ export function buildGround(map, { aniso = 4 } = {}) {
   {
     const ch = map.places.cityhall.rect;
     const b = new GeoBuilder();
-    b.floor(ch.x0 - 9, ch.z0 - 2, ch.x0, ch.z1 + 2, KERB + 0.012, 4);
+    b.floor(ch.x0 - 9, ch.z0 - 2, ch.x0, ch.z1 + 2, KERB + 0.012, 2);
     add(b.build(), mats.stone, 'plaza');
     const w = new GeoBuilder();
     w.floor(-123, BOUNDS.z0, -111, BOUNDS.z1, KERB + 0.012, 4);
@@ -166,36 +147,18 @@ export function buildGround(map, { aniso = 4 } = {}) {
     s.floor(BOUNDS.x0 - 8, -FAR, -124, FAR, 0.002, 6);
     add(s.build(), mats.sand, 'sand');
   }
-  // the sea
-  const seaU = {
-    uTime: { value: 0 }, uSunVis: { value: 1 }, uNight: { value: 0 }, uShore: { value: BOUNDS.x0 - 8 },
-    uDeep: { value: new THREE.Color(0x0c6f95) }, uShallow: { value: new THREE.Color(0x58c9c8) }, uSunDir: { value: new THREE.Vector3(0, 1, 0) },
-  };
-  const seaMat = new THREE.ShaderMaterial({ uniforms: THREE.UniformsUtils.merge([THREE.UniformsLib.fog, seaU]), vertexShader: SEA_VERT, fragmentShader: SEA_FRAG, fog: true });
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(FAR, FAR * 2), seaMat);
-  sea.rotation.x = -Math.PI / 2;
-  sea.position.set(BOUNDS.x0 - 8 - FAR / 2, -0.12, 0);
-  sea.name = 'sea';
-  group.add(sea);
+  // the sea (sea3d.js)
+  const sea = createSea();
+  group.add(sea.mesh);
 
   return {
     group,
-    /** Per frame: time for the waves; the sky tints the water. */
-    update(time, sky) {
-      seaU.uTime.value = time;
-      seaMat.uniforms.uTime.value = time;
-      if (sky) {
-        seaMat.uniforms.uNight.value = sky.night;
-        seaMat.uniforms.uSunVis.value = sky.sunVis;
-        seaMat.uniforms.uDeep.value.setRGB(0.05 + 0.04 * (1 - sky.night), 0.43 * (1 - sky.night * 0.78), 0.58 * (1 - sky.night * 0.7));
-        seaMat.uniforms.uShallow.value.setRGB(0.34 * (1 - sky.night * 0.7), 0.79 * (1 - sky.night * 0.78), 0.78 * (1 - sky.night * 0.6));
-      }
-    },
+    /** Per frame: the waves and the water colours follow the time and the sky. */
+    update(time, sky, overcast = 0) { sea.update(time, sky, overcast); },
     dispose() {
       for (const o of group.children) { if (o.geometry) o.geometry.dispose(); }
       for (const m of Object.values(mats)) m.dispose();
-      seaMat.dispose();
-      for (const t of texs) t.dispose();
+      sea.dispose();
     },
   };
 }

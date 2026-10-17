@@ -74,3 +74,26 @@ export function createClock({ startHour = DAY.startHour, endHour = DAY.endHour, 
     label(h = hour) { const m = Math.floor(h * 60 + 1e-6); return `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; },
   };
 }
+
+/**
+ * The colour grade of a game hour (PURE): a tint, saturation, contrast, vignette, how strong the light shafts are, and how much the ambient occlusion
+ * shows. `s` is what skyAt(hour) returned. Warm gold when the sun is low, cool blue at night, clean white at noon.
+ */
+export function gradeAt(s) {
+  const up = Math.max(0, s.sunDir[1]);
+  const golden = s.isDay ? s.sunVis * (1 - smooth(0.08, 0.5, up)) : 0;
+  const night = s.night;
+  const mixC = (a, b, t) => [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
+  let tint = mixC([1, 1, 1], [1.09, 0.97, 0.84], golden);
+  tint = mixC(tint, [0.88, 0.96, 1.12], night);
+  return {
+    tint,
+    sat: 1.07 + 0.12 * golden - 0.14 * night,
+    contrast: 1.05 + 0.05 * golden + 0.02 * night,
+    vignette: 0.2 + 0.07 * golden + 0.1 * night,
+    shafts: golden * 0.95 + (s.isDay ? 0.06 * s.sunVis : 0),
+    ao: 1 - 0.25 * night,
+    bloom: 0.3 + 0.28 * golden + 0.25 * night,
+    golden,
+  };
+}
