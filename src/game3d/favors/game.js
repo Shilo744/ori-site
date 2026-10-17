@@ -15,6 +15,9 @@ import { buildBuildings } from './buildings3d.js';
 import { buildGround } from './ground3d.js';
 import { buildProps } from './props3d.js';
 import { createOri } from './ori3d.js';
+import { setOutlineView } from './people/materials.js';
+import { createPerson } from './people/person.js';
+import { randomSpec } from './people/specs.js';
 import { createFavorsHud } from './hud.js';
 import { createPhone } from './phone.js';
 import { createSfx } from './sfx.js';
@@ -135,8 +138,9 @@ export function createFavorsGame(o) {
     crowd3d = createCrowd3d(map, crowd, { shadows });
     scene.add(crowd3d.mesh);
     lap('crowd');
-    ori = createOri({ shadows });
+    ori = createOri({ shadows, tier });
     scene.add(ori.group);
+    setOutlineView(size.x * renderer.getPixelRatio(), size.y * renderer.getPixelRatio());
     lap('ori');
     ctrl = createController(map.world, { x: map.spawn.x, z: map.spawn.z, heading: map.spawn.heading });
     rig = createCameraRig(map.world, { yaw: map.spawn.heading, pitch: 0.4, dist: 7.4 });
@@ -289,8 +293,16 @@ export function createFavorsGame(o) {
     return s;
   }
 
+  const extras = []; // dev / tests: extra people standing about (spawnPeople)
+  let debugCam = null; // dev / tests: { pos, look, fov } overrides the chase camera (portraits)
   function placeCamera(snap = false) {
     if (snap) rig.reset();
+    if (debugCam) {
+      camera.position.set(...debugCam.pos);
+      camera.lookAt(...debugCam.look);
+      if (debugCam.fov && Math.abs(camera.fov - debugCam.fov) > 0.05) { camera.fov = debugCam.fov; camera.updateProjectionMatrix(); }
+      return;
+    }
     const c = rig.state;
     camera.position.set(c.x, Math.max(c.y, groundY + 0.6), c.z);
     camera.lookAt(c.lx, c.ly + groundY * 0.5, c.lz);
@@ -325,6 +337,7 @@ export function createFavorsGame(o) {
   }
 
   const api = {
+    get ori() { return ori; },
     get phase() { return opened ? (over ? 'over' : 'play') : 'loading'; },
     get paused() { return paused; },
     get hud() { return hud; },
@@ -365,6 +378,7 @@ export function createFavorsGame(o) {
       const st = ctrl.state;
       groundY += (groundHeight(map, st.x, st.z) - groundY) * Math.min(1, dt > 0 ? dt * 14 : 1);
       ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
+      for (const p of extras) p.update(dt, { speed: 0 });
       fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
       crowd3d.update(t);
       ground.update(t, s);
@@ -401,6 +415,7 @@ export function createFavorsGame(o) {
       if (!camera) return;
       camera.aspect = w / Math.max(1, h);
       camera.updateProjectionMatrix();
+      setOutlineView(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
       if (post) post.setSize(w, h);
     },
     pause() { if (paused || !opened || over) return false; paused = true; hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
@@ -455,6 +470,23 @@ export function createFavorsGame(o) {
     place(id) { const p = map.places[id]; return p ? { id: p.id, name: p.name, kind: p.kind, door: { ...p.door }, rect: { ...p.rect }, distance: map.dist[nearest ? nearest.id : 'home'][id] } : null; },
     /** Dev / tests: { yaw, pitch, dist } of the chase camera (yaw = the direction it looks along; 0 looks south). */
     setCamera(c = {}) { if (c.yaw != null) rig.state.yaw = c.yaw; if (c.pitch != null) rig.state.pitch = c.pitch; if (c.dist != null) rig.state.dist = c.dist; rig.reset(); placeCamera(true); },
+    /** Dev / tests: put the camera anywhere (null gives the chase camera back). */
+    setDebugCamera(cfg) { debugCam = cfg || null; if (!debugCam) rig.reset(); placeCamera(true); },
+    /** Dev / tests: stand some people (person specs) in a row in front of Ori. Returns how many were made. */
+    spawnPeople(specs, { spacing = 1.15, ahead = 3.2, quality = 0.5 } = {}) {
+      const st = ctrl.state;
+      const fx = Math.sin(st.heading); const fz = Math.cos(st.heading);
+      const rx = Math.cos(st.heading); const rz = -Math.sin(st.heading);
+      specs.forEach((sp, i) => {
+        const p = createPerson(typeof sp === 'number' ? randomSpec(sp) : sp, { shadows, tier, quality });
+        const o = (i - (specs.length - 1) / 2) * spacing;
+        p.group.position.set(st.x + fx * ahead + rx * o, groundY, st.z + fz * ahead + rz * o);
+        p.group.rotation.y = st.heading + Math.PI;
+        scene.add(p.group);
+        extras.push(p);
+      });
+      return extras.length;
+    },
     setHour(h) { clock.set(h); applySky(true); syncQuests(); },
     clockInfo() { return { hour: clock.hour, label: clock.label(), progress: clock.progress, done: clock.done }; },
     /** Dev / tests: do the favour for a task at once (as Space at its door would). */
@@ -485,6 +517,8 @@ export function createFavorsGame(o) {
       phone.dispose();
       beam.dispose();
       ori.dispose();
+      for (const p of extras) { scene.remove(p.group); p.dispose(); }
+      extras.length = 0;
       crowd3d.dispose();
       buildings.dispose();
       ground.dispose();

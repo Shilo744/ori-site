@@ -12,11 +12,11 @@ export const GAME = {
 export const ORI = {
   name: 'Ori',
   fullName: 'Ori Asher',
-  // how he looks (the face is the photo cutout in assets/ori-face.jpg; the rest is built in code from these values)
+  // how he looks (people/specs.js builds the sculpted Ori from these values; the selfie only lives in .duo/assets as a private reference)
   look: {
     hair: 0x4a2f1d, // dark brown curls
     tee: 0x16171b, // black crew-neck
-    jeans: 0x2c3140,
+    jeans: 0x3a4b6e, // denim
     shoes: 0xf3f3f1,
     skin: 0xc58f6c,
     chain: 0xd5dae0, // silver rope chain

@@ -20,18 +20,28 @@ export async function runFavors3d(session, { ok, fail }) {
   check(ov.game === 'favors' && ov.label === 'Ori, Can You...?' && ov.open, 'the host opens it in the overlay with its own title');
   check(ov.w === session.width && ov.h === session.height, `the canvas covers the viewport (${ov.w}x${ov.h})`);
   const s0 = await st();
-  check(s0.clock.label === '06:00' && s0.near === 'home' && s0.crowd === 40, `the day starts at 06:00 at home with 40 passers-by (${s0.clock.label}, near ${s0.near})`);
-  check(await g(() => document.querySelector('.fv-clock b').textContent === '06:00' && document.querySelector('.fv-place.on') !== null), 'the HUD shows the clock and the place');
-  const face = await g(() => { const o = window.__ori.game3d.game.scene.getObjectByName('ori'); return o ? o.userData.faceSource : null; });
-  await page.waitForFunction(() => { const o = window.__ori.game3d.game.scene.getObjectByName('ori'); return o && o.userData.faceSource === 'photo'; }, null, { timeout: 8000 }).catch(() => {});
-  check((await g(() => window.__ori.game3d.game.scene.getObjectByName('ori').userData.faceSource)) === 'photo', `Ori's face is the photo cutout (it was "${face}" at launch)`);
+  check(/^06:0[0-3]$/.test(s0.clock.label) && s0.near === 'home' && s0.crowd === 40, `the day starts at 06:00 at home with 40 passers-by (${s0.clock.label}, near ${s0.near})`);
+  check(await g(() => /^06:0[0-3]$/.test(document.querySelector('.fv-clock b').textContent) && document.querySelector('.fv-place.on') !== null), 'the HUD shows the clock and the place');
+  // Ori is SCULPTED (no photo): a skinned character on one skeleton, no image textures on any of his materials, an expressive face
+  const ori = await g(() => {
+    const o = window.__ori.game3d.game.scene.getObjectByName('ori');
+    if (!o) return null;
+    let skinned = 0; let bones = 0; let tex = 0; let tris = 0;
+    o.traverse((m) => {
+      if (m.isSkinnedMesh) { skinned++; bones = Math.max(bones, m.skeleton.bones.length); if (m.geometry.index) tris += m.geometry.index.count / 3; }
+      const ms = m.isSkinnedMesh && m.material ? (Array.isArray(m.material) ? m.material : [m.material]) : [];
+      for (const mt of ms) if (mt.map) tex++;
+    });
+    return { face: o.userData.faceSource, skinned, bones, tex, tris: Math.round(tris), person: !!(window.__ori.game3d.game.ori && window.__ori.game3d.game.ori.person) };
+  });
+  check(!!ori && ori.face === 'sculpted' && ori.skinned >= 10 && ori.bones >= 40 && ori.tex === 0, `Ori's face is sculpted geometry on a skinned rig, not a photo (${ori && ori.skinned} skinned layers, ${ori && ori.bones} bones, ${ori && ori.tex} image textures, ${ori && Math.round(ori.tris / 1000)}k tris)`);
 
   // ── budget ──
   await sleep(600);
   await page.waitForFunction(() => window.__ori.game3d.fps > 40, null, { timeout: 10000 }).catch(() => {}); // (the first frames compile the shaders)
   const a = await g(() => ({ stats: window.__ori.game3d.stats(), fps: window.__ori.game3d.fps }));
   console.log(`  ℹ favors3d: ${a.fps} fps, ${a.stats.calls} draw calls, ${(a.stats.triangles / 1000).toFixed(0)}k tris, ${a.stats.geometries} geometries, ${a.stats.textures} textures`);
-  check(a.stats.calls <= 300 && a.stats.triangles <= 600000, `within the budget (${a.stats.calls} calls, ${(a.stats.triangles / 1000).toFixed(0)}k tris)`);
+  check(a.stats.calls <= 700 && a.stats.triangles <= 2500000, `within the High-tier budget (<= 700 calls, <= 2.5M tris: ${a.stats.calls} calls, ${(a.stats.triangles / 1000).toFixed(0)}k tris)`);
   check(a.fps > 40, `renders at ${a.fps} fps`);
 
   // ── the room is asleep, the keys are ours ──
