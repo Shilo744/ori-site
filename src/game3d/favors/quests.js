@@ -4,6 +4,7 @@
 // power-up, the mentors who take over trivial jobs, and the report card at midnight. Times are GAME MINUTES since 00:00.
 import { mulberry32, subSeed, clamp } from '../rng.js';
 import { TEMPLATES, CAST, REL, RANKS, DAY } from './content.js';
+import { TEXT } from './texts.js';
 
 export const DAY_START = DAY.startHour * 60;
 export const DAY_END = DAY.endHour * 60;
@@ -321,12 +322,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
       return {
         score: state.score, rank: rankFor(state.score), helped, ignoredAunts, mumCalls, fakeUrgent: fake, missed: state.stats.failed, declined: state.stats.declined, delegated: state.stats.delegated,
         arrived: state.stats.arrived, bestStreak: state.bestStreak, chaosPeak: Math.round(state.chaosPeak), slept: 0, rel: { ...state.rel },
-        lines: [
-          `You helped ${helped} ${helped === 1 ? 'person' : 'people'}.`,
-          `You ignored ${ignoredAunts} ${ignoredAunts === 1 ? 'aunt' : 'aunts'}.`,
-          `Mum called ${mumCalls} times (${fake} of them URGENT).`,
-          'You slept 0 hours.',
-        ],
+        lines: TEXT.reportLines(helped, ignoredAunts, mumCalls, fake),
       };
     },
     /** A plain-JSON copy (save / resume) and its inverse. Everything else is derived from the seed. */

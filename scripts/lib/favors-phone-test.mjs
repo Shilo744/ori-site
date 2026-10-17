@@ -12,6 +12,7 @@ export async function runFavorsPhone(session, { ok, fail }) {
   const shot = async (name) => { await settle(session, 2); await page.screenshot({ path: join(SHOTS, flat ? name.replace('.png', '-phone.png') : name) }); };
   const Q = () => g(() => { const q = window.__ori.game3d.game.quests; return { min: q.state.min, open: q.open().map((t) => ({ uid: t.uid, id: t.tplId, state: t.state, deadline: t.deadline, later: t.later, pri: t.pri })), score: q.state.score, chaos: q.state.chaos, done: q.state.stats.done, failed: q.state.stats.failed, arrived: q.state.stats.arrived, focus: q.state.focus.on }; });
   const S = () => g(() => window.__ori.game3d.state());
+  const selectRow = async (uid) => { const cur = await g(() => { const r = document.querySelector('.fv-task.sel'); return r ? Number(r.dataset.uid) : null; }); if (cur !== uid) await page.click(`.fv-task[data-uid="${uid}"] .fv-row`); };
 
   await g(() => window.__ori.game3d.launch('favors', { quick: true }));
   await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state() && window.__ori.game3d.state().phase === 'play', null, { timeout: 40000 });
@@ -29,20 +30,32 @@ export async function runFavorsPhone(session, { ok, fail }) {
   check(!!goal.chip && /URGENT/.test(goal.chip) && goal.beam && goal.following === first.open[0].uid, `the task is followed: chip "${goal.chip}", the beam stands over the place`);
   await shot('T52-lockscreen.png');
 
-  // ── Tab opens the phone and slows the day ──
+  // ── Tab opens the phone; it is NON-MODAL: the day runs at 1x and WASD keeps walking ──
   await g(() => window.__ori.game3d.teleport({ x: -62, z: 5 }, Math.PI / 2));
   await sleep(300);
-  const h0 = (await g(() => window.__ori.game3d.clock())).hour;
-  await sleep(1000);
-  const h1 = (await g(() => window.__ori.game3d.clock())).hour;
+  const rate = async (ms) => { const c0 = (await g(() => window.__ori.game3d.clock())).hour; await sleep(ms); return ((await g(() => window.__ori.game3d.clock())).hour - c0) / (ms / 1000); };
+  const closedRate = await rate(1000);
   await page.keyboard.press('Tab');
   await page.waitForFunction(() => window.__ori.game3d.state().quests.phoneOpen, null, { timeout: 3000 });
   check(await g(() => !document.querySelector('.fv-phone').hidden), 'Tab opens the phone');
-  const h2 = (await g(() => window.__ori.game3d.clock())).hour;
-  await sleep(1000);
-  const h3 = (await g(() => window.__ori.game3d.clock())).hour;
-  check((h3 - h2) < (h1 - h0) * 0.4 && h3 > h2, `with the phone open the day crawls (${((h3 - h2) * 60).toFixed(2)} vs ${((h1 - h0) * 60).toFixed(2)} game minutes per second)`);
-  if (flat) { const r = await g(() => { const b = document.querySelector('.fv-phone').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: innerWidth, h: innerHeight }; }); check(r.l >= -1 && r.r <= r.w + 1 && r.b <= r.h + 1 && r.t > 0, 'on a phone the phone is a bottom sheet inside the screen'); }
+  check(await g(() => !document.querySelector('.fv-phone').contains(document.activeElement)), 'the keyboard focus stays on the game (the phone does not take it)');
+  const openRate = await rate(1000);
+  check(openRate > closedRate * 0.85 && openRate < closedRate * 1.2, `with the phone open the day runs at the same speed (${(openRate * 60).toFixed(2)} vs ${(closedRate * 60).toFixed(2)} game minutes per second)`);
+  const w0 = (await S()).player;
+  await page.keyboard.down('KeyW');
+  await sleep(3700);
+  const mode = await g(() => ({ peek: document.querySelector('.fv-phone').classList.contains('peek'), shown: !document.querySelector('.fv-phone').hidden }));
+  await shot('T64-phone-walking.png');
+  await sleep(300);
+  await page.keyboard.up('KeyW');
+  const w1 = (await S()).player;
+  check(Math.hypot(w1.x - w0.x, w1.z - w0.z) > 3, `with the phone open W still walks Ori (${Math.hypot(w1.x - w0.x, w1.z - w0.z).toFixed(1)} m)`);
+  check(mode.shown && mode.peek, 'while he walks the phone shrinks to a peek (the top tasks and the count)');
+  await page.waitForFunction(() => document.querySelector('.fv-phone').classList.contains('full'), null, { timeout: 4000 });
+  check(true, '…and opens up again when he stops');
+  const box = await g(() => { const b = document.querySelector('.fv-phone').getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: innerWidth, h: innerHeight }; });
+  if (flat) check(box.l >= -1 && box.r <= box.w + 1 && box.t > 0 && box.b < box.h * 0.62, 'on a phone it docks at the top (the joystick and buttons stay free)');
+  else check(box.r <= box.w && box.l > box.w * 0.7 && box.r - box.l <= box.w * 0.27 && box.r - box.l >= 280, `it docks at the right edge, about a quarter of the width (${Math.round(box.r - box.l)} of ${box.w} px) and never covers the middle`);
 
   // ── Tasks: sorted rows, details, the three replies ──
   await g(() => window.__ori.game3d.setHour(12));
@@ -56,19 +69,43 @@ export async function runFavorsPhone(session, { ok, fail }) {
   await page.click('.fv-task .fv-row');
   const det = await g(() => ({ chips: [...document.querySelectorAll('.fv-task.sel .fv-chip')].map((c) => c.textContent), body: document.querySelector('.fv-task.sel .fv-detail p').textContent }));
   check(det.chips.length >= 3 && det.body.length > 10, `a row opens its details with the replies (${det.chips.join(' | ')})`);
+  // the keys: 2 picks the second row, F follows it, ] ... [ switch tabs, N gives it a rain check; W keeps walking meanwhile
+  {
+    const second = await g(() => Number(document.querySelectorAll('.fv-task')[1].dataset.uid));
+    await page.keyboard.down('KeyW');
+    await page.keyboard.press('Digit2');
+    check(await g((u) => document.querySelector('.fv-task.sel') && Number(document.querySelector('.fv-task.sel').dataset.uid) === u, second), 'key 2 picks the second task');
+    await page.keyboard.press('KeyF');
+    check((await S()).quests.following === second, 'F follows it');
+    await page.keyboard.press('KeyF');
+    check((await S()).quests.following === null, 'and F again lets go');
+    await page.keyboard.press('BracketRight');
+    check((await g(() => window.__ori.game3d.game.phone.tab)) === 'map', ']  goes to the next tab');
+    await page.keyboard.press('BracketLeft');
+    check((await g(() => window.__ori.game3d.game.phone.tab)) === 'tasks', '[  comes back');
+    const openBefore = (await Q()).open.length;
+    await page.keyboard.press('Digit2');
+    await page.keyboard.press('KeyN');
+    check((await Q()).open.length === openBefore - 1, 'N gives the picked task a rain check (it leaves the list)');
+    await sleep(500);
+    await page.keyboard.up('KeyW');
+    check((await S()).player.speed >= 0, 'walking went on all through');
+  }
   const uid = rows[0].uid;
   const d0 = (await Q()).open.find((t) => t.uid === uid).deadline;
+  await selectRow(uid); // open the row's details
   await page.click('.fv-task.sel [data-act="later"]');
   const later = (await Q()).open.find((t) => t.uid === uid);
   check(later && later.deadline === d0 + 30 && later.later, '"Give me a bit?" adds 30 minutes (once)');
-  check((await S()).quests.following === uid, 'the most urgent task is followed by itself (the beam)');
-  const other = await g(() => Number(document.querySelectorAll('.fv-task')[1].dataset.uid));
-  await page.click('.fv-task:nth-child(2) .fv-row');
+  await g((u) => window.__ori.game3d.game.phone.setActive(u), uid);
+  check((await S()).quests.following === uid, 'following a task points the beam at it');
+  const other = await g((u) => Number([...document.querySelectorAll('.fv-task')].find((r) => Number(r.dataset.uid) !== u).dataset.uid), uid);
+  await page.click(`.fv-task[data-uid="${other}"] .fv-row`);
   await page.click('.fv-task.sel [data-act="pin"]');
   check((await S()).quests.following === other, '"Follow" on another task moves the beam there');
   await page.click('.fv-task.sel [data-act="pin"]');
   check((await S()).quests.following === null, 'and pressing it again lets go');
-  await page.click('.fv-task .fv-row');
+  await selectRow(other);
   await shot('T52-tasks.png');
   const before = (await Q()).open.length;
   await page.click('.fv-task.sel [data-act="no"]');
@@ -120,6 +157,14 @@ export async function runFavorsPhone(session, { ok, fail }) {
     check(await g(() => document.querySelector('.fv-float') !== null && document.querySelector('[data-k="score"]').textContent !== '0'), 'a "+points" word floats up and the favour meter moves');
   }
   check(await g(() => Number(document.querySelector('[data-k="chaosn"]').textContent) >= 0 && document.querySelector('.fv-meters') !== null), 'the chaos and favour meters are on the HUD');
+
+  // ── the persona: Ori is always positive, in every word the game says in its own voice ──
+  const words = await g(() => [...document.querySelectorAll('.fv-toast, .fv-float, .fv-chip, .fv-empty, .fv-keyshint, .fv-hint, .fv-card, .fv-ph-top, .fv-goal, .fv-meters, .fv-place, .g3d-menu, .fv-bubble.out, .fv-bubble.sys')].map((n) => n.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean));
+  const BAN = /\b(miss(ed|ing)?|fail(ed|s|ure)?|sorry|can'?t|cannot|not now|hate[sd]?|angry|stupid|useless|loser|too late|give up)\b/i;
+  const bad = words.filter((w) => BAN.test(w));
+  check(words.length > 8 && bad.length === 0, `every word of Ori's voice on screen is warm (${words.length} texts checked${bad.length ? ', cold: ' + bad.slice(0, 3).join(' | ') : ''})`);
+  const toasts = await g(() => document.querySelectorAll('.fv-toast').length);
+  check(toasts <= 2, `never more than two toasts at a time (${toasts})`);
 
   // ── the end of the day: the report card ──
   await g(() => window.__ori.game3d.setHour(23.99));

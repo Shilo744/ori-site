@@ -20,7 +20,7 @@ const ARROWS = ['left', 'up', 'right', 'down'];
 
 /** What people say, by how they like to be spoken to. */
 export const CHAT_BANK = {
-  warm: ['Of course. Tell me everything.', 'I missed you too, you know.', 'You are right. As always.', 'Come here, sit, I have time.'],
+  warm: ['Of course. Tell me everything.', 'I was thinking of you all day.', 'You are right. As always.', 'Come here, sit, I have time.'],
   confident: ['I have it under control.', 'Leave it to me. Consider it done.', 'Yes. Next question.', 'I was just about to do that.'],
   polite: ['Excuse me, if I may...', 'Thank you so much for your patience.', 'Of course, by the book.', 'Would you be so kind?'],
   excited: ['Whoa, that is AMAZING!', 'No way! Show me, show me!', 'Best. Thing. Ever.', 'Wait, really?!'],

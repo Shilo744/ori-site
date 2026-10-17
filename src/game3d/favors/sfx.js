@@ -45,11 +45,12 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
   };
   return {
     /** A new task: the phone buzzes twice. */
-    buzz() { tone('square', 92, 88, 0.16, 0.16, 0, 38); tone('square', 92, 88, 0.16, 0.16, 0.21, 38); tone('sine', 880, 880, 0.07, 0.05, 0.02); },
+    buzz() { tone('square', 92, 88, 0.16, 0.16, 0, 38); tone('square', 92, 88, 0.16, 0.16, 0.21, 38); tone('sine', 880, 880, 0.07, 0.05, 0.02); try { if (!isMuted() && navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch { /* no vibration */ } },
     /** An urgent one: a third buzz and a rising ping. */
     urgent() { tone('square', 96, 90, 0.14, 0.18, 0.42, 38); tone('triangle', 660, 990, 0.18, 0.07, 0.5); },
     ding() { tone('sine', 880, 880, 0.16, 0.14); tone('sine', 1320, 1320, 0.28, 0.12, 0.09); tone('sine', 1760, 1760, 0.3, 0.06, 0.18); },
-    sad() { tone('triangle', 330, 196, 0.35, 0.14); tone('triangle', 262, 147, 0.4, 0.1, 0.18); },
+    /** A gentle "next time": two soft notes, the second one a little higher (never a sad sound). */
+    soft() { tone('sine', 523, 523, 0.22, 0.08); tone('sine', 659, 659, 0.3, 0.07, 0.14); },
     tap() { tone('sine', 1200, 900, 0.05, 0.07); },
     pop() { tone('sine', 520, 980, 0.09, 0.09); },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },

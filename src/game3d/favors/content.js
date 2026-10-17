@@ -165,11 +165,11 @@ export const TEMPLATES = [
   { id: 'e-sunscreen', rel: 'family', giver: 'ima', at: 'park', verb: 'carry', tone: 'trivial', title: 'Bring Auntie her sunscreen at the park', body: 'SPF 50. Not 30. She will know. She always knows.', doText: 'Hand over the sunscreen', win: [10, 16] },
 ];
 
-/** The three quick replies on the phone; each is one of these keys (see quests.js for what they do). */
+/** The three quick replies on the phone (Ori's voice: warm, and a no is always a loving rain check); see quests.js for what they do. */
 export const REPLIES = {
-  yes: ['On my way!', 'Yalla, coming.', 'Sababa, on it.', 'Be right there.'],
-  later: ['Give me a bit?', 'Soon, I promise.', 'After this one.'],
-  no: ["Can't today, sorry.", 'Not now - really sorry.', 'Next week?'],
+  yes: ['On my way!', 'Yalla, coming!', 'Sababa, on it!', 'Be right there!'],
+  later: ['Give me a little bit?', 'Soon, I promise!', 'After this one, I am on it!'],
+  no: ["I'd love to - can I do it at 5?", 'Rain check? I will make it up to you!', 'Wish I could - next time for sure!'],
 };
 
 /** What the day was worth: the rank for a score. */

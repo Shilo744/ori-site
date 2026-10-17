@@ -3,6 +3,7 @@
 import '../game3d.css';
 import './favors.css';
 import { GAME } from './content.js';
+import { TEXT } from './texts.js';
 
 const SVG_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
 
@@ -36,7 +37,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       <button type="button" class="g3d-btn primary" data-a="resume">Resume</button>
       <button type="button" class="g3d-btn" data-a="restart">Start the day again</button>
       <button type="button" class="g3d-btn quit" data-a="quit">Back to the desktop</button>
-      <p class="g3d-small">Esc resumes · the day waits for you</p>
+      <p class="g3d-small">${TEXT.pausedHint}</p>
     </div>`;
   const msg = document.createElement('div');
   msg.className = 'g3d-msg';
@@ -139,9 +140,10 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       if (last.al !== a.label) { last.al = a.label; el.arrowl.textContent = a.label; }
     },
     /** A big floating word in the middle ('+84', 'Missed'). */
-    float(text, bad = false) {
+    float(text, soft = false) {
+      for (const old of hud.querySelectorAll('.fv-float')) old.remove(); // one at a time
       const f = document.createElement('div');
-      f.className = `fv-float${bad ? ' bad' : ''}`;
+      f.className = `fv-float${soft ? ' soft' : ''}`;
       f.textContent = text;
       hud.append(f);
       setTimeout(() => f.remove(), 1500);
@@ -154,7 +156,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       card.setAttribute('role', 'dialog');
       card.setAttribute('aria-label', 'The day is over');
       const rows = Object.entries(r.rel).map(([k, v]) => `<li><span>${k}</span><div><i style="width:${Math.round(v)}%"></i></div></li>`).join('');
-      card.innerHTML = `<div class="g3d-card"><div class="g3d-kicker">${GAME.title}</div><h2>The day is over</h2><p class="fv-rank">${r.rank}</p><p class="fv-score">${r.score} favours</p><ul class="fv-lines">${r.lines.map((l) => `<li>${l}</li>`).join('')}</ul><ul class="fv-rels">${rows}</ul><button type="button" class="g3d-btn primary" data-a="again">Another day</button><button type="button" class="g3d-btn quit" data-a="quit">Back to the desktop</button></div>`;
+      card.innerHTML = `<div class="g3d-card"><div class="g3d-kicker">${GAME.title}</div><h2>${TEXT.dayOver}</h2><p class="fv-rank">${r.rank}</p><p class="fv-score">${r.score} favours</p><ul class="fv-lines">${r.lines.map((l) => `<li>${l}</li>`).join('')}</ul><ul class="fv-rels">${rows}</ul><button type="button" class="g3d-btn primary" data-a="again">${TEXT.anotherDay}</button><button type="button" class="g3d-btn quit" data-a="quit">${TEXT.backToDesktop}</button></div>`;
       card.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'again') { card.remove(); onAgain(); } else onQuit(); });
       root.append(card);
       card.querySelector('.g3d-btn.primary').focus({ preventScroll: true });
@@ -165,7 +167,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       t.className = 'fv-toast fv-glass';
       t.textContent = text;
       el.toasts.appendChild(t);
-      while (el.toasts.children.length > 3) el.toasts.firstChild.remove();
+      while (el.toasts.children.length > 2) el.toasts.firstChild.remove(); // never a pile of them
       setTimeout(() => { t.classList.add('out'); setTimeout(() => t.remove(), 320); }, ms);
     },
     showPause(on) {

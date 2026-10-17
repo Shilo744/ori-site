@@ -20,6 +20,7 @@ import { createPhone } from './phone.js';
 import { createSfx } from './sfx.js';
 import { createBeam } from './beam3d.js';
 import { createQuests, rankFor } from './quests.js';
+import { TEXT, nextTimeFor } from './texts.js';
 import { disposeTree } from './gfx.js';
 import { CROWD, DAY, PLACES, RANKS } from './content.js';
 
@@ -27,11 +28,10 @@ const KEY_GAIN = 1.0; // sun / moon intensity
 const HEMI_GAIN = 0.8;
 const NEAR_PLACE = 16; // metres: the label of a place shows when Ori is this close to its door
 const USE_RANGE = 3.8; // metres from a door where Space does the favour
-const SLOWMO = 0.18; // the day while the phone is open
 
 const PARTS = ['Early morning', 'Morning', 'Midday', 'Afternoon', 'Golden hour', 'Evening', 'Night'];
 const partOfDay = (h) => (h < 7 ? PARTS[0] : h < 11 ? PARTS[1] : h < 14 ? PARTS[2] : h < 17.5 ? PARTS[3] : h < 19.8 ? PARTS[4] : h < 22 ? PARTS[5] : PARTS[6]);
-const left = (m) => (m < 1 ? 'now' : m < 60 ? `${Math.ceil(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min`);
+const left = (m) => { if (m < 1) return 'now'; const t = Math.ceil(m); return t < 60 ? `${t} min` : `${Math.floor(t / 60)} h ${String(t % 60).padStart(2, '0')} min`; };
 
 export function createFavorsGame(o) {
   const { renderer, overlay, quit } = o;
@@ -201,16 +201,17 @@ export function createFavorsGame(o) {
         hud.float(`+${e.points}`);
         if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
       } else if (e.type === 'failed') {
-        sfx.sad();
-        hud.float('Missed', true);
-        hud.toast(`${e.mentor ? 'The mentors missed' : 'Missed'}: ${task.title}`);
+        // the time ran out: never a failure, always a rain check
+        sfx.soft();
+        hud.float(nextTimeFor(task.uid), true);
+        hud.toast(e.mentor ? TEXT.mentorsTried(task.title) : TEXT.rainCheck(task.giverName, task.title));
         if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
       } else if (e.type === 'coffee') {
         ctrl.coffee(8);
         sfx.sip();
-        hud.toast('Coffee! Free sprinting for a few seconds');
+        hud.toast(TEXT.coffee);
       } else if (e.type === 'focus') {
-        hud.toast(e.on ? 'Do Not Disturb: the phone stays quiet' : e.released ? `Do Not Disturb is over: ${e.released} waiting` : 'Do Not Disturb is over');
+        hud.toast(e.on ? TEXT.focusOn : TEXT.focusOff(e.released || 0));
       } else if (e.type === 'declined' && following === e.uid) { following = null; phone.setActive(null); }
       else if (e.type === 'day-end') endDay(e.report);
     }
@@ -243,10 +244,10 @@ export function createFavorsGame(o) {
   function useDoor() {
     if (!nearest) return;
     const d = nearest.door;
-    if (Math.hypot(d.x - ctrl.state.x, d.z - ctrl.state.z) > USE_RANGE) { hud.toast('Nothing to do here — the phone knows where to go'); return; }
+    if (Math.hypot(d.x - ctrl.state.x, d.z - ctrl.state.z) > USE_RANGE) { hud.toast(TEXT.nothingHere); return; }
     const here = quests.open().filter((tk) => tk.at === nearest.id);
     const pick = here.find((tk) => tk.uid === following) || here.sort((a, b) => a.deadline - b.deadline)[0];
-    if (!pick) { hud.toast(`${nearest.name}: nobody asked for anything here`); return; }
+    if (!pick) { hud.toast(TEXT.nobodyAsked(nearest.name)); return; }
     quests.complete(pick.uid, 0.85);
     syncQuests();
   }
@@ -342,7 +343,7 @@ export function createFavorsGame(o) {
       if (!opened || paused) return;
       lastKb = kb;
       kb.read(input, dt);
-      const scale = over ? 0 : phone.isOpen ? SLOWMO : 1; // reading the phone slows the day right down
+      const scale = over ? 0 : 1; // the day never slows down: the phone is a panel on the side, not a menu
       const dts = dt * scale;
       t += dt;
       const yaw = rig.state.yaw;
@@ -394,7 +395,7 @@ export function createFavorsGame(o) {
         hud.goal({ title: `${task.giverName}: ${task.title}`, meta: `${m} m · ${left(task.deadline - q.min)}` });
         hud.arrow(arrowFor(place));
       } else { hud.goal(null); hud.arrow(null); }
-      phone.update(t);
+      phone.update(t, dt, ctrl.state.speed);
     },
     resize(w, h) {
       if (!camera) return;
@@ -424,9 +425,8 @@ export function createFavorsGame(o) {
         if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native';
         return true;
       }
-      // with the focus inside the phone Tab / Enter / Space belong to its buttons (Esc closes it); the other keys still walk Ori
-      const inPhone = phone && phone.isOpen && document.activeElement && document.activeElement.closest && document.activeElement.closest('.fv-phone');
-      if (inPhone && (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space')) return 'native';
+      // the phone is a panel on the side: its keys (1-9, F, Y / L / N, [ ]) are used, everything else still walks Ori
+      if (phone && phone.isOpen && phone.key(e)) return true;
       return undefined;
     },
     // ── debug / tests ──
