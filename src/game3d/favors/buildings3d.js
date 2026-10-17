@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../rng.js';
 import { GeoBuilder } from './gfx.js';
 import { signAtlas } from './signs.js';
+import { artAtlas } from './art.js';
 import { createWindowMaterial } from './buildings/windows.js';
 import { lotStyle, buildShell } from './buildings/facade.js';
 import { makeGround } from './buildings/shopfront.js';
@@ -15,11 +16,11 @@ import { FACES } from './buildings/face.js';
 
 const CHUNK = 72; // metres: the neighbourhood is cut into squares this big
 
-const KINDS = ['walls', 'trim', 'fine', 'roofs', 'tiles', 'metal', 'cloth', 'glass', 'signs'];
+const KINDS = ['walls', 'trim', 'fine', 'roofs', 'tiles', 'metal', 'cloth', 'glass', 'signs', 'art'];
 /** The kinds that are small detail: only drawn near the camera (and never cast a shadow). */
 const DETAIL = new Set(['fine', 'metal']);
-const DETAIL_RANGE = 95;
-const FOLIAGE_RANGE = 80;
+const DETAIL_RANGE = 72;
+const FOLIAGE_RANGE = 58;
 
 /**
  * @param {object} map from buildMap
@@ -28,6 +29,7 @@ const FOLIAGE_RANGE = 80;
 export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'high' } = {}) {
   const rnd = mulberry32(map.seed * 7 + 3);
   const atlas = signAtlas(aniso);
+  const art = artAtlas(aniso);
   const chunks = new Map();
   const chunkOf = (lot) => {
     const cx = Math.floor((lot.rect.x0 + lot.rect.x1) / 2 / CHUNK);
@@ -41,15 +43,16 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
     return chunks.get(key);
   };
   let windowCount = 0;
+  const balconySpots = [];
 
   for (const lot of map.lots) {
     const place = lot.named ? map.places[lot.id] : null;
     const st = lotStyle(lot, rnd, lot.named);
     const ch = chunkOf(lot);
     const extras = createExtras(ch.b, ch.inst, rnd);
-    const ground = makeGround(ch.b, lot, st, place, rnd, atlas, extras);
+    const ground = makeGround(ch.b, lot, st, place, rnd, atlas, extras, art);
     const shell = buildShell(ch.b, lot, st, rnd, { ground, extras });
-    buildBalconies(ch.b, lot, st, shell, ch.inst, rnd);
+    buildBalconies(ch.b, lot, st, shell, ch.inst, rnd, balconySpots);
     if (st.style === 'house') gableRoof(ch.b, lot.rect, lot.h);
     else rooftop(ch.b, lot.rect, lot.h + 0.01, rnd, st);
     // a drain pipe down one corner of the street side
@@ -67,10 +70,12 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
     roofs: lib.std('concrete', { vertexColors: true, normalScale: 0.7 }),
     tiles: lib.std('roofTile', { vertexColors: true, extra: sideBoth }),
     metal: lib.plain({ roughness: 0.5, metalness: 0.25 }),
-    cloth: lib.std('fabric', { vertexColors: true, extra: sideBoth, wind: { amp: 0.12, speed: 1.7 } }),
+    cloth: lib.std('fabric', { vertexColors: true, normalScale: 0.25, extra: sideBoth, wind: { amp: 0.12, speed: 1.7 } }),
     glass: win.material,
     signs: new THREE.MeshStandardMaterial({ map: atlas.tex, emissiveMap: atlas.tex, emissive: new THREE.Color(0xffffff), emissiveIntensity: 0.1, roughness: 0.55, transparent: true, alphaTest: 0.4 }),
   };
+  mats.art = new THREE.MeshStandardMaterial({ map: art.tex, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  lib.applyWet(mats.art);
   lib.applyWet(mats.signs);
   const fmats = {
     leaf: lib.plain({ roughness: 0.7, wind: { amp: 0.05, speed: 1.5 }, extra: { side: THREE.DoubleSide } }),
@@ -82,7 +87,7 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
   const group = new THREE.Group();
   group.name = 'buildings';
   group.userData.winUniform = win.uniforms.uWin; // (tests read how many windows glow)
-  const castKinds = new Set(['walls', 'trim', 'roofs', 'tiles']);
+  const castKinds = new Set(['walls', 'trim', 'tiles']); // (the roofs and the small detail do not cast: the budget goes to what the ground sees)
   let triangles = 0;
   const lod = []; // { x, z, detail: [meshes], foliage: [meshes] }
   for (const ch of chunks.values()) {
@@ -97,6 +102,7 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
       m.name = `${k}-${ch.key}`;
       m.castShadow = shadows && castKinds.has(k);
       m.receiveShadow = k !== 'glass' && k !== 'signs';
+      if (k === 'art') m.receiveShadow = true;
       group.add(m);
       if (DETAIL.has(k)) rec.detail.push(m);
       triangles += B.i.length / 3;
@@ -107,6 +113,8 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
 
   return {
     group,
+    /** Where a person could stand on a balcony: [{ x, y, z, heading, seed }]. */
+    balconies: balconySpots,
     stats: { windows: windowCount, lots: map.lots.length, chunks: chunks.size, triangles: Math.round(triangles), instances: [...chunks.values()].reduce((a, c) => a + c.inst.length, 0) },
     /** Per frame (cheap): the small detail and the plants are only drawn near the camera. */
     update(x, z) {
@@ -129,6 +137,7 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
       group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.isInstancedMesh) o.dispose(); });
       for (const m of [...Object.values(mats), ...Object.values(fmats)]) m.dispose();
       atlas.tex.dispose();
+      art.tex.dispose();
       disposeRoofGeos();
     },
   };

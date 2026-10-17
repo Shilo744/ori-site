@@ -34,6 +34,19 @@ try {
       if (pitch != null) o.pitch = pitch;
       g3.camera(o);
     }, [at, hour, args.yaw != null ? +args.yaw : null, args.dist ? +args.dist : null, args.pitch != null ? +args.pitch : null, !!args.front, args.off ? +args.off : 0, !!args.face, args.rain != null ? +args.rain : null, args.wet != null ? +args.wet : null]);
+    if (args.look) { // a free camera: --look=x,y,z,lx,ly,lz[,fov]
+      const v = String(args.look).split(',').map(Number);
+      await page.evaluate((v) => window.__ori.game3d.game.setDebugCamera({ pos: v.slice(0, 3), look: v.slice(3, 6), fov: v[6] || 50 }), v);
+    }
+    if (args.cam) {
+      const [pid, cd, ch, lh, fov] = String(args.cam).split(',');
+      await page.evaluate(([pid, cd, ch, lh, fov]) => {
+        const g = window.__ori.game3d.game; const p = g.place(pid); const d = p.door;
+        const sx = args_side(p);
+        function args_side(pp) { return { x: pp.door.nx, z: pp.door.nz }; }
+        g.setDebugCamera({ pos: [d.x - 1.3 * d.nx + d.nx * cd + (sx.x ? 0 : 0), ch, d.z - 1.3 * d.nz + d.nz * cd], look: [d.x - 1.3 * d.nx, lh, d.z - 1.3 * d.nz], fov: fov ? +fov : 40 });
+      }, [pid, +cd, +ch, +lh, fov]);
+    }
     if (args.phone) { await page.evaluate((tab) => window.__ori.game3d.game.phone.open(tab), args.phone); await sleep(500); }
     for (const sel of String(args.click || '').split('|').filter(Boolean)) { await page.click(sel); await sleep(300); }
     await sleep(3300); // (jumping the clock rain-checks the early tasks: let his shrugs finish)

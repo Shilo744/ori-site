@@ -6,7 +6,7 @@ import { mulberry32 } from '../rng.js';
 import { GeoBuilder } from './gfx.js';
 
 /** A curved, tapering trunk: a ring of `radial` points at every height, uv wraps once around and every 0.55 m up. Returns { geometry, top: [x, y] }. */
-function trunk(seed, { height = 6.2, lean = 0.2, r0 = 0.3, r1 = 0.15, segs = 10, radial = 9 } = {}) {
+function trunk(seed, { height = 6.2, lean = 0.2, r0 = 0.3, r1 = 0.15, segs = 8, radial = 7 } = {}) {
   const rnd = mulberry32(seed);
   const pos = []; const nor = []; const uv = []; const col = []; const idx = []; const sway = [];
   const bend = lean + (rnd() - 0.5) * 0.15;
@@ -49,7 +49,7 @@ function trunk(seed, { height = 6.2, lean = 0.2, r0 = 0.3, r1 = 0.15, segs = 10,
 
 /** One arching frond: a three-wide ribbon (a fold down the middle) along an arc; uv.x across, uv.y along the leaf. */
 function frond(B, cx, cy, cz, ang, len, rise, droop, width, shade) {
-  const segs = 7;
+  const segs = 5;
   const ca = Math.cos(ang); const sa = Math.sin(ang);
   const side = [-sa, 0, ca];
   const color = (t) => { const k = shade * (0.78 + 0.22 * (1 - t * 0.5)); return [0.5 * k + 0.38, 0.62 * k + 0.4, 0.4 * k + 0.2]; };
@@ -86,7 +86,7 @@ export function palmGeometry(seed = 1) {
   const t = trunk(seed, { lean: 0.16 + rnd() * 0.18 });
   const [tx, ty, tz] = t.top;
   const B = new GeoBuilder();
-  const n = 13;
+  const n = 12;
   for (let k = 0; k < n; k++) {
     const a = (k / n) * Math.PI * 2 + rnd() * 0.3;
     const high = k % 3 === 0;
@@ -94,7 +94,7 @@ export function palmGeometry(seed = 1) {
   }
   const crown = B.build({ extraName2: 'aSway' });
   // coconuts: a few brown spheres under the crown (a separate little geometry merged into the trunk)
-  const nuts = new THREE.IcosahedronGeometry(0.13, 1);
+  const nuts = new THREE.IcosahedronGeometry(0.13, 0);
   const pos = nuts.attributes.position;
   const geo = t.geometry;
   const merged = mergeTrunkWithNuts(geo, nuts, tx, ty, tz, rnd);
@@ -104,7 +104,7 @@ export function palmGeometry(seed = 1) {
 
 function mergeTrunkWithNuts(trunkGeo, nutGeo, tx, ty, tz, rnd) {
   const parts = [trunkGeo.toNonIndexed()];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 3; i++) {
     const a = rnd() * 6.28;
     const g = nutGeo.clone().toNonIndexed();
     g.translate(tx + Math.cos(a) * 0.2, ty - 0.2 - rnd() * 0.12, tz + Math.sin(a) * 0.2);

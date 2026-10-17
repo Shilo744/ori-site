@@ -12,6 +12,9 @@ const PANTS = [0x2c3140, 0x4a4f58, 0x7a6a55, 0x30425f, 0xd9d3c4];
 const SKINS = [0xf1c9a5, 0xd9a07a, 0xb97c58, 0x8a5a3c, 0x634029];
 const HAIRS = [0x1e1612, 0x3a2a1c, 0x6b4a2a, 0xb5883e, 0x8c8c90, 0x120d0a];
 const STYLES = CROWD_STYLES;
+const RANGE = 95; // metres
+const ATTRS = ['iShirt', 'iPants', 'iSkin', 'iHair', 'iFreq', 'iPhase'];
+const fwd = new THREE.Vector3();
 const S = BODY_SCALE;
 
 /** One archetype as a three.js geometry (the typed arrays were made by people/crowd-figure.js, in the worker when it could). */
@@ -27,10 +30,13 @@ function archetype(style) {
   return g;
 }
 
-export function createCrowd3d(map, crowd, { shadows = true } = {}) {
-  const n = crowd.walkers.length;
+/**
+ * extras: people who just stand somewhere (on a balcony, at a window): [{ x, y, z, heading, look: { hair, shirt, pants, skin, height } }]. They are drawn with the walkers.
+ */
+export function createCrowd3d(map, crowd, { shadows = true, extras = [] } = {}) {
+  const folk = [...crowd.walkers, ...extras.map((e) => ({ x: e.x, y: e.y, z: e.z, heading: e.heading, look: e.look, speed: 0, still: true }))];
   // which archetype each walker is
-  const style = crowd.walkers.map((w, i) => (w.look.hair * 5 + w.look.shirt * 3 + i * 7) % STYLES.length);
+  const style = folk.map((w, i) => (w.look.hair * 5 + w.look.shirt * 3 + i * 7) % STYLES.length);
   const groups = STYLES.map((name, si) => ({ name, si, walkers: [] }));
   style.forEach((si, i) => groups[si].walkers.push(i));
   const uTime = { value: 0 };
@@ -76,25 +82,27 @@ export function createCrowd3d(map, crowd, { shadows = true } = {}) {
     const iShirt = new Float32Array(m * 3); const iPants = new Float32Array(m * 3); const iSkin = new Float32Array(m * 3); const iHair = new Float32Array(m * 3);
     const iFreq = new Float32Array(m); const iPhase = new Float32Array(m);
     gr.walkers.forEach((wi, j) => {
-      const w = crowd.walkers[wi];
+      const w = folk[wi];
       c.set(SHIRTS[w.look.shirt % SHIRTS.length]).toArray(iShirt, j * 3);
       c.set(PANTS[w.look.pants % PANTS.length]).toArray(iPants, j * 3);
       c.set(SKINS[w.look.skin % SKINS.length]).toArray(iSkin, j * 3);
       c.set(HAIRS[w.look.hair % HAIRS.length]).toArray(iHair, j * 3);
       iFreq[j] = w.speed * 5.2;
-      iPhase[j] = (wi * 1.7) % 6.28;
+      iPhase[j] = w.still ? 0 : (wi * 1.7) % 6.28;
     });
-    geo.setAttribute('iShirt', new THREE.InstancedBufferAttribute(iShirt, 3));
-    geo.setAttribute('iPants', new THREE.InstancedBufferAttribute(iPants, 3));
-    geo.setAttribute('iSkin', new THREE.InstancedBufferAttribute(iSkin, 3));
-    geo.setAttribute('iHair', new THREE.InstancedBufferAttribute(iHair, 3));
-    geo.setAttribute('iFreq', new THREE.InstancedBufferAttribute(iFreq, 1));
-    geo.setAttribute('iPhase', new THREE.InstancedBufferAttribute(iPhase, 1));
+    const base = { iShirt: iShirt.slice(), iPants: iPants.slice(), iSkin: iSkin.slice(), iHair: iHair.slice(), iFreq: iFreq.slice(), iPhase: iPhase.slice() };
+    const dyn = {};
+    for (const [k, arr, size] of [['iShirt', iShirt, 3], ['iPants', iPants, 3], ['iSkin', iSkin, 3], ['iHair', iHair, 3], ['iFreq', iFreq, 1], ['iPhase', iPhase, 1]]) {
+      dyn[k] = new THREE.InstancedBufferAttribute(arr, size);
+      dyn[k].setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute(k, dyn[k]);
+    }
     const im = new THREE.InstancedMesh(geo, mat, m);
     im.castShadow = shadows;
     im.frustumCulled = false;
     im.name = `crowd-${gr.name}`;
-    meshes.push({ im, walkers: gr.walkers });
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    meshes.push({ im, walkers: gr.walkers, base, dyn });
   }
   const root = new THREE.Group();
   root.name = 'crowd';
@@ -107,17 +115,35 @@ export function createCrowd3d(map, crowd, { shadows = true } = {}) {
 
   return {
     mesh: root,
-    update(time) {
+    /** Draws only the people the camera can see (within `RANGE` metres and not behind it): the others cost nothing, in the main pass or in the shadow pass. */
+    update(time, camera = null) {
       uTime.value = time;
+      let fx = 0; let fz = 0; let cx = 0; let cz = 0;
+      if (camera) { camera.getWorldDirection(fwd); fx = fwd.x; fz = fwd.z; cx = camera.position.x; cz = camera.position.z; }
       for (const e of meshes) {
+        let n = 0;
         e.walkers.forEach((wi, j) => {
-          const w = crowd.walkers[wi];
+          const w = folk[wi];
+          if (camera) {
+            const dx = w.x - cx; const dz = w.z - cz;
+            const d = Math.hypot(dx, dz);
+            if (d > RANGE || (d > 14 && dx * fx + dz * fz < -0.25 * d)) return; // too far, or behind the camera
+          }
           q.setFromAxisAngle(up, w.heading);
           const sz = w.look.height;
-          mtx.compose(pos.set(w.x, groundHeight(map, w.x, w.z), w.z), q, sc.set(sz, sz, sz));
-          e.im.setMatrixAt(j, mtx);
+          mtx.compose(pos.set(w.x, w.y != null ? w.y : groundHeight(map, w.x, w.z), w.z), q, sc.set(sz, sz, sz));
+          e.im.setMatrixAt(n, mtx);
+          for (const k of ATTRS) {
+            const size = k === 'iFreq' || k === 'iPhase' ? 1 : 3;
+            const src = e.base[k]; const dst = e.dyn[k].array;
+            for (let c = 0; c < size; c++) dst[n * size + c] = src[j * size + c];
+          }
+          n++;
         });
+        e.im.count = n;
+        e.im.visible = n > 0;
         e.im.instanceMatrix.needsUpdate = true;
+        for (const k of ATTRS) e.dyn[k].needsUpdate = true;
       }
     },
     dispose() { meshes.forEach((e) => { e.im.geometry.dispose(); e.im.dispose(); }); mat.dispose(); },

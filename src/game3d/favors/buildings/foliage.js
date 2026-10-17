@@ -11,13 +11,14 @@ const GREENS = ['#2f6f3a', '#3c8546', '#4a9a52', '#2a6034', '#56a85c'];
 function lump(B, x, y, z, r, color, rnd, sway = 0, squash = 0.8) {
   const g = new THREE.IcosahedronGeometry(1, 1);
   const pos = g.attributes.position;
+  const nor = g.attributes.normal;
   const v = new THREE.Vector3();
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
-    const k = 1 + (Math.sin(v.x * 7.1 + v.y * 5.3) * Math.cos(v.z * 6.7 + v.x * 3.1)) * 0.18 + (rnd() - 0.5) * 0.05;
+    const k = 1 + (Math.sin(v.x * 7.1 + v.y * 5.3) * Math.cos(v.z * 6.7 + v.x * 3.1)) * 0.18; // (the same lump for every vertex at the same spot: no cracks)
+    nor.setXYZ(i, v.x, v.y / squash, v.z); // smooth shading: the normal of the sphere it came from
     pos.setXYZ(i, v.x * k, v.y * k * squash, v.z * k);
   }
-  g.computeVertexNormals();
   B.attr2 = sway;
   B.geometry(g, new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion(), new THREE.Vector3(r, r, r)), color);
   B.attr2 = 0;

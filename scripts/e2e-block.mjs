@@ -13,7 +13,7 @@ import { runFavors3d } from './lib/favors3d-test.mjs';
 import { runFavorsPhone } from './lib/favors-phone-test.mjs';
 import { runLauncher, runIphoneLaunch } from './lib/launcher-test.mjs';
 
-const BLOCKS = { launcher: async (s, h) => { await runLauncher(s, h); await runIphoneLaunch(s, h); }, favors3d: async (s, h) => { await runFavors3d(s, h); await runFavorsPhone(s, h); }, cursors: runCursors, drift: runDrift, 'drift-race': runDriftRace, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
+const BLOCKS = { 'favors-phone': async (s, h) => { await runFavorsPhone(s, h); }, launcher: async (s, h) => { await runLauncher(s, h); await runIphoneLaunch(s, h); }, favors3d: async (s, h) => { await runFavors3d(s, h); await runFavorsPhone(s, h); }, cursors: runCursors, drift: runDrift, 'drift-race': runDriftRace, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
 const args = process.argv.slice(2);
 const name = args.find((a) => !a.startsWith('--'));
 const flag = (n) => args.includes(`--${n}`);

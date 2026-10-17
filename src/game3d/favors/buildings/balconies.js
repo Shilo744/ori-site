@@ -67,7 +67,7 @@ function laundry(b, f, r, s0, s1, y, rnd, st) {
 }
 
 /** The balconies of a building: slab, railing (iron posts or a solid parapet), plants, sometimes a little table and chairs. */
-export function buildBalconies(b, lot, st, shell, inst, rnd) {
+export function buildBalconies(b, lot, st, shell, inst, rnd, spots = null) {
   const r = lot.rect;
   for (const bf of shell.slots.balconyFloors) {
     const { f, fl, ks, centers } = bf;
@@ -101,6 +101,8 @@ export function buildBalconies(b, lot, st, shell, inst, rnd) {
           faceBox(b.metal, f, r, sx, sx + 0.05, y + 0.14, y + 1.02, depth, 0.0);
         }
       }
+      // somebody to stand out here (the game puts a person on a few of these)
+      if (spots) { const p = P(f, r, c + (seed < 0.5 ? 0.5 : -0.5), y + 0.14, depth * 0.55); spots.push({ x: p[0], y: p[1], z: p[2], heading: Math.atan2(f.n[0], f.n[1]), seed }); }
       // plants on the rail and trailing over the front
       const nPlants = 2 + Math.floor(seed * 3);
       for (let i = 0; i < nPlants; i++) {

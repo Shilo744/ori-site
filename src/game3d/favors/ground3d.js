@@ -13,10 +13,10 @@ export function buildGround(map, { lib }) {
   const mats = {
     base: lib.std('paving', { color: 0xb4aea3, wet: 'ground' }),
     slab: lib.std('paving', { color: 0xdcd6cb, wet: 'ground', normalScale: 0.8 }),
-    road: lib.std('asphalt', { color: 0xb4b4bc, wet: 'ground', normalScale: 0.8, extra: { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 } }),
+    road: lib.std('asphalt', { color: 0xe6e6ee, wet: 'ground', normalScale: 0.8, extra: { polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 } }),
     mark: lib.plain({ color: 0xf3f1ea, roughness: 0.7, wet: 'ground', extra: { vertexColors: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 } }),
     kerb: lib.std('concrete', { color: 0xd8d3c8, wet: 'ground', vertexColors: false, extra: { polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 } }),
-    lawn: lib.std('lawn', { color: 0x8bc86a, wet: 'ground' }),
+    lawn: lib.std('lawn', { color: 0x86b866, wet: 'ground' }),
     path: lib.std('paving', { color: 0xe6e0d2, wet: 'ground' }),
     sand: lib.std('sand', { color: 0xf1dfb0, wet: 'ground' }),
     wood: lib.std('wood', { color: 0xffffff, wet: 'ground' }),

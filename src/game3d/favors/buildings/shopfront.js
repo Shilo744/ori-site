@@ -37,7 +37,7 @@ function awning(b, f, r, s0, s1, yTop, yBot, depth, c1, c2) {
  * Makes the `ground(f, key, len, centers, isFront)` callback of facade.buildShell for one lot.
  * place = the named place of the lot (or null), kind picks shop / home / civic.
  */
-export function makeGround(b, lot, st, place, rnd, atlas, hooks) {
+export function makeGround(b, lot, st, place, rnd, atlas, hooks, art) {
   const r = lot.rect;
   const named = !!place;
   const home = named ? !SHOP_LIKE.has(lot.id) : rnd() < 0.42;
@@ -47,6 +47,12 @@ export function makeGround(b, lot, st, place, rnd, atlas, hooks) {
   const plan = {};
   if (lot.id === 'kiosk') return makeKiosk(b, lot, st, place, atlas);
   return (f, key, len, centers, isFront) => {
+    if (!isFront && st.mural && st.mural.key === key && len >= 9.5) {
+      // a mural fills the ground floor of this wall (no windows there)
+      const w = Math.min(len - 2.4, 8.4);
+      const s0 = (len - w) / 2;
+      return { bands: [], dress: () => { const [u0, v0, u1, v1] = art.uvMural(st.mural.id); b.art.setColor('#ffffff'); faceQuad(b.art, f, r, s0, s0 + w, 0.6, 3.2, 0.03, [u0, v0, u1, v0, u1, v1, u0, v1]); } };
+    }
     if (!isFront) {
       // sides and back: ordinary windows at 1 m
       const ops = centers.map((c, k) => ({ s0: c - 0.62, s1: c + 0.62, y0: 1.0, y1: 2.55, door: false, k, fl: 0 }));
@@ -130,6 +136,16 @@ export function makeGround(b, lot, st, place, rnd, atlas, hooks) {
         faceBox(b.trim, f, r, d0 - 0.5, d0 - 0.42, 0, 2.64, 1.15, 1.07);
         faceBox(b.trim, f, r, d1 + 0.42, d1 + 0.5, 0, 2.64, 1.15, 1.07);
       }
+    });
+    // posters on the corner piers
+    parts.push(() => {
+      if (len < 8 || lot.id === 'cityhall' || hash01(st.seed, 11) > 0.75) return;
+      b.art.setColor('#ffffff');
+      [[0.2, 0.72, st.poster[0]], [len - 0.72, len - 0.2, st.poster[1]]].forEach(([s0, s1, id], k) => {
+        if (k === 1 && hash01(st.seed, 12) > 0.5) return;
+        const [u0, v0, u1, v1] = art.uvPoster(id);
+        faceQuad(b.art, f, r, s0, s1, 0.95, 0.95 + (s1 - s0) * 2, 0.025, [u0, v0, u1, v0, u1, v1, u0, v1]);
+      });
     });
     // signs
     parts.push(() => {

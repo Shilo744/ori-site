@@ -108,6 +108,42 @@ export async function runFavors3d(session, { ok, fail }) {
   const winDay = await g(() => window.__ori.game3d.game.scene.getObjectByName('buildings').userData.winUniform.value);
   check(winNight > 0.9 && winDay === 0, `the windows light up at night and not by day (${winNight.toFixed(2)} / ${winDay})`);
 
+  // ── the world art (T60): real facades, the sky, the weather, the life, and the budget in every kind of view ──
+  const art = await g(() => {
+    const sc = window.__ori.game3d.game.scene;
+    const b = sc.getObjectByName('buildings');
+    const sky = sc.children.find((o) => o.isMesh && o.material && o.material.uniforms && o.material.uniforms.uSunDir);
+    const cam = window.__ori.game3d.game.camera;
+    const kinds = {};
+    b.children.forEach((m) => { const k = m.name.replace(/-[-0-9,]+$/, ''); kinds[k] = (kinds[k] || 0) + 1; });
+    return {
+      chunks: b.children.filter((m) => m.name.startsWith('walls')).length, culled: b.children.every((m) => m.frustumCulled !== false), kinds,
+      skyRadius: sky ? sky.geometry.parameters.radius * sky.scale.x : 0, far: cam.far,
+      life: ['pigeons', 'litter', 'cat-ginger', 'cat-grey', 'cat-tuxedo', 'string-lights', 'parasol-tint', 'rain'].filter((n) => !!sc.getObjectByName(n)),
+      matLib: window.__ori.game3d.game.weather() !== null,
+    };
+  });
+  check(art.chunks >= 12 && art.culled, `the neighbourhood is cut into ${art.chunks} chunks the camera can cull (walls, trim, fine detail, glass, cloth ...: ${Object.keys(art.kinds).join(', ')})`);
+  check(art.skyRadius > 100 && art.skyRadius < art.far * 0.95, `the sky dome sits inside the camera's far plane, so the sky is drawn (${Math.round(art.skyRadius)} m < ${art.far} m)`);
+  check(art.life.length === 8, `the street life is there: pigeons, litter, three cats, the café lights, parasols, rain (${art.life.join(', ')})`);
+  // the budget in every kind of view and light (High tier): street, plaza, café terrace, park, promenade; day, golden hour, night, and rain
+  const views = [['home', 13, 0], ['cafe', 19.9, 0], ['cityhall', 16, 0], ['park', 10, 0], ['busstop', 18.7, 0], ['cafe', 21.8, 1], ['home', 14, 1]];
+  const worst = { calls: 0, tris: 0, at: '' };
+  for (const [at, hour, rain] of views) {
+    await D('setHour', hour);
+    await g((r) => window.__ori.game3d.game.setWeather(r ? { rain: 1 } : null), rain);
+    await D('teleport', at);
+    await sleep(700);
+    const v = await g(() => window.__ori.game3d.stats());
+    if (v.triangles > worst.tris) { worst.tris = v.triangles; worst.calls = v.calls; worst.at = `${at} ${hour}h${rain ? ' rain' : ''}`; }
+    if (v.calls > 700 || v.triangles > 2500000) fail(`favors3d: over budget at ${at} ${hour}h ${rain ? 'rain' : ''}: ${v.calls} calls, ${(v.triangles / 1000).toFixed(0)}k tris`);
+    if (rain) check(await g(() => window.__ori.game3d.game.scene.getObjectByName('rain').visible), 'it rains (the streaks are drawn)');
+  }
+  await g(() => window.__ori.game3d.game.setWeather(null));
+  ok(`favors3d: 7 views (street, café at dusk, plaza, park, bus stop, night rain, wet street) all inside the budget; the heaviest: ${(worst.tris / 1000).toFixed(0)}k tris, ${worst.calls} calls at ${worst.at}`);
+  await D('setHour', 13);
+  check(await g(() => window.__ori.game3d.game.scene.getObjectByName('rain').visible === false), 'the sky clears when the weather is released');
+
   // ── pause: Esc opens the menu and the simulation stands still; Esc resumes ──
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__ori.game3d.paused, null, { timeout: 3000 });

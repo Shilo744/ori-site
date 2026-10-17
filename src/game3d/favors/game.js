@@ -16,6 +16,9 @@ import { createMaterialLibrary } from './materials.js';
 import { weatherPlan, weatherAt, applyOvercast, createRain } from './weather.js';
 import { buildGround } from './ground3d.js';
 import { buildProps } from './props3d.js';
+import { buildBeach } from './beach3d.js';
+import { createLife } from './life3d.js';
+import { buildFurniture } from './furniture3d.js';
 import { createOri } from './ori3d.js';
 import { setOutlineView } from './people/materials.js';
 import { createPerson } from './people/person.js';
@@ -30,8 +33,8 @@ import { TEXT, nextTimeFor } from './texts.js';
 import { disposeTree } from './gfx.js';
 import { CROWD, DAY, PLACES, RANKS } from './content.js';
 
-const KEY_GAIN = 1.0; // sun / moon intensity
-const HEMI_GAIN = 0.8;
+const KEY_GAIN = 0.92; // sun / moon intensity
+const HEMI_GAIN = 1.08; // (soft shadows: a lot of sky light fills them)
 const NEAR_PLACE = 16; // metres: the label of a place shows when Ori is this close to its door
 const USE_RANGE = 3.8; // metres from a door where Space does the favour
 
@@ -68,6 +71,10 @@ export function createFavorsGame(o) {
   let lampTick = 0;
   let ground = null;
   let props = null;
+  let beach = null;
+  let life = null;
+  let furniture = null;
+  const scare = [];
   let ori = null;
   let crowd = null;
   let crowd3d = null;
@@ -115,6 +122,7 @@ export function createFavorsGame(o) {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     sky = createSky('noon', 0);
+    sky.mesh.scale.setScalar(0.3); // (the dome is 3400 m wide: inside this camera's far plane it would be clipped away, and the sky would be the clear colour)
     scene.add(sky.mesh);
     if (tier !== 'low') { envMap = sky.makeEnvironment(renderer); scene.environment = envMap; }
     hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1);
@@ -144,10 +152,16 @@ export function createFavorsGame(o) {
     lap('buildings');
     props = buildProps(map, { shadows, tier, lib });
     lap('props');
-    scene.add(ground.group, buildings.group, props.group);
+    beach = buildBeach(map, { lib, shadows, tier });
+    life = createLife(map, { lib, shadows, tier });
+    furniture = buildFurniture(map, { lib, shadows, tier });
+    scene.add(ground.group, buildings.group, props.group, beach.group, life.group, furniture.group);
 
     crowd = createCrowd(map, { count: CROWD.count, seed: 7 });
-    crowd3d = createCrowd3d(map, crowd, { shadows });
+    // a few neighbours out on their balconies, near where the game starts
+    const folkSpots = buildings.balconies.filter((s) => Math.hypot(s.x - map.spawn.x, s.z - map.spawn.z) < 110).sort((a, b) => Math.hypot(a.x - map.spawn.x, a.z - map.spawn.z) - Math.hypot(b.x - map.spawn.x, b.z - map.spawn.z));
+    const balconyFolk = folkSpots.filter((_, i) => i % 3 === 1).slice(0, 8).map((s, i) => ({ ...s, look: { hair: i + 1, shirt: i * 3 + 1, pants: i, skin: (i * 2 + 1) % 5, height: 0.92 + (i % 3) * 0.04 } }));
+    crowd3d = createCrowd3d(map, crowd, { shadows, extras: balconyFolk });
     scene.add(crowd3d.mesh);
     lap('crowd');
     ori = createOri({ shadows, tier });
@@ -308,13 +322,15 @@ export function createFavorsGame(o) {
     applyOvercast(s, weatherNow.overcast);
     lastSky = s;
     const u = sky.material.uniforms;
-    u.uTop.value.setRGB(...s.top);
-    u.uMid.value.setRGB(...s.mid);
-    u.uHorizon.value.setRGB(...s.hor);
-    u.uBelow.value.setRGB(...s.below);
-    u.uSunColor.value.setRGB(...s.sun);
-    u.uCloudLit.value.setRGB(...s.cloud);
-    u.uCloudShade.value.setRGB(s.cloud[0] * 0.6, s.cloud[1] * 0.62, s.cloud[2] * 0.7);
+    // (the day cycle's colours are what you SEE: sRGB; the shaders work in linear light)
+    const S = THREE.SRGBColorSpace;
+    u.uTop.value.setRGB(s.top[0], s.top[1], s.top[2], S);
+    u.uMid.value.setRGB(s.mid[0], s.mid[1], s.mid[2], S);
+    u.uHorizon.value.setRGB(s.hor[0], s.hor[1], s.hor[2], S);
+    u.uBelow.value.setRGB(s.below[0], s.below[1], s.below[2], S);
+    u.uSunColor.value.setRGB(s.sun[0], s.sun[1], s.sun[2], S);
+    u.uCloudLit.value.setRGB(s.cloud[0], s.cloud[1], s.cloud[2], S);
+    u.uCloudShade.value.setRGB(s.cloud[0] * 0.6, s.cloud[1] * 0.62, s.cloud[2] * 0.7, S);
     sky.sunDir.set(...s.sunDir);
     u.uSunSize.value = s.isDay ? 0.04 : 0.03;
     u.uGlow.value = s.isDay ? 0.8 : 0.25;
@@ -326,7 +342,7 @@ export function createFavorsGame(o) {
     hemi.intensity = s.hemiI * HEMI_GAIN;
     sun.color.setRGB(...s.key);
     sun.intensity = s.keyI * KEY_GAIN * (0.15 + 0.85 * s.sunVis);
-    scene.fog.color.setRGB(...s.fog);
+    scene.fog.color.setRGB(s.fog[0], s.fog[1], s.fog[2], S);
     scene.fog.near = s.fogN;
     scene.fog.far = s.fogF;
     renderer.toneMappingExposure = s.exp;
@@ -334,6 +350,7 @@ export function createFavorsGame(o) {
     // windows: lit ones glow when it is dark; by day the glass reflects the sky
     buildings.setLight({ win: s.win, lamps: s.lamps, day: 1 - s.night, glass: [s.hor[0] * 0.3 * (1 - s.night) + 0.03, s.hor[1] * 0.34 * (1 - s.night) + 0.045, s.hor[2] * 0.4 * (1 - s.night) + 0.07] });
     props.setLight({ lamps: s.lamps });
+    furniture.setLight({ lamps: s.lamps });
     lib.setWeather({ wet: weatherNow.wet, lamps: s.lamps });
     fill.intensity = s.lamps * 9;
     return s;
@@ -362,7 +379,7 @@ export function createFavorsGame(o) {
     for (const p of map.props) {
       if (p.type !== 'lamp') continue;
       const d = Math.hypot(p.x - st.x, p.z - st.z);
-      if (d < 46) list.push({ x: p.x + 0.8, y: 5.4, z: p.z, i: 1 - d / 52, d });
+      if (d < 46) list.push({ x: p.x + 0.88, y: 5.4, z: p.z, i: 1 - d / 52, d });
     }
     list.sort((a, b) => a.d - b.d);
     lib.setLamps(list.slice(0, 8));
@@ -443,10 +460,14 @@ export function createFavorsGame(o) {
       ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
       for (const p of extras) p.update(dt, { speed: 0 });
       fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
-      crowd3d.update(t);
+      crowd3d.update(t, camera);
       lib.update(t);
       buildings.update(camera.position.x, camera.position.z);
       rain.update(camera, t, weatherNow.rain);
+      scare.length = 0;
+      scare.push(ctrl.state);
+      for (const w of crowd.walkers) scare.push(w);
+      life.update(dt, t, camera, scare);
       if (++lampTick % 12 === 1) nearestLamps();
       ground.update(t, s, weatherNow.overcast);
       sky.update(camera, t);
@@ -600,6 +621,9 @@ export function createFavorsGame(o) {
       lib.dispose();
       ground.dispose();
       props.dispose();
+      beach.dispose();
+      life.dispose();
+      furniture.dispose();
       sky.dispose();
       if (post) post.dispose();
       if (sun && sun.shadow) sun.shadow.dispose(); // (the renderer does not free the shadow map by itself)

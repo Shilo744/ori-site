@@ -133,7 +133,7 @@ export function treeGeometry({ cell = 0.13, seed = 5 } = {}) {
       if (y < 2.55 && Math.hypot(x, z) < 0.4) return [trunkC[0] * ao, trunkC[1] * ao, trunkC[2] * ao];
       const sun = 0.5 + 0.5 * Math.max(0, ny);
       const v = 0.85 + 0.3 * Math.sin(x * 3.1 + y * 2.3) * Math.sin(z * 2.7 - y * 1.9);
-      const g = lin(0.2 * v + 0.12 * sun, 0.5 * v + 0.2 * sun, 0.2 * v + 0.06 * sun);
+      const g = lin(0.25 * v + 0.14 * sun, 0.52 * v + 0.23 * sun, 0.17 * v + 0.05 * sun);
       return [g[0] * ao, g[1] * ao, g[2] * ao];
     },
   });

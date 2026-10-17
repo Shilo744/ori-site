@@ -2,6 +2,7 @@
 // inside), frames, sills, shutters, roller-shutter boxes, eyebrows over the windows, a plinth, floor lines, a cornice and a parapet. The ground floor of
 // the street side comes from shopfront.js; balconies, AC units and washing from balconies.js.
 import { FLOOR, RC, FACES, P, faceQuad, faceBox, wallBands, hash01 } from './face.js';
+import { MURAL_COUNT, POSTER_COUNT } from '../art.js';
 
 export const WALL_TONES = ['#f3ece0', '#f6e7c9', '#f2d6c3', '#ecd0cb', '#d3e2d6', '#d1e1ea', '#efe3cf', '#e8dcc6', '#e2e8d3', '#f3dede', '#f6f1e8', '#ece6dc'];
 const TRIMS = ['#ffffff', '#f8f3ea', '#efe7d8'];
@@ -14,7 +15,12 @@ const SILL = 0.8; // from the floor up to the sill
 export function lotStyle(lot, rnd, named) {
   const style = lot.id === 'startup' ? 'modern' : lot.id === 'cityhall' ? 'civic' : lot.id === 'auntie' ? 'house' : rnd() < 0.5 ? 'shutters' : rnd() < 0.7 ? 'bauhaus' : 'plain';
   const wall = named && lot.id !== 'kiosk' ? (lot.id === 'cityhall' ? '#f1ebe0' : WALL_TONES[Math.floor(rnd() * 6)]) : lot.tone && rnd() < 0.35 ? lot.tone : WALL_TONES[Math.floor(rnd() * WALL_TONES.length)];
+  // street art: a mural on the ground floor of one long side wall, and posters beside the shops
+  const r = lot.rect;
+  const faces = ['S', 'N', 'E', 'W'].filter((k) => k !== lot.side && (k === 'S' || k === 'N' ? r.x1 - r.x0 : r.z1 - r.z0) >= 9.5);
+  const mural = faces.length && rnd() < 0.55 && lot.id !== 'kiosk' ? { key: faces[Math.floor(rnd() * faces.length)], id: Math.floor(rnd() * MURAL_COUNT) } : null;
   return {
+    mural, poster: [Math.floor(rnd() * POSTER_COUNT), Math.floor(rnd() * POSTER_COUNT)],
     style, wall,
     trim: TRIMS[Math.floor(rnd() * TRIMS.length)],
     shutter: SHUTTERS[Math.floor(rnd() * SHUTTERS.length)],

@@ -34,7 +34,7 @@ vec3 pal(float k) {
   if (k < 4.0) return vec3(0.68, 0.78, 0.88);
   if (k < 5.0) return vec3(0.95, 0.90, 0.66);
   if (k < 6.0) return vec3(0.85, 0.72, 0.84);
-  if (k < 7.0) return vec3(0.96, 0.95, 0.92);
+  if (k < 7.0) return vec3(0.9, 0.83, 0.72);
   return vec3(0.60, 0.72, 0.70);
 }
 // the room behind a window
@@ -117,14 +117,14 @@ const COLOR = /* glsl */ `
   float lit = shop ? 1.0 : step(0.5, kind) * smoothstep(0.3, 0.85, uWin);
   // daylight reaches the room through the window; a lit room shines warm
   vec3 day = rc * (0.16 + 0.55 * uDay);
-  vec3 warm = rc * vec3(1.45, 1.1, 0.72) * lightK;
+  vec3 warm = rc * vec3(1.05, 0.72, 0.4) * lightK * 0.8;
   vec3 inside = mix(day, warm, shop ? mix(0.55, 1.0, 1.0 - uDay) : lit);
   if (kind < 0.5) inside = rc * (0.05 + 0.2 * uDay);
   // curtains and blinds
   float cs = h1(seed * 21.0);
   if (!shop) {
     if (cs < 0.3 && vWUv.x < 0.34) inside = mix(inside, pal(h1(seed * 31.0)) * (0.2 + 0.4 * uDay + 0.8 * lit), 0.9);
-    else if (cs > 0.84 && vWUv.y > 0.25 + 0.45 * h1(seed * 41.0)) inside = mix(inside, vec3(0.78, 0.75, 0.68) * (0.3 + 0.5 * uDay + 0.8 * lit), 0.55 + 0.35 * smoothstep(0.3, 0.7, abs(fract(vWUv.y * 7.0) - 0.5) * 2.0));
+    else if (cs > 0.84 && vWUv.y > 0.25 + 0.45 * h1(seed * 41.0)) inside = mix(inside, vec3(0.80, 0.77, 0.70) * (0.3 + 0.45 * uDay + 0.7 * lit) * (0.94 + 0.1 * vWUv.y), 0.82);
   }
   // reflections: the sky in the glass, stronger at a grazing angle
   float fres = 0.08 + 0.62 * pow(1.0 - clamp(abs(dir.z), 0.0, 1.0), 3.0);

@@ -91,7 +91,8 @@ export async function runFavorsPhone(session, { ok, fail }) {
     await page.keyboard.up('KeyW');
     check((await S()).player.speed >= 0, 'walking went on all through');
   }
-  const uid = rows[0].uid;
+  // (the task with the most time left: the soonest one may run out while the test is still clicking)
+  const uid = (await Q()).open.reduce((a, t) => (t.deadline > a.deadline ? t : a)).uid;
   const d0 = (await Q()).open.find((t) => t.uid === uid).deadline;
   await selectRow(uid); // open the row's details
   await page.click('.fv-task.sel [data-act="later"]');

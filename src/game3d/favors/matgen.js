@@ -165,7 +165,7 @@ const GENERATORS = {
         pat = Math.abs(d - 0.5) < 0.05 ? 1 : 0;
       } else if (tileP[ti] === 2) pat = (Math.floor(u * 6) + Math.floor(v * 6)) % 2 === 0 ? 0 : 0.5; // checker
       val *= 1 - pat * 0.1;
-      val = mix(val, 0.6, grout * 0.6);
+      val = mix(val, 0.72, grout * 0.55);
       val -= gum[i] * 0.35;
       h[i] = (1 - grout) * 0.7 + grain[i] * 0.25 - pat * 0.05 - gum[i] * 0.1;
       rough[i] = mix(0.78 + grain[i] * 0.15, 0.95, grout);
@@ -183,7 +183,7 @@ const GENERATORS = {
     for (let i = 0; i < h.length; i++) h[i] = grain[i] * 0.7 + mid[i] * 0.3;
     for (let k = 0; k < 4; k++) crack(crackMask, h, N, rnd, N * 0.3, 0, 1);
     const patches = [];
-    for (let k = 0; k < 3; k++) patches.push([rnd() * N, rnd() * N, N * (0.06 + rnd() * 0.1), N * (0.04 + rnd() * 0.08)]);
+    for (let k = 0; k < 2; k++) patches.push([rnd() * N, rnd() * N, N * (0.05 + rnd() * 0.07), N * (0.04 + rnd() * 0.06)]);
     const rough = new Float32Array(N * N);
     const albedo = pack(N, (x, y, i) => {
       let v = 0.41 + (grain[i] - 0.5) * 0.2 + (mid[i] - 0.5) * 0.1;
@@ -191,7 +191,7 @@ const GENERATORS = {
       for (const p of patches) {
         const dx = Math.min(Math.abs(x - p[0]), N - Math.abs(x - p[0]));
         const dy = Math.min(Math.abs(y - p[1]), N - Math.abs(y - p[1]));
-        if (Math.hypot(dx / p[2], dy / p[3]) + (mid[i] - 0.5) * 0.9 < 1) { v *= 0.74; r = 0.55; h[i] *= 0.45; }
+        if (Math.hypot(dx / p[2], dy / p[3]) + (mid[i] - 0.5) * 0.9 < 1) { v *= 0.88; r = 0.62; h[i] *= 0.6; }
       }
       v -= crackMask[i] * 0.2;
       const polish = Math.max(0, Math.sin((x / N) * 6.283 * 2 + mid[i] * 3)) * 0.5 * (mid[i] > 0.5 ? 1 : 0);
@@ -209,7 +209,7 @@ const GENERATORS = {
     const chip = new Float32Array(N * N);
     const hue = new Float32Array(N * N);
     const palette = [0.1, 0.35, 0.6, 0.85];
-    const chips = Math.floor(N * N / 120);
+    const chips = Math.floor(N * N / 260);
     for (let k = 0; k < chips; k++) {
       const cx = rnd() * N; const cy = rnd() * N; const r = 1 + rnd() * rnd() * 5;
       const a = rnd() * 3.14; const ca = Math.cos(a); const sa = Math.sin(a); const el = 0.5 + rnd() * 0.5;
@@ -221,7 +221,7 @@ const GENERATORS = {
     }
     const h = new Float32Array(N * N);
     const rough = new Float32Array(N * N);
-    const cols = [[0.55, 0.3, 0.22], [0.45, 0.45, 0.47], [0.9, 0.86, 0.76], [0.28, 0.27, 0.3]];
+    const cols = [[0.7, 0.5, 0.42], [0.62, 0.62, 0.64], [0.93, 0.9, 0.82], [0.46, 0.45, 0.48]];
     const albedo = pack(N, (x, y, i) => {
       const base = 0.86 + (mid[i] - 0.5) * 0.06;
       let c = [base, base * 0.97, base * 0.9];
@@ -337,10 +337,10 @@ const GENERATORS = {
     const h = new Float32Array(N * N);
     const rough = new Float32Array(N * N);
     const albedo = pack(N, (x, y, i) => {
-      const v = 0.78 + (clump[i] - 0.5) * 0.3 + (blade[i] - 0.5) * 0.22;
+      const v = 0.74 + (clump[i] - 0.5) * 0.34 + (blade[i] - 0.5) * 0.2;
       h[i] = blade[i] * 0.7 + clump[i] * 0.3;
       rough[i] = 0.85 + blade[i] * 0.1;
-      return [v * 0.9, v, v * 0.75];
+      return [v * 0.92, v * 0.96, v * 0.66];
     });
     return { albedo, normal: normalFromHeight(h, N, N / 36), rough: roughBytes(N, rough) };
   },

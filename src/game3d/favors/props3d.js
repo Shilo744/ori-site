@@ -25,11 +25,26 @@ function matrix(x, y, z, rot, s = 1, sy = s) {
 
 // ── geometries ──
 function lampGeos() {
-  const pole = new GeoBuilder().setColor('#3c4048');
-  pole.box(-0.07, 0, -0.07, 0.07, 5.6, 0.07).box(-0.07, 5.5, -0.07, 0.07 + 0.9, 5.62, 0.07);
-  pole.box(-0.2, 0, -0.2, 0.2, 0.25, 0.2);
+  const pole = new GeoBuilder();
+  const mat = new THREE.Matrix4();
+  const part = (geo, x, y, z, color, rz = 0, sx = 1, sy = 1, sz = 1) => { mat.compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0, rz)), new THREE.Vector3(sx, sy, sz)); pole.geometry(geo, mat, color); geo.dispose(); };
+  part(new THREE.CylinderGeometry(0.07, 0.1, 5.2, 8), 0, 2.6, 0, '#3a3e46'); // a tapering pole
+  part(new THREE.CylinderGeometry(0.17, 0.22, 0.34, 10), 0, 0.17, 0, '#30343b'); // the foot
+  part(new THREE.CylinderGeometry(0.12, 0.12, 0.08, 10), 0, 0.38, 0, '#4b5058');
+  // the curved arm: a few short pieces bending over
+  const arm = [[0, 5.15], [0.18, 5.45], [0.46, 5.62], [0.8, 5.66]];
+  for (let i = 0; i < arm.length - 1; i++) {
+    const [x0, y0] = arm[i]; const [x1, y1] = arm[i + 1];
+    const l = Math.hypot(x1 - x0, y1 - y0);
+    part(new THREE.CylinderGeometry(0.045, 0.05, l, 8), (x0 + x1) / 2, (y0 + y1) / 2, 0, '#3a3e46', -Math.atan2(x1 - x0, y1 - y0));
+  }
+  // the housing: a rounded lantern with a shade
+  part(new THREE.CylinderGeometry(0.12, 0.3, 0.14, 12), 0.88, 5.66, 0, '#2f333a');
   const head = new GeoBuilder().setColor('#fff2cf');
-  head.box(0.62, 5.42, -0.16, 1.02, 5.5, 0.16);
+  const glass = new THREE.SphereGeometry(0.2, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+  mat.compose(new THREE.Vector3(0.88, 5.6, 0), new THREE.Quaternion(), new THREE.Vector3(1, 0.7, 1));
+  head.geometry(glass, mat, '#fff2cf');
+  glass.dispose();
   return { pole: pole.build(), head: head.build() };
 }
 
@@ -163,7 +178,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   const gy = (p) => groundHeight(map, p.x, p.z);
 
   // one InstancedMesh per kind AND per chunk of the neighbourhood (so the ones behind the camera or out of the shadow box are never drawn)
-  const instanced = (geo, material, list, place, { tint = null, name } = {}) => {
+  const instanced = (geo, material, list, place, { tint = null, name, cast = shadows } = {}) => {
     if (!list || !list.length) return null;
     const cells = new Map();
     for (const p of list) { const k = Math.floor(p.x / 72) + ',' + Math.floor(p.z / 72); (cells.get(k) || cells.set(k, []).get(k)).push(p); }
@@ -177,7 +192,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
       });
       im.instanceMatrix.needsUpdate = true;
       if (im.instanceColor) im.instanceColor.needsUpdate = true;
-      im.castShadow = shadows;
+      im.castShadow = cast;
       im.receiveShadow = true;
       im.computeBoundingSphere();
       group.add(im);
@@ -193,7 +208,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   const lg = lampGeos();
   instanced(lg.pole, vc(), byType.lamp, (p) => matrix(p.x, gy(p), p.z, 0), { name: 'lamp-poles' });
   const lampHeadMat = vc(0xffffff, 0.5, { emissive: new THREE.Color(0xffe2a0), emissiveIntensity: 0 });
-  instanced(lg.head, lampHeadMat, byType.lamp, (p) => matrix(p.x, gy(p), p.z, 0), { name: 'lamp-heads' });
+  instanced(lg.head, lampHeadMat, byType.lamp, (p) => matrix(p.x, gy(p), p.z, 0), { name: 'lamp-heads', cast: false });
 
   // a warm pool of light under every street lamp (additive, only visible when the lamps are on)
   const poolTex = (() => {
@@ -211,8 +226,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   const poolMat = new THREE.MeshBasicMaterial({ map: poolTex, color: 0xffd9a0, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -6, polygonOffsetUnits: -6 });
   const poolGeo = new THREE.PlaneGeometry(7.5, 7.5);
   poolGeo.rotateX(-Math.PI / 2);
-  const pools = instanced(poolGeo, poolMat, byType.lamp, (p) => matrix(p.x + 0.8, gy(p) + 0.04, p.z, 0), { name: 'lamp-pools' });
-  group.children.filter((c) => c.name.startsWith('lamp-pools')).forEach((c) => { c.castShadow = false; });
+  const pools = instanced(poolGeo, poolMat, byType.lamp, (p) => matrix(p.x + 0.8, gy(p) + 0.04, p.z, 0), { name: 'lamp-pools', cast: false });
   void pools;
   mats.push(poolTex);
 
@@ -235,7 +249,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   instanced(tg, canopyMat, byType.tree, treePlace, { name: 'trees' });
   if (tier !== 'low') {
     const cardsMat = lib.std('leaves', { vertexColors: true, normalScale: 0, roughness: 0.75, wind: { amp: 0.09, speed: 1.6 }, extra: { side: THREE.DoubleSide, alphaTest: 0.5 } });
-    instanced(treeCards(TREE_BLOBS, 5, tier === 'high' ? 170 : 90), cardsMat, byType.tree, treePlace, { name: 'tree-cards' });
+    instanced(treeCards(TREE_BLOBS, 5, tier === 'high' ? 260 : 120, 1.3), cardsMat, byType.tree, treePlace, { name: 'tree-cards' });
     mats.push(cardsMat, canopyMat);
   }
 
@@ -250,7 +264,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
     if (!list.length) continue;
     const cg = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ cell: tier === 'high' ? 0.2 : 0.28, kind }); return { body: c.body, dark: c.details }; })();
     instanced(cg.body, carBody, list, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => CAR_COLORS[p.v % CAR_COLORS.length], name: `car-bodies-${kind}` });
-    instanced(cg.dark, carDetails, list, (p) => matrix(p.x, 0, p.z, p.rot), { name: `car-details-${kind}` });
+    instanced(cg.dark, carDetails, list, (p) => matrix(p.x, 0, p.z, p.rot), { name: `car-details-${kind}`, cast: false });
   }
 
   const sg = tier === 'low' ? scooterGeos() : (() => { const c = scooterGeometry({ cell: tier === 'high' ? 0.04 : 0.06 }); return { body: c.body, dark: c.details }; })();
@@ -259,9 +273,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
 
   instanced(benchGeo(), vc(), byType.bench, (p) => matrix(p.x, gy(p), p.z, p.rot), { name: 'benches' });
 
-  const ug = umbrellaGeos();
-  instanced(ug.pole, vc(), byType.umbrella, (p) => matrix(p.x, 0, p.z, p.rot), { name: 'umbrella-poles' });
-  instanced(ug.cap, vc(0xffffff, 0.8, { side: THREE.DoubleSide }), byType.umbrella, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => UMBRELLA_COLORS[p.v % UMBRELLA_COLORS.length], name: 'umbrella-caps' });
+  // (the beach parasols are made by beach3d.js)
 
   // dressing at the doors: a bougainvillea pot either side of every building door, and a few cafe tables out in front of the cafe
   if (tier !== 'low') {
@@ -274,8 +286,8 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
       for (const s of [-1, 1]) plants.push({ x: d.x + d.nx * 1.0 + tx * s * 1.9, z: d.z + d.nz * 1.0 + tz * s * 1.9, rot: (pl.id.length * 1.7 + s) % 6.28, v: s });
       if (pl.id === 'cafe') for (const s of [-1.4, 1.4, 4.2]) sets.push({ x: d.x + d.nx * 2.7 + tx * s * 1.7, z: d.z + d.nz * 2.7 + tz * s * 1.7, rot: Math.atan2(d.nx, d.nz) + Math.PI / 2 });
     }
-    instanced(plantGeometry({ cell: tier === 'high' ? 0.05 : 0.07 }), vc(0xffffff, 0.8), plants, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.0 + 0.1 * p.v), { name: 'door-plants' });
-    instanced(cafeSetGeometry({ cell: tier === 'high' ? 0.045 : 0.06 }), vc(0xffffff, 0.6), sets, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.35), { name: 'cafe-sets' });
+    instanced(plantGeometry({ cell: tier === 'high' ? 0.05 : 0.07 }), vc(0xffffff, 0.8), plants, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.0 + 0.1 * p.v), { name: 'door-plants', cast: false });
+    instanced(cafeSetGeometry({ cell: tier === 'high' ? 0.045 : 0.06 }), vc(0xffffff, 0.6), sets, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.35), { name: 'cafe-sets', cast: false });
   }
 
   // the bus shelter (one of a kind)
