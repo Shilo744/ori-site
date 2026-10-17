@@ -19,7 +19,7 @@ const GAMES = {
   favors: { title: FAVORS.title, create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea },
 };
 
-const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, storage: null, scores: null, achievements: null };
+const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, isMuted: () => false, volume: () => 1, reduceMotion: () => false, storage: null, scores: null, achievements: null };
 const settings = { pixelRatioCap: 2, tier: 'high' };
 let current = null;
 let lastMemory = null; // renderer.info.memory right after the last session was disposed (leak checks)
@@ -132,6 +132,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
   game = def.create({
     renderer, overlay, quit, quick: !!opts.quick,
     storage: hooks.storage, scores: hooks.scores, achievements: hooks.achievements, emit: hooks.emit,
+    isMuted: hooks.isMuted, volume: hooks.volume, reduceMotion: hooks.reduceMotion,
     biome: opts.biome, look: opts.look, tier: opts.tier || settings.tier, seed: opts.seed, carType: opts.carType, paint: opts.paint,
   });
   kb = def.input({

@@ -1,10 +1,11 @@
 // "Ori, Can You...?" — the game controller the host runs (see host.js for the contract): builds the neighbourhood, Ori and the crowd,
-// drives them from the input, runs the game clock and the light of the day, and draws one frame. Quests and the phone arrive with T52+;
-// this is the stage: walk, run, look around, watch the day go by.
+// drives them from the input, runs the game clock and the light of the day, feeds the quest engine (quests.js) and shows it on the phone
+// and the HUD, and draws one frame. The favours themselves (the little actions at each place) arrive with T53; until then Space at the
+// right door simply does the favour.
 import * as THREE from 'three';
 import { createSky } from '../sky3d.js';
 import { createPost } from '../post.js';
-import { buildMap, groundHeight, PLAYER_R } from './map.js';
+import { buildMap, groundHeight, walkDistance, PLAYER_R } from './map.js';
 import { createController, moveDir, WALK_SPEED } from './controller.js';
 import { createCameraRig } from './camera-rig.js';
 import { createClock, skyAt } from './daycycle.js';
@@ -15,24 +16,34 @@ import { buildGround } from './ground3d.js';
 import { buildProps } from './props3d.js';
 import { createOri } from './ori3d.js';
 import { createFavorsHud } from './hud.js';
+import { createPhone } from './phone.js';
+import { createSfx } from './sfx.js';
+import { createBeam } from './beam3d.js';
+import { createQuests, rankFor } from './quests.js';
 import { disposeTree } from './gfx.js';
-import { PLACES, CROWD, DAY } from './content.js';
+import { CROWD, DAY, PLACES, RANKS } from './content.js';
 
 const KEY_GAIN = 1.0; // sun / moon intensity
 const HEMI_GAIN = 0.8;
 const NEAR_PLACE = 16; // metres: the label of a place shows when Ori is this close to its door
+const USE_RANGE = 3.8; // metres from a door where Space does the favour
+const SLOWMO = 0.18; // the day while the phone is open
 
 const PARTS = ['Early morning', 'Morning', 'Midday', 'Afternoon', 'Golden hour', 'Evening', 'Night'];
 const partOfDay = (h) => (h < 7 ? PARTS[0] : h < 11 ? PARTS[1] : h < 14 ? PARTS[2] : h < 17.5 ? PARTS[3] : h < 19.8 ? PARTS[4] : h < 22 ? PARTS[5] : PARTS[6]);
+const left = (m) => (m < 1 ? 'now' : m < 60 ? `${Math.ceil(m)} min` : `${Math.floor(m / 60)} h ${String(Math.round(m % 60)).padStart(2, '0')} min`);
 
 export function createFavorsGame(o) {
   const { renderer, overlay, quit } = o;
   const tier = o.tier || 'high';
   const shadows = tier !== 'low';
+  const reduceMotion = () => (o.reduceMotion ? o.reduceMotion() : window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
   let paused = false;
   let opened = false;
   let disposed = false;
+  let over = false; // the day has ended: the report card is up
   let t = 0; // seconds since the game opened (waves, clouds)
+  let questSeed = o.questSeed ?? 1;
 
   // world pieces (made in open())
   let map = null;
@@ -52,18 +63,26 @@ export function createFavorsGame(o) {
   let rig = null;
   let envMap = null;
   let fill = null;
+  let quests = null;
+  let phone = null;
+  let beam = null;
+  const sfx = createSfx({ isMuted: o.isMuted || (() => false), volume: o.volume || (() => 1) });
   const clock = createClock({ startHour: o.startHour ?? DAY.startHour, realMinutes: o.dayMinutes ?? DAY.realMinutes });
   const input = { fwd: 0, strafe: 0, sprint: false, orbit: 0, pitch: 0, zoom: 1 };
   const wish = { mx: 0, mz: 0, sprint: false };
   let lastKb = null;
-  let nearPlace = null;
+  let nearPlace = null; // the place whose door is within NEAR_PLACE
+  let nearest = null; // the closest place whatever the distance (the phone measures from it)
   let groundY = 0;
   let lastSky = null;
+  let following = null; // uid of the task the beam points at
+  let noFollow = false; // the player unpinned on purpose: do not pin the next one by itself
+  const v3 = new THREE.Vector3();
 
   const hud = createFavorsHud(overlay, {
     onPause: () => api.onEscape(),
     onResume: () => api.resume(),
-    onRestart: () => restartDay(),
+    onRestart: () => restartDay(true),
     onQuit: quit,
   });
 
@@ -101,9 +120,9 @@ export function createFavorsGame(o) {
     fill = new THREE.PointLight(0xffd2a0, 0, 13, 1.6);
     scene.add(fill);
     scene.fog = new THREE.Fog(0xcfe6f8, 80, 520);
+    lap('sky');
 
     const aniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    lap('sky');
     ground = buildGround(map, { aniso });
     lap('ground');
     buildings = buildBuildings(map, { aniso });
@@ -115,13 +134,16 @@ export function createFavorsGame(o) {
     crowd = createCrowd(map, { count: CROWD.count, seed: 7 });
     crowd3d = createCrowd3d(map, crowd, { shadows });
     scene.add(crowd3d.mesh);
-
     lap('crowd');
     ori = createOri({ shadows });
-    lap('ori');
     scene.add(ori.group);
+    lap('ori');
     ctrl = createController(map.world, { x: map.spawn.x, z: map.spawn.z, heading: map.spawn.heading });
     rig = createCameraRig(map.world, { yaw: map.spawn.heading, pitch: 0.4, dist: 7.4 });
+    findPlaces();
+    beam = createBeam();
+    scene.add(beam.group);
+    startQuests();
 
     if (tier !== 'low') post = createPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
     if (post) post.fx.uniforms.uVignette.value = 0.2;
@@ -132,6 +154,104 @@ export function createFavorsGame(o) {
     lap('first-frame');
   }
 
+  // ── the favours: the quest engine, the phone, the beam ──
+  function startQuests() {
+    quests = createQuests({ seed: questSeed, dist: map.dist, difficulty: o.difficulty || 'normal' });
+    if (phone) phone.dispose();
+    phone = createPhone(hud.root, overlay, {
+      map, q: quests, sfx,
+      getPlayer: () => ({ x: ctrl.state.x, z: ctrl.state.z, heading: ctrl.state.heading, near: nearest ? nearest.id : null }),
+      onPin: (uid) => { following = uid; noFollow = uid == null; aimBeam(); },
+    });
+    following = null;
+    noFollow = false;
+    over = false;
+    aimBeam();
+  }
+
+  /** Stands the beam over the followed task's door (or hides it). */
+  function aimBeam() {
+    const task = following != null ? quests.get(following) : null;
+    if (!task || (task.state !== 'new' && task.state !== 'accepted')) { following = null; beam.hide(); hud.goal(null); return; }
+    const d = map.places[task.at].door;
+    beam.set(d.x - d.nx * 0.8, d.z - d.nz * 0.8, groundHeight(map, d.x, d.z));
+  }
+  /** With nothing followed, the most urgent open task becomes the goal (unless the player said no). */
+  function autoFollow() {
+    if (following != null) { const tk = quests.get(following); if (tk && (tk.state === 'new' || tk.state === 'accepted')) return; following = null; }
+    if (noFollow) return;
+    const first = quests.list(nearest ? nearest.id : 'home')[0];
+    if (first) { following = first.uid; phone.setActive(first.uid); }
+    else { following = null; beam.hide(); }
+  }
+
+  function syncQuests() {
+    const dm = clock.hour * 60 - quests.state.min;
+    if (dm > 0) quests.tick(dm);
+    for (const e of quests.drain()) {
+      const task = e.uid != null ? quests.get(e.uid) : null;
+      if (e.type === 'new') {
+        const urgent = task.pri >= 3;
+        phone.notify(task, { urgent });
+        sfx.buzz();
+        if (urgent) { sfx.urgent(); if (!reduceMotion()) hud.shake(); }
+        if (noFollow) noFollow = false; // a new task: the guide may speak again
+      } else if (e.type === 'done') {
+        sfx.ding();
+        hud.float(`+${e.points}`);
+        if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
+      } else if (e.type === 'failed') {
+        sfx.sad();
+        hud.float('Missed', true);
+        hud.toast(`${e.mentor ? 'The mentors missed' : 'Missed'}: ${task.title}`);
+        if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
+      } else if (e.type === 'coffee') {
+        ctrl.coffee(8);
+        sfx.sip();
+        hud.toast('Coffee! Free sprinting for a few seconds');
+      } else if (e.type === 'focus') {
+        hud.toast(e.on ? 'Do Not Disturb: the phone stays quiet' : e.released ? `Do Not Disturb is over: ${e.released} waiting` : 'Do Not Disturb is over');
+      } else if (e.type === 'declined' && following === e.uid) { following = null; phone.setActive(null); }
+      else if (e.type === 'day-end') endDay(e.report);
+    }
+    autoFollow();
+    aimBeam();
+  }
+
+  function endDay(report) {
+    if (over) return;
+    over = true;
+    phone.close();
+    hud.showReport(report, { onAgain: () => restartDay(true), onQuit: quit });
+    sfx.ding();
+  }
+
+  function restartDay(newSeed = false) {
+    if (newSeed) questSeed++;
+    clock.set(clock.startHour);
+    ctrl.teleport(map.spawn.x, map.spawn.z, map.spawn.heading);
+    ctrl.state.stamina = 1;
+    rig.state.yaw = map.spawn.heading;
+    startQuests();
+    api.resume();
+    applySky(true);
+    placeCamera(true);
+    api.render(0);
+  }
+
+  /** Space: do the favour at the door Ori stands at (the followed task first, then the soonest one there). T53 puts a little action here. */
+  function useDoor() {
+    if (!nearest) return;
+    const d = nearest.door;
+    if (Math.hypot(d.x - ctrl.state.x, d.z - ctrl.state.z) > USE_RANGE) { hud.toast('Nothing to do here — the phone knows where to go'); return; }
+    const here = quests.open().filter((tk) => tk.at === nearest.id);
+    const pick = here.find((tk) => tk.uid === following) || here.sort((a, b) => a.deadline - b.deadline)[0];
+    if (!pick) { hud.toast(`${nearest.name}: nobody asked for anything here`); return; }
+    quests.complete(pick.uid, 0.85);
+    syncQuests();
+  }
+
+  // the host owns the input object and passes it to update(); touch controls need it
   function applySky(force = false) {
     const h = clock.hour;
     if (!force && lastSky && Math.abs(h - lastSky.hour) < 0.004) return lastSky;
@@ -176,38 +296,45 @@ export function createFavorsGame(o) {
     if (Math.abs(camera.fov - c.fov) > 0.05) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
   }
 
-  function nearest() {
+  function findPlaces() {
     let best = null;
-    let bd = NEAR_PLACE;
+    let bd = Infinity;
     const s = ctrl.state;
     for (const p of Object.values(map.places)) {
       const d = Math.hypot(p.door.x - s.x, p.door.z - s.z);
       if (d < bd) { bd = d; best = p; }
     }
-    return best;
+    nearest = best;
+    nearPlace = bd < NEAR_PLACE ? best : null;
   }
 
-  function restartDay() {
-    clock.set(clock.startHour);
-    ctrl.teleport(map.spawn.x, map.spawn.z, map.spawn.heading);
-    ctrl.state.stamina = 1;
-    rig.state.yaw = map.spawn.heading;
-    api.resume();
-    applySky(true);
-    placeCamera(true);
-    api.render(0);
+  /** The followed place on the screen: null when it is in view, else where on the edge the arrow goes. */
+  function arrowFor(place) {
+    const d = place.door;
+    v3.set(d.x, 1.6, d.z).project(camera);
+    const behind = v3.z > 1;
+    let x = behind ? -v3.x : v3.x;
+    let y = behind ? -v3.y : v3.y;
+    if (!behind && Math.abs(x) < 0.94 && Math.abs(y) < 0.9) return null;
+    const m = Math.max(Math.abs(x), Math.abs(y), 1e-6);
+    x /= m; y /= m;
+    const sx = Math.max(-1, Math.min(1, x)) * 0.9;
+    const sy = Math.max(-1, Math.min(1, y)) * 0.84;
+    return { x: 0.5 + sx / 2, y: 0.5 - sy / 2, angle: Math.atan2(x, y), label: place.sign };
   }
 
   const api = {
-    get phase() { return opened ? 'play' : 'loading'; },
+    get phase() { return opened ? (over ? 'over' : 'play') : 'loading'; },
     get paused() { return paused; },
     get hud() { return hud; },
     get map() { return map; },
     get controller() { return ctrl; },
     get clock() { return clock; },
-    get timings() { return timings; },
+    get quests() { return quests; },
+    get phone() { return phone; },
     get scene() { return scene; },
     get camera() { return camera; },
+    get timings() { return timings; },
     open,
     /** The host creates the input after the game: the touch controls need its joystick state. */
     attachInput(inp) { hud.bindTouch(inp, () => api.onAction('interact')); },
@@ -215,17 +342,20 @@ export function createFavorsGame(o) {
       if (!opened || paused) return;
       lastKb = kb;
       kb.read(input, dt);
+      const scale = over ? 0 : phone.isOpen ? SLOWMO : 1; // reading the phone slows the day right down
+      const dts = dt * scale;
       t += dt;
       const yaw = rig.state.yaw;
       const dir = moveDir(yaw, input.fwd, input.strafe);
       wish.mx = dir.mx;
       wish.mz = dir.mz;
       wish.sprint = input.sprint;
-      ctrl.update(dt, wish);
-      clock.tick(dt);
-      crowd.update(dt, ctrl.state);
+      if (!over) ctrl.update(dts, wish);
+      clock.tick(dt, scale);
+      crowd.update(dts, ctrl.state);
       rig.update(dt, { ...ctrl.state }, { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
-      nearPlace = nearest();
+      findPlaces();
+      syncQuests();
     },
     /** Draws one frame (also used by the tests with dt = 0). */
     render(dt) {
@@ -233,11 +363,12 @@ export function createFavorsGame(o) {
       const s = applySky();
       const st = ctrl.state;
       groundY += (groundHeight(map, st.x, st.z) - groundY) * Math.min(1, dt > 0 ? dt * 14 : 1);
-      ori.update(dt, st, groundY, st.winded ? 0.6 : 0);
+      ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
       fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
       crowd3d.update(t);
       ground.update(t, s);
       sky.update(camera, t);
+      beam.update(t);
       if (shadows) {
         // the sun's shadow box follows Ori (snapped to texels so the shadows do not shimmer)
         const snap = 1.0;
@@ -251,7 +382,19 @@ export function createFavorsGame(o) {
       renderer.info.reset();
       if (post) post.render(dt, st.sprinting ? 0.12 : 0);
       else renderer.render(scene, camera);
+      const q = quests.state;
+      const rankIdx = RANKS.reduce((a, r, i) => (q.score >= r.min ? i : a), 0);
+      const next = RANKS[rankIdx + 1];
       hud.update({ time: clock.label(), label: partOfDay(clock.hour), day: clock.progress, place: nearPlace ? { name: nearPlace.name, kind: nearPlace.kind === 'building' ? 'Here' : 'Near' } : null, stamina: st.stamina, winded: st.winded });
+      hud.meters({ chaos: q.chaos, score: q.score, rankProgress: next ? (q.score - RANKS[rankIdx].min) / (next.min - RANKS[rankIdx].min) : 1 });
+      const task = following != null ? quests.get(following) : null;
+      if (task && (task.state === 'new' || task.state === 'accepted')) {
+        const place = map.places[task.at];
+        const m = Math.round(walkDistance(map, st.x, st.z, place.door.x, place.door.z));
+        hud.goal({ title: `${task.giverName}: ${task.title}`, meta: `${m} m · ${left(task.deadline - q.min)}` });
+        hud.arrow(arrowFor(place));
+      } else { hud.goal(null); hud.arrow(null); }
+      phone.update(t);
     },
     resize(w, h) {
       if (!camera) return;
@@ -259,16 +402,17 @@ export function createFavorsGame(o) {
       camera.updateProjectionMatrix();
       if (post) post.setSize(w, h);
     },
-    pause() { if (paused || !opened) return false; paused = true; hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
+    pause() { if (paused || !opened || over) return false; paused = true; hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
     resume() { if (!paused) return; paused = false; hud.showPause(false); },
-    onEscape() { if (paused) api.resume(); else api.pause(); },
+    onEscape() { if (over) return; if (phone && phone.isOpen) { phone.close(); return; } if (paused) api.resume(); else api.pause(); },
     onReset() { /* R: nothing to reset yet */ },
     onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.4; } },
     onAction(name) {
-      if (paused || !opened) return;
-      if (name === 'interact' && nearPlace) hud.toast(nearPlace.kind === 'building' ? `${nearPlace.name}: the door is closed (for now)` : `${nearPlace.name}`);
+      if (paused || !opened || over) return;
+      if (name === 'phone') { phone.toggle(); sfx.tap(); } else if (name === 'interact') useDoor();
     },
     onKey(e) {
+      if (over) { if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native'; return true; }
       if (paused) {
         if (e.code === 'Escape' || e.code === 'KeyP') { api.resume(); return true; }
         if (e.code === 'ArrowDown' || e.code === 'KeyS' || e.code === 'ArrowUp' || e.code === 'KeyW') {
@@ -280,14 +424,18 @@ export function createFavorsGame(o) {
         if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native';
         return true;
       }
+      // with the focus inside the phone Tab / Enter / Space belong to its buttons (Esc closes it); the other keys still walk Ori
+      const inPhone = phone && phone.isOpen && document.activeElement && document.activeElement.closest && document.activeElement.closest('.fv-phone');
+      if (inPhone && (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space')) return 'native';
       return undefined;
     },
     // ── debug / tests ──
-    /** Runs n fixed steps of 1/120 s with the last input (or standing still). */
+    /** Runs n fixed steps of 1/120 s with the last input (or the given one); the quests follow the clock. */
     step(n = 1, inp = null) {
       for (let i = 0; i < n; i++) { ctrl.step(inp || wish); clock.tick(1 / 120); }
       rig.update(n / 120, { ...ctrl.state }, {});
-      nearPlace = nearest();
+      findPlaces();
+      syncQuests();
     },
     /** Puts Ori in front of a place's door ('home', 'cafe' …) or at {x, z}; the camera snaps behind him. */
     teleport(target, heading) {
@@ -299,26 +447,30 @@ export function createFavorsGame(o) {
       ctrl.teleport(x, z, hd);
       rig.state.yaw = hd;
       groundY = groundHeight(map, x, z);
-      nearPlace = nearest();
+      findPlaces();
       placeCamera(true);
       rig.reset();
       return api.state();
     },
-    place(id) { const p = map.places[id]; return p ? { id: p.id, name: p.name, kind: p.kind, door: { ...p.door }, rect: { ...p.rect }, distance: map.dist[nearPlace ? nearPlace.id : 'home'][id] } : null; },
+    place(id) { const p = map.places[id]; return p ? { id: p.id, name: p.name, kind: p.kind, door: { ...p.door }, rect: { ...p.rect }, distance: map.dist[nearest ? nearest.id : 'home'][id] } : null; },
     /** Dev / tests: { yaw, pitch, dist } of the chase camera (yaw = the direction it looks along; 0 looks south). */
     setCamera(c = {}) { if (c.yaw != null) rig.state.yaw = c.yaw; if (c.pitch != null) rig.state.pitch = c.pitch; if (c.dist != null) rig.state.dist = c.dist; rig.reset(); placeCamera(true); },
-    setHour(h) { clock.set(h); applySky(true); },
+    setHour(h) { clock.set(h); applySky(true); syncQuests(); },
     clockInfo() { return { hour: clock.hour, label: clock.label(), progress: clock.progress, done: clock.done }; },
+    /** Dev / tests: do the favour for a task at once (as Space at its door would). */
+    doFavour(uid) { const r = quests.complete(uid, 1); syncQuests(); return r; },
     state() {
       if (!opened) return { phase: 'loading' };
       const s = ctrl.state;
+      const q = quests.state;
       return {
-        phase: 'play', paused, tier,
+        phase: over ? 'over' : 'play', paused, tier,
         clock: { hour: clock.hour, label: clock.label(), progress: clock.progress },
         player: { x: s.x, z: s.z, heading: s.heading, speed: s.speed, stamina: s.stamina, sprinting: s.sprinting, winded: s.winded, blocked: s.blocked, hash: ctrl.hash() },
         near: nearPlace ? nearPlace.id : null,
         camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: rig.state.yaw, fov: camera.fov },
         crowd: crowd ? crowd.walkers.length : 0,
+        quests: { min: q.min, open: quests.open().length, arrived: q.stats.arrived, done: q.stats.done, failed: q.stats.failed, score: q.score, chaos: q.chaos, rank: rankFor(q.score), following, phoneOpen: phone.isOpen, focus: q.focus.on },
         radius: PLAYER_R, walk: WALK_SPEED,
       };
     },
@@ -328,7 +480,10 @@ export function createFavorsGame(o) {
       if (disposed) return;
       disposed = true;
       hud.dispose();
+      sfx.dispose();
       if (!opened) return;
+      phone.dispose();
+      beam.dispose();
       ori.dispose();
       crowd3d.dispose();
       buildings.dispose();
@@ -337,12 +492,12 @@ export function createFavorsGame(o) {
       sky.dispose();
       if (post) post.dispose();
       if (sun && sun.shadow) sun.shadow.dispose(); // (the renderer does not free the shadow map by itself)
-      if (envMap) { /* released with the sky */ }
       disposeTree(scene);
       scene.clear();
       renderer.shadowMap.enabled = false;
     },
   };
   void PLACES;
+  void envMap;
   return api;
 }

@@ -32,6 +32,8 @@ try {
       if (pitch != null) o.pitch = pitch;
       g3.camera(o);
     }, [at, hour, args.yaw != null ? +args.yaw : null, args.dist ? +args.dist : null, args.pitch != null ? +args.pitch : null, !!args.front, args.off ? +args.off : 0, !!args.face]);
+    if (args.phone) { await page.evaluate((tab) => window.__ori.game3d.game.phone.open(tab), args.phone); await sleep(500); }
+    for (const sel of String(args.click || '').split('|').filter(Boolean)) { await page.click(sel); await sleep(300); }
     await sleep(350);
     await settle(s, 3);
     const file = join(SHOTS, `${name}${shots.length > 1 ? `-${i + 1}` : ''}.png`);

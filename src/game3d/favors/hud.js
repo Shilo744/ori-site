@@ -15,10 +15,13 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
   hud.className = 'fv-hud';
   hud.innerHTML = `
     <div class="fv-clock fv-glass"><b data-k="time">06:00</b><span data-k="label">Morning</span><div class="fv-day"><i data-k="day"></i></div></div>
+    <div class="fv-meters fv-glass"><div class="fv-meter"><span>CHAOS</span><div><i data-k="chaos"></i></div><b data-k="chaosn">0</b></div><div class="fv-meter"><span>FAVOURS</span><div><i data-k="fav"></i></div><b data-k="score">0</b></div></div>
     <div class="fv-place fv-glass" data-k="place" aria-live="polite"><small data-k="kind"></small><span data-k="name"></span></div>
+    <div class="fv-goal fv-glass" data-k="goal" aria-live="polite"><span data-k="goalt"></span><small data-k="goalm"></small></div>
+    <div class="fv-arrow" data-k="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 16-8-4-8 4z"/></svg><span data-k="arrowl"></span></div>
     <div class="fv-tr"><button class="fv-btn fv-glass" type="button" data-k="pause" aria-label="Pause (Esc)">${SVG_PAUSE}</button></div>
     <div class="fv-stam" data-k="stam" aria-hidden="true"><i data-k="stamfill"></i></div>
-    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Space</kbd> use</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
+    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Space</kbd> use</span><span><kbd>Tab</kbd> phone</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
     <div class="fv-toasts" data-k="toasts" aria-live="polite"></div>
     <div class="fv-touch" data-k="touch"><div class="fv-pad" data-k="pad"><i data-k="knob"></i></div><button type="button" class="fv-act sprint" data-k="sprint">Run</button><button type="button" class="fv-act do" data-k="do">Use</button></div>`;
   const menu = document.createElement('div');
@@ -42,7 +45,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
   root.append(hud, menu, msg);
 
   const q = (k) => hud.querySelector(`[data-k="${k}"]`);
-  const el = Object.fromEntries(['time', 'label', 'day', 'place', 'kind', 'name', 'stam', 'stamfill', 'keys', 'toasts', 'touch', 'pad', 'knob', 'sprint', 'do'].map((k) => [k, q(k)]));
+  const el = Object.fromEntries(['time', 'label', 'day', 'place', 'kind', 'name', 'stam', 'stamfill', 'keys', 'toasts', 'touch', 'pad', 'knob', 'sprint', 'do', 'chaos', 'chaosn', 'fav', 'score', 'goal', 'goalt', 'goalm', 'arrow', 'arrowl'].map((k) => [k, q(k)]));
   const last = {};
   const setText = (k, v) => { if (last[k] !== v) { last[k] = v; el[k].textContent = v; } };
   const act = { resume: onResume, restart: onRestart, quit: onQuit };
@@ -109,6 +112,53 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
         el.stam.classList.toggle('on', st < 0.995);
         clearTimeout(stamTimer);
       }
+    },
+    /** The meters: chaos 0..100, the score and how far it is to the next rank (0..1). */
+    meters({ chaos, score, rankProgress }) {
+      const c = Math.round(chaos);
+      if (last.chaos !== c) { last.chaos = c; el.chaos.style.transform = `scaleX(${c / 100})`; el.chaosn.textContent = String(c); }
+      if (last.score !== score) { last.score = score; el.score.textContent = String(score); }
+      const r = Math.round(rankProgress * 100) / 100;
+      if (last.rp !== r) { last.rp = r; el.fav.style.transform = `scaleX(${r})`; }
+    },
+    /** The task Ori is following (null = none): the chip under the clock. */
+    goal(g) {
+      const key = g ? `${g.title}|${g.meta}` : '';
+      if (last.goal === key) return;
+      last.goal = key;
+      el.goal.classList.toggle('on', !!g);
+      if (g) { el.goalt.textContent = g.title; el.goalm.textContent = g.meta; }
+    },
+    /** The arrow at the edge of the screen pointing at the followed place when it is off-screen: { x, y (0..1 of the viewport), angle, label } or null. */
+    arrow(a) {
+      el.arrow.classList.toggle('on', !!a);
+      if (!a) return;
+      el.arrow.style.left = `${a.x * 100}%`;
+      el.arrow.style.top = `${a.y * 100}%`;
+      el.arrow.firstElementChild.style.transform = `rotate(${a.angle}rad)`;
+      if (last.al !== a.label) { last.al = a.label; el.arrowl.textContent = a.label; }
+    },
+    /** A big floating word in the middle ('+84', 'Missed'). */
+    float(text, bad = false) {
+      const f = document.createElement('div');
+      f.className = `fv-float${bad ? ' bad' : ''}`;
+      f.textContent = text;
+      hud.append(f);
+      setTimeout(() => f.remove(), 1500);
+    },
+    shake() { hud.classList.remove('shake'); void hud.offsetWidth; hud.classList.add('shake'); },
+    /** The end-of-day card: { score, rank, lines, helped, missed, rel } and what the buttons do. */
+    showReport(r, { onAgain, onQuit }) {
+      const card = document.createElement('div');
+      card.className = 'g3d-menu fv-report';
+      card.setAttribute('role', 'dialog');
+      card.setAttribute('aria-label', 'The day is over');
+      const rows = Object.entries(r.rel).map(([k, v]) => `<li><span>${k}</span><div><i style="width:${Math.round(v)}%"></i></div></li>`).join('');
+      card.innerHTML = `<div class="g3d-card"><div class="g3d-kicker">${GAME.title}</div><h2>The day is over</h2><p class="fv-rank">${r.rank}</p><p class="fv-score">${r.score} favours</p><ul class="fv-lines">${r.lines.map((l) => `<li>${l}</li>`).join('')}</ul><ul class="fv-rels">${rows}</ul><button type="button" class="g3d-btn primary" data-a="again">Another day</button><button type="button" class="g3d-btn quit" data-a="quit">Back to the desktop</button></div>`;
+      card.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (!b) return; if (b.dataset.a === 'again') { card.remove(); onAgain(); } else onQuit(); });
+      root.append(card);
+      card.querySelector('.g3d-btn.primary').focus({ preventScroll: true });
+      return card;
     },
     toast(text, ms = 2200) {
       const t = document.createElement('div');
