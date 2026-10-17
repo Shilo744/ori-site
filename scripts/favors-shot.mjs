@@ -15,6 +15,7 @@ try {
   const s = await newSession(browser, server.origin, size);
   await loadSite(s, server.origin);
   const { page } = s;
+  if (args.clean) await page.addStyleTag({ content: '.fv-toasts, .fv-notes, .fv-keyshint { display: none !important; }' });
   const t0 = Date.now();
   await page.evaluate((o) => window.__ori.game3d.launch('favors', o), { quick: true, tier: args.tier });
   await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state() && window.__ori.game3d.state().phase === 'play', null, { timeout: 60000 });
@@ -34,7 +35,7 @@ try {
     }, [at, hour, args.yaw != null ? +args.yaw : null, args.dist ? +args.dist : null, args.pitch != null ? +args.pitch : null, !!args.front, args.off ? +args.off : 0, !!args.face]);
     if (args.phone) { await page.evaluate((tab) => window.__ori.game3d.game.phone.open(tab), args.phone); await sleep(500); }
     for (const sel of String(args.click || '').split('|').filter(Boolean)) { await page.click(sel); await sleep(300); }
-    await sleep(350);
+    await sleep(3300); // (jumping the clock rain-checks the early tasks: let his shrugs finish)
     await settle(s, 3);
     const file = join(SHOTS, `${name}${shots.length > 1 ? `-${i + 1}` : ''}.png`);
     await page.screenshot({ path: file });

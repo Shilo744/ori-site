@@ -18,9 +18,22 @@ export function outlineMaterial(hex) {
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uPx;\nuniform vec2 uView;')
       .replace('#include <project_vertex>', `
-        vec4 mvPosition = modelViewMatrix * vec4(transformed, 1.0);
+        vec4 mvPosition = vec4(transformed, 1.0);
+        #ifdef USE_INSTANCING
+          mvPosition = instanceMatrix * mvPosition;
+        #endif
+        mvPosition = modelViewMatrix * mvPosition;
         vec4 clip = projectionMatrix * mvPosition;
-        vec2 ndir = (projectionMatrix * vec4(normalize(transformedNormal), 0.0)).xy;
+        #if defined( USE_SKINNING )
+          vec3 outN = transformedNormal;
+        #else
+          vec3 outN = normal;
+          #ifdef USE_INSTANCING
+            outN = mat3(instanceMatrix) * outN;
+          #endif
+          outN = normalMatrix * outN;
+        #endif
+        vec2 ndir = (projectionMatrix * vec4(normalize(outN), 0.0)).xy;
         vec2 pdir = ndir * uView;
         float pl = length(pdir);
         if (pl > 1e-6) clip.xy += (pdir / pl) * (2.0 * uPx) / uView * clip.w;
@@ -60,6 +73,7 @@ export function createMaterials({ tier = 'high' } = {}) {
     shine: new THREE.MeshBasicMaterial({ color: 0xffffff }),
     frame: std({ roughness: 0.28, metalness: 0.25 }),
     lens: new THREE.MeshPhysicalMaterial({ color: 0xd7ecff, vertexColors: false, transparent: true, opacity: 0.04, roughness: 0.03, metalness: 0, envMapIntensity: 0.7, depthWrite: false, side: THREE.DoubleSide }),
+    glint: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
     metal: std({ roughness: 0.2, metalness: 0.95, envMapIntensity: 1.6 }),
     mouth: std({ roughness: 0.45 }),
     sweat: new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, roughness: 0.05, transparent: true, opacity: 0.85, emissive: 0x2f6fb0, emissiveIntensity: 0.25 }),

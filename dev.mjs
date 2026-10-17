@@ -1,5 +1,6 @@
 // Dev server: bundles src/ with esbuild and serves /public with live reload.
 import * as esbuild from 'esbuild';
+import { workerSourcePlugin } from './scripts/esbuild-worker-plugin.mjs';
 
 const ctx = await esbuild.context({
   entryPoints: ['src/main.js'],
@@ -8,7 +9,8 @@ const ctx = await esbuild.context({
   outfile: 'public/app.js',
   sourcemap: true,
   logLevel: 'info',
-  loader: { '.woff2': 'file', '.jpg': 'dataurl' },
+  loader: { '.woff2': 'file' },
+  plugins: [workerSourcePlugin({ minify: false })],
 });
 
 await ctx.watch();

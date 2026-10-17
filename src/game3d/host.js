@@ -12,17 +12,25 @@ import { defineDriftAchievements } from './achievements3d.js';
 import { createFavorsGame } from './favors/game.js';
 import { createInput as createFavorsInput } from './favors/input.js';
 import { GAME as FAVORS } from './favors/content.js';
+import { prewarmOri, prewarmCrowd } from './favors/people/loader.js';
 
 /** The games the host can run: how to build the controller and its input, what it is called, the colour behind the canvas. */
 const GAMES = {
   drift: { title: 'NEON DRIFT', create: (o) => createGame(o), input: (hooks) => createKeyboard(hooks), clear: 0x07030f },
-  favors: { title: FAVORS.title, create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea },
+  favors: { title: FAVORS.title, create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea, prewarm: (tier) => Promise.all([prewarmOri(tier), prewarmCrowd()]) },
 };
 
 const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, isMuted: () => false, volume: () => 1, reduceMotion: () => false, storage: null, scores: null, achievements: null };
 const settings = { pixelRatioCap: 2, tier: 'high' };
 let current = null;
 let lastMemory = null; // renderer.info.memory right after the last session was disposed (leak checks)
+
+/** Builds what a game needs while the page is idle (for "Ori, Can You...?": Ori and the crowd, in a worker), so launching it is quick. Safe to call any time. */
+export function prewarmGame3D(id) {
+  const def = GAMES[id];
+  if (!def || !def.prewarm) return Promise.resolve();
+  return def.prewarm(settings.tier).catch(() => {});
+}
 
 /** Wires the host to the page: `pauseRoom()/resumeRoom()` stop/restart the room loop, `duck(v)` scales the room audio, and the core services. */
 export function initGame3D(h) {
@@ -217,12 +225,16 @@ export function launchGame3D(id = 'drift', opts = {}) {
   } else {
     // the first build takes a moment: let the overlay paint before it blocks the thread
     overlay.classList.add('booting');
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    const begin = () => {
       if (gone) return;
       game.open();
       overlay.classList.remove('booting');
       last = performance.now();
       raf = requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (gone) return;
+      if (game.preload) game.preload().catch(() => {}).then(begin); else begin(); // (Ori is built off the main thread; this is instant when the site had idle time)
     }));
   }
   return Promise.resolve(api);

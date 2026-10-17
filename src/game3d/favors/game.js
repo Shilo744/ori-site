@@ -18,6 +18,7 @@ import { createOri } from './ori3d.js';
 import { setOutlineView } from './people/materials.js';
 import { createPerson } from './people/person.js';
 import { randomSpec } from './people/specs.js';
+import { prewarmOri, prewarmCrowd } from './people/loader.js';
 import { createFavorsHud } from './hud.js';
 import { createPhone } from './phone.js';
 import { createSfx } from './sfx.js';
@@ -77,6 +78,7 @@ export function createFavorsGame(o) {
   let nearPlace = null; // the place whose door is within NEAR_PLACE
   let nearest = null; // the closest place whatever the distance (the phone measures from it)
   let groundY = 0;
+  let intro = null; // the 4-second fly-in at the start of a game (skipped by quick launches, reduced motion and any key)
   let lastSky = null;
   let following = null; // uid of the task the beam points at
   let noFollow = false; // the player unpinned on purpose: do not pin the next one by itself
@@ -130,7 +132,7 @@ export function createFavorsGame(o) {
     lap('ground');
     buildings = buildBuildings(map, { aniso });
     lap('buildings');
-    props = buildProps(map, { shadows });
+    props = buildProps(map, { shadows, tier });
     lap('props');
     scene.add(ground.group, buildings.group, props.group);
 
@@ -143,7 +145,7 @@ export function createFavorsGame(o) {
     setOutlineView(size.x * renderer.getPixelRatio(), size.y * renderer.getPixelRatio());
     lap('ori');
     ctrl = createController(map.world, { x: map.spawn.x, z: map.spawn.z, heading: map.spawn.heading });
-    rig = createCameraRig(map.world, { yaw: map.spawn.heading, pitch: 0.4, dist: 7.4 });
+    rig = createCameraRig(map.world, { yaw: map.spawn.heading, pitch: 0.38, dist: 8.9 });
     findPlaces();
     beam = createBeam();
     scene.add(beam.group);
@@ -156,6 +158,31 @@ export function createFavorsGame(o) {
     lap('setup');
     api.render(0); // (the first frame compiles the shaders)
     lap('first-frame');
+    if (!o.quick && !reduceMotion()) startIntro();
+  }
+
+  // ── the fly-in: down from above the street to behind Ori while he checks his phone (it just buzzed) ──
+  function startIntro() {
+    intro = { t: 0, dur: 4.2, base: { yaw: rig.state.yaw, pitch: rig.state.pitch, dist: rig.state.dist } };
+    ori.hold('phone');
+    ori.setMood('smile');
+  }
+  function stepIntro(dt) {
+    intro.t += dt;
+    const u = Math.min(1, intro.t / intro.dur);
+    const e = 1 - (1 - u) ** 3;
+    const b = intro.base;
+    rig.state.yaw = b.yaw + (1 - e) * 2.4;
+    rig.state.pitch = b.pitch + (1 - e) * 0.55;
+    rig.state.dist = b.dist * (1 + (1 - e) * 2.2);
+    if (intro.t > 2.5) ori.hold(null);
+    if (u >= 1) endIntro();
+  }
+  function endIntro() {
+    if (!intro) return;
+    rig.state.yaw = intro.base.yaw; rig.state.pitch = intro.base.pitch; rig.state.dist = intro.base.dist;
+    ori.hold(null);
+    intro = null;
   }
 
   // ── the favours: the quest engine, the phone, the beam ──
@@ -198,21 +225,25 @@ export function createFavorsGame(o) {
         const urgent = task.pri >= 3;
         phone.notify(task, { urgent });
         sfx.buzz();
+        if (ori && !intro && ctrl.state.speed < 1.2) { ori.holdFor('phone', 1.8); ori.flash(urgent ? 'surprised' : 'smile', 1.2); } // he looks at the phone when it buzzes
         if (urgent) { sfx.urgent(); if (!reduceMotion()) hud.shake(); }
         if (noFollow) noFollow = false; // a new task: the guide may speak again
       } else if (e.type === 'done') {
         sfx.ding();
         hud.float(`+${e.points}`);
+        if (ori && ctrl.state.speed < 2.5) ori.play('thumbsUp');
         if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
       } else if (e.type === 'failed') {
         // the time ran out: never a failure, always a rain check
         sfx.soft();
+        if (ori && ctrl.state.speed < 1.5) ori.play('shrug');
         hud.float(nextTimeFor(task.uid), true);
         hud.toast(e.mentor ? TEXT.mentorsTried(task.title) : TEXT.rainCheck(task.giverName, task.title));
         if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
       } else if (e.type === 'coffee') {
         ctrl.coffee(8);
         sfx.sip();
+        if (ori) ori.play('cheer');
         hud.toast(TEXT.coffee);
       } else if (e.type === 'focus') {
         hud.toast(e.on ? TEXT.focusOn : TEXT.focusOff(e.released || 0));
@@ -304,8 +335,8 @@ export function createFavorsGame(o) {
       return;
     }
     const c = rig.state;
-    camera.position.set(c.x, Math.max(c.y, groundY + 0.6), c.z);
-    camera.lookAt(c.lx, c.ly + groundY * 0.5, c.lz);
+    camera.position.set(c.x, Math.max(c.y, groundY + 0.6) + (c.by || 0), c.z);
+    camera.lookAt(c.lx, c.ly + groundY * 0.5 + (c.by || 0), c.lz);
     if (Math.abs(camera.fov - c.fov) > 0.05) { camera.fov = c.fov; camera.updateProjectionMatrix(); }
   }
 
@@ -337,6 +368,8 @@ export function createFavorsGame(o) {
   }
 
   const api = {
+    /** The host waits for this before open(): Ori and the crowd are built off the main thread (at idle they usually are already). */
+    preload: () => Promise.all([prewarmOri(tier), prewarmCrowd()]),
     get ori() { return ori; },
     get phase() { return opened ? (over ? 'over' : 'play') : 'loading'; },
     get paused() { return paused; },
@@ -356,7 +389,9 @@ export function createFavorsGame(o) {
       if (!opened || paused) return;
       lastKb = kb;
       kb.read(input, dt);
-      const scale = over ? 0 : 1; // the day never slows down: the phone is a panel on the side, not a menu
+      if (intro && (Math.abs(input.fwd) + Math.abs(input.strafe) > 0.3 || input.sprint)) endIntro(); // any movement skips it
+      if (intro) stepIntro(dt);
+      const scale = over || intro ? 0 : 1; // the day never slows down: the phone is a panel on the side, not a menu
       const dts = dt * scale;
       t += dt;
       const yaw = rig.state.yaw;
@@ -366,8 +401,8 @@ export function createFavorsGame(o) {
       wish.sprint = input.sprint;
       if (!over) ctrl.update(dts, wish);
       clock.tick(dt, scale);
-      crowd.update(dts, ctrl.state);
-      rig.update(dt, { ...ctrl.state }, { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
+      crowd.update(intro ? dt : dts, ctrl.state);
+      rig.update(dt, { ...ctrl.state }, intro ? {} : { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
       findPlaces();
       syncQuests();
     },
@@ -422,7 +457,7 @@ export function createFavorsGame(o) {
     resume() { if (!paused) return; paused = false; hud.showPause(false); },
     onEscape() { if (over) return; if (phone && phone.isOpen) { phone.close(); return; } if (paused) api.resume(); else api.pause(); },
     onReset() { /* R: nothing to reset yet */ },
-    onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.4; } },
+    onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.42; } },
     onAction(name) {
       if (paused || !opened || over) return;
       if (name === 'phone') { phone.toggle(); sfx.tap(); } else if (name === 'interact') useDoor();

@@ -9,7 +9,7 @@ import { applyPose } from './pose-apply.js';
 import { createMaterials, outlineMaterial, OUTLINE_COLORS } from './materials.js';
 import { BODY_SCALE } from './body.js';
 
-const OUTLINED = ['skin', 'tee', 'jeans', 'shoes'];
+const OUTLINED = ['skin', 'shoes'];
 const CAST = ['skin', 'tee', 'jeans', 'shoes', 'hair'];
 
 function skinnedGeometry(m) {
@@ -76,6 +76,7 @@ export function createPerson(spec, { shadows = true, quality = 1, tier = 'high',
     mesh.castShadow = shadows && CAST.includes(name);
     mesh.receiveShadow = false;
     if (name === 'lens') mesh.renderOrder = 3;
+    if (name === 'glint') mesh.renderOrder = 4;
     group.add(mesh);
     mesh.bind(skeleton);
     meshes[name] = mesh;

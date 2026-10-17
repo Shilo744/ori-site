@@ -7,7 +7,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /** Neutral values of every channel. lid: 0 = relaxed open, 1 = shut; lidWide < 0 opens wider. smile channel is the mouth's corner lift. */
 export const NEUTRAL = {
-  lidUp: 0, lidUpR: 0, lidLo: 0, lidLoR: 0, // the right eye can differ (a wink)
+  lidUp: 0.26, lidUpR: 0.26, lidLo: 0.08, lidLoR: 0.08, // relaxed, friendly lids; the right eye can differ (a wink)
   browInL: 0, browOutL: 0, browInR: 0, browOutR: 0, browTilt: 0, // metres of lift (+up) / tilt
   w: 1, smile: 0.35, open: 0, round: 0, asym: 0, teeth: 0, tongue: 0, // the mouth
   gx: 0, gy: 0, // the gaze (radians)
@@ -18,17 +18,17 @@ export const NEUTRAL = {
 /** Named expressions: deltas on NEUTRAL (every one of them is a happy one). */
 export const EXPRESSIONS = {
   neutral: {},
-  smile: { smile: 0.8, lidLo: 0.18, lidLoR: 0.18, browInL: 0.002, browInR: 0.002, browOutL: 0.003, browOutR: 0.003 },
-  grin: { smile: 1.15, open: 0.32, teeth: 1, lidLo: 0.4, lidLoR: 0.4, browInL: 0.004, browInR: 0.004, browOutL: 0.006, browOutR: 0.006, w: 1.05 },
-  laugh: { smile: 1.3, open: 0.78, teeth: 1, tongue: 0.8, lidUp: 0.5, lidUpR: 0.5, lidLo: 0.7, lidLoR: 0.7, browInL: 0.006, browInR: 0.006, browOutL: 0.008, browOutR: 0.008, w: 1.08 },
-  wink: { smile: 1.0, open: 0.18, teeth: 0.6, lidUpR: 1, lidLoR: 0.6, lidLo: 0.22, browOutR: -0.002, browInR: -0.002, browInL: 0.005, browOutL: 0.005, asym: 0.5 },
-  surprised: { smile: 0.1, open: 0.62, round: 0.85, tongue: 0.2, lidUp: -0.55, lidUpR: -0.55, browInL: 0.012, browInR: 0.012, browOutL: 0.013, browOutR: 0.013, w: 0.8 },
-  flustered: { smile: 0.75, open: 0.28, teeth: 0.8, lidUp: -0.12, lidUpR: -0.12, browInL: 0.009, browInR: 0.009, browOutL: 0.004, browOutR: 0.004, sweat: 1, flush: 0.7, tilt: 0.06, w: 0.95 },
-  sleepy: { smile: 0.6, open: 0.04, lidUp: 0.62, lidUpR: 0.62, lidLo: 0.22, lidLoR: 0.22, browInL: -0.001, browInR: -0.001, flush: 0.2, tilt: -0.08, gy: -0.12 },
-  smirk: { smile: 0.85, asym: 0.9, w: 0.95, lidUp: 0.18, lidUpR: 0.04, lidLo: 0.2, browInL: 0.0, browInR: 0.006, browOutL: -0.001, browOutR: 0.009, tilt: 0.05 },
+  smile: { smile: 0.8, lidLo: 0.22, lidLoR: 0.22, browInL: 0.003, browInR: 0.003, browOutL: 0.004, browOutR: 0.004 },
+  grin: { smile: 1.15, open: 0.32, teeth: 1, lidUp: 0.1, lidUpR: 0.1, lidLo: 0.55, lidLoR: 0.55, browInL: 0.006, browInR: 0.006, browOutL: 0.009, browOutR: 0.009, w: 1.05 },
+  laugh: { smile: 1.3, open: 0.78, teeth: 1, tongue: 0.8, lidUp: 0.75, lidUpR: 0.75, lidLo: 0.95, lidLoR: 0.95, browInL: 0.009, browInR: 0.009, browOutL: 0.011, browOutR: 0.011, w: 1.08, tilt: -0.05 },
+  wink: { smile: 1.0, open: 0.18, teeth: 0.6, lidUp: 0.0, lidUpR: 1.25, lidLoR: 1.0, lidLo: 0.3, browOutR: -0.003, browInR: -0.003, browInL: 0.009, browOutL: 0.011, asym: 0.5, tilt: 0.07 },
+  surprised: { smile: 0.1, open: 0.62, round: 0.85, tongue: 0.2, lidUp: -0.95, lidUpR: -0.95, lidLo: 0, lidLoR: 0, browInL: 0.02, browInR: 0.02, browOutL: 0.022, browOutR: 0.022, w: 0.8 },
+  flustered: { smile: 0.75, open: 0.28, teeth: 0.8, lidUp: -0.35, lidUpR: -0.35, browInL: 0.016, browInR: 0.016, browOutL: 0.006, browOutR: 0.006, sweat: 1, flush: 0.8, tilt: 0.08, w: 0.95 },
+  sleepy: { smile: 0.6, open: 0.04, lidUp: 0.95, lidUpR: 0.95, lidLo: 0.35, lidLoR: 0.35, browInL: -0.001, browInR: -0.001, flush: 0.25, tilt: -0.1, gy: -0.12 },
+  smirk: { smile: 0.85, asym: 0.9, w: 0.95, lidUp: 0.5, lidUpR: 0.1, lidLo: 0.3, browInL: 0.0, browInR: 0.013, browOutL: -0.002, browOutR: 0.018, tilt: 0.07 },
   talking: { smile: 0.55 }, // the animator adds the jaw flaps
-  proud: { smile: 0.9, lidUp: 0.14, lidUpR: 0.14, lidLo: 0.25, lidLoR: 0.25, browInL: 0.003, browInR: 0.003, browOutL: 0.005, browOutR: 0.005, tilt: -0.04 },
-  love: { smile: 0.95, open: 0.1, lidLo: 0.45, lidLoR: 0.45, browInL: 0.005, browInR: 0.005, browOutL: 0.007, browOutR: 0.007, flush: 0.6 },
+  proud: { smile: 0.9, lidUp: 0.45, lidUpR: 0.45, lidLo: 0.35, lidLoR: 0.35, browInL: 0.005, browInR: 0.005, browOutL: 0.008, browOutR: 0.008, tilt: -0.06 },
+  love: { smile: 0.95, open: 0.1, lidUp: 0.35, lidUpR: 0.35, lidLo: 0.7, lidLoR: 0.7, browInL: 0.009, browInR: 0.009, browOutL: 0.011, browOutR: 0.011, flush: 0.9, tilt: 0.07 },
 };
 
 export const EXPRESSION_NAMES = Object.keys(EXPRESSIONS);

@@ -38,7 +38,7 @@ function fib(n) {
 
 const STYLE = {
   // dome radii (x, y, z), centre y, curl blob radius range, how many blobs, hairline height, how low the sides / back go
-  curly: { r: [0.158, 0.15, 0.162], cy: 0.05, cz: -0.022, blob: [0.032, 0.05], n: 90, n2: 0, line: 0.07, side: -0.006, back: -0.1, k: 0.012, curls: 760, curlR: 0.0135, curlL: 0.04 },
+  curly: { r: [0.165, 0.158, 0.17], cy: 0.046, cz: -0.024, blob: [0.032, 0.05], n: 110, n2: 0, line: 0.064, side: -0.034, back: -0.13, k: 0.012, curls: 860, curlR: 0.0135, curlL: 0.042 },
   wavy: { r: [0.14, 0.138, 0.15], cy: 0.04, cz: -0.02, blob: [0.03, 0.044], n: 70, n2: 0, line: 0.082, side: 0.0, back: -0.1, k: 0.03, curls: 120, curlR: 0.016, curlL: 0.07 },
   short: { r: [0.131, 0.128, 0.136], cy: 0.034, cz: -0.014, blob: [0.02, 0.03], n: 40, n2: 0, line: 0.085, side: 0.02, back: -0.04, k: 0.03 },
   buzz: { r: [0.1235, 0.1215, 0.1285], cy: 0.032, cz: -0.012, blob: [0.01, 0.01], n: 0, n2: 0, line: 0.075, side: 0.02, back: -0.03, k: 0.02 },
@@ -78,7 +78,7 @@ export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 }
   if (S.n2) place(S.n2, S.blob[0] * 0.6, S.blob[1] * 0.62, 0.012);
   // a fringe: curls hanging over the forehead
   if (style === 'curly' || style === 'wavy') {
-    const fr = style === 'curly' ? 13 : 6;
+    const fr = style === 'curly' ? 15 : 6;
     for (let i = 0; i < fr; i++) {
       const u = fr > 1 ? 0.12 + (i / (fr - 1)) * 0.76 : 0.5;
       const x = (u - 0.5) * 0.21 + (rnd() - 0.5) * 0.012;
@@ -150,7 +150,7 @@ export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 }
       const L = (S.curlL || 0.05) * (0.7 + rnd() * 0.7);
       const turns = 1.4 + rnd() * 1.0;
       const ph = rnd() * 6.283;
-      const steps = 16;
+      const steps = 13;
       const pts = [];
       for (let k = 0; k < steps; k++) {
         const t = k / (steps - 1);

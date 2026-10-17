@@ -3,7 +3,7 @@
 // blinks, smiles, grins, laughs, winks, gets flustered-but-smiling, gives a thumbs-up, checks his phone. Facing: +z at rotation 0 (see controller.js).
 import * as THREE from 'three';
 import { createPerson } from './people/person.js';
-import { ORI_SPEC } from './people/specs.js';
+import { oriSpecFor, oriTier, oriKey } from './people/loader.js';
 
 function emoteTexture(kind) {
   const S = 128;
@@ -37,7 +37,10 @@ function emoteTexture(kind) {
 }
 
 export function createOri({ shadows = true, tier = 'high' } = {}) {
-  const person = createPerson(ORI_SPEC, { shadows, tier, quality: tier === 'low' ? 0.75 : 1, key: 'ori' });
+  // the tiers: High = the full hero (curls, outline, 0.0058 m skin); Medium = half the curls and a coarser skin; Low = a smooth cap of hair, no outline.
+  // (The geometry was most likely built by the worker while the site was idle: createPerson finds it in the cache.)
+  const T = oriTier(tier);
+  const person = createPerson(oriSpecFor(tier), { shadows, tier, quality: T.q, outline: T.outline, key: oriKey(tier) });
   const root = person.group;
   root.name = 'ori';
   root.userData.faceSource = 'sculpted'; // (tests read it: there is no photo any more)
@@ -84,6 +87,9 @@ export function createOri({ shadows = true, tier = 'high' } = {}) {
   let prevSpeed = 0;
   let locked = null; // dev / tests: hold one expression
   let forced = null; // dev / tests: pretend to be walking / running / out of breath
+  let heldFor = 0; // seconds left of a timed held pose (the phone check when a task arrives)
+  let flashMood = null;
+  let flashFor = 0;
   const topY = person.headHeight + 0.18;
   return {
     group: root,
@@ -92,7 +98,11 @@ export function createOri({ shadows = true, tier = 'high' } = {}) {
     get height() { return topY; },
     setEmote,
     play: (g) => person.play(g),
-    hold: (h) => person.hold(h),
+    hold: (h) => { heldFor = 0; person.hold(h); },
+    /** Holds a pose (phone / carry) for a few seconds, then lets it go. */
+    holdFor(h, seconds) { person.hold(h); heldFor = seconds; },
+    /** Wears an expression for a moment (a happy surprise when a task buzzes). */
+    flash(mood, seconds = 1.2) { flashMood = mood; flashFor = seconds; },
     setMood: (m, k) => person.setMood(m, k),
     /** Dev / tests: keep one expression whatever the chaos is (null releases it). */
     lockMood(name) { locked = name || null; },
@@ -105,7 +115,9 @@ export function createOri({ shadows = true, tier = 'high' } = {}) {
       root.rotation.y = s.heading;
       const acc = dt > 0 ? (s.speed - prevSpeed) / dt : 0;
       prevSpeed = s.speed;
-      person.setMood(locked || (stress > 0.78 ? 'flustered' : stress > 0.5 ? 'grin' : 'smile'));
+      if (heldFor > 0) { heldFor -= dt; if (heldFor <= 0) person.hold(null); }
+      if (flashFor > 0) flashFor -= dt;
+      person.setMood(locked || (flashFor > 0 && flashMood) || (stress > 0.78 ? 'flustered' : stress > 0.5 ? 'grin' : 'smile'));
       const m = forced || s;
       person.update(dt, { speed: m.speed, sprinting: !!m.sprinting, winded: !!m.winded, stress, acc, hold: s.hold || undefined, talking: !!s.talking });
       setEmote((forced || s).winded ? 'zzz' : s.emote || null);

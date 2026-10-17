@@ -10,10 +10,10 @@ export const ORI_SPEC = (() => {
   return {
     id: 'ori', seed: 2026,
     // olive-tan skin, a strong jaw, a prominent rounded nose, full lower lip, thick straight brows, relaxed eyes
-    face: { skin: hex(L.skin), width: 1, jaw: 1.04, chinW: 1.05, cheek: 1, brow: 1.1, nose: { len: 1.05, width: 1.08, tip: 1.05, bridge: 1.05 }, lips: { upper: 0.95, lower: 1.25, width: 1 }, eyeSep: 1, ear: 1.05, stubble: 0.55, blush: 0.32, lipColor: '#a85a4e' },
+    face: { skin: hex(L.skin), width: 0.99, jaw: 0.99, chinW: 1.03, cheek: 0.96, brow: 1.12, nose: { len: 1.05, width: 1.08, tip: 1.05, bridge: 1.05 }, lips: { upper: 0.95, lower: 1.25, width: 1 }, eyeSep: 1, eyeSize: 0.88, ear: 1.05, stubble: 0.7, blush: 0.26, lipColor: '#a85a4e' },
     eyes: { iris: '#3a2216' },
     brows: { color: '#17100d', thick: 1.1 },
-    hair: { style: 'curly', color: hex(L.hair), highlight: '#5a3a24', volume: 1 },
+    hair: { style: 'curly', color: hex(L.hair), highlight: '#4a3020', volume: 1 },
     facialHair: { moustache: true, goatee: true, color: '#17100d' },
     glasses: { frame: hex(L.glasses) },
     hoop: { color: hex(L.earring), side: 1 }, // his LEFT ear (+x, the model faces +z)

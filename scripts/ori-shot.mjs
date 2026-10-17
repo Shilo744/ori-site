@@ -22,6 +22,7 @@ try {
   await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state() && window.__ori.game3d.state().phase === 'play', null, { timeout: 60000 });
   console.log(`opened in ${Date.now() - t0} ms`, await page.evaluate(() => JSON.stringify(window.__ori.game3d.game.timings)));
   await page.evaluate(([at, hour]) => { const g3 = window.__ori.game3d; g3.setHour(hour); g3.teleport(at); }, [args.at || 'home', +(args.hour || 13)]);
+  await sleep(3200); // (jumping the clock rain-checks the early tasks: let his shrugs for those finish)
   if (!args.hud) await page.addStyleTag({ content: '#g3d > :not(canvas) { display: none !important; }' });
   const shots = [];
   for (let i = 0; i < list.length; i++) {
@@ -40,7 +41,7 @@ try {
       const f = [Math.sin(h), Math.cos(h)];
       const gy = o.group.position.y;
       const V = {
-        face: { d: 1.95, y: 1.52, ly: 1.5, fov: 17 },
+        face: { d: 1.8, y: 1.46, ly: 1.43, fov: 15 },
         head: { d: 3.4, y: 1.55, ly: 1.4, fov: 24 },
         three: { d: 3.2, y: 1.3, ly: 1.0, fov: 34, a: 0.6 },
         side: { d: 2.6, y: 1.3, ly: 1.15, fov: 34, a: 1.57 },

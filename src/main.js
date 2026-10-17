@@ -31,7 +31,7 @@ import { listApps as listRegisteredApps } from './ui/apps/registry.js';
 import { STATIONS, DESK_INDEX, stationView, badges, nearestUndiscovered } from './scene/stations.js';
 import { createInteractions } from './scene/interactions.js';
 import { registerRoom } from './scene/interactables.js';
-import { initGame3D, launchGame3D, game3dDebug } from './game3d/host.js';
+import { initGame3D, launchGame3D, prewarmGame3D, game3dDebug } from './game3d/host.js';
 import { scores } from './ui/games/scores.js';
 
 installCursors(); // one pointer for the whole page, from the very first frame (T57)
@@ -584,6 +584,13 @@ initGame3D({
   scores,
   achievements,
 });
+
+// "Ori, Can You...?" builds its sculpted characters in a Web Worker: start while the site is idle (or at once when somebody shows interest in the game),
+// so launching it later is quick. Nothing here touches the room's frame time.
+let favorsWarm = false;
+const warmFavors = () => { if (favorsWarm) return; favorsWarm = true; prewarmGame3D('favors'); };
+(window.requestIdleCallback || ((f) => setTimeout(f, 3000)))(() => setTimeout(warmFavors, 4000), { timeout: 9000 });
+document.addEventListener('pointerover', (e) => { if (e.target && e.target.closest && e.target.closest('[data-app="favors"], .wg-hero')) warmFavors(); }, { passive: true });
 
 // On the laptop screen the camera is locked and the room is only a backdrop: the WebGL room is drawn at ~30 fps and the CSS3D transform
 // is rewritten only when the camera / screen matrices really change, so hover, drag and typing in the DOM get the whole frame (T49).

@@ -7,16 +7,44 @@ import { makeRig } from './rig.js';
 import { buildBody, buildChain, BODY_SCALE } from './body.js';
 import * as F from './face.js';
 import { MeshBuilder } from './geo.js';
+import { surfaceTable, surfaceLUTFromTable, buildMouth } from './face.js';
 
 const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 const cache = new Map();
 
+const cacheKey = (key, quality) => (key ? `${key}@${quality}` : null);
+
+/** Is this person already built (by the worker or an earlier call)? */
+export function peekPersonData(key, quality = 1) { return cache.get(cacheKey(key, quality)) || null; }
+/** Stores data that came from the worker (finished) under the key. */
+export function storePersonData(key, quality, data) { cache.set(cacheKey(key, quality), data); return data; }
+
 /** @param {object} spec a person spec (specs.js) @param {{ quality?: number, key?: string }} o quality 1 = hero, 0.7 = extras */
 export function buildPersonData(spec, { quality = 1, key = null, crowd = false } = {}) {
-  if (crowd) return buildCrowdData(spec);
-  const ck = key ? `${key}@${quality}` : null;
+  if (crowd) return finishPersonData(computeCrowdData(spec));
+  const ck = cacheKey(key, quality);
   if (ck && cache.has(ck)) return cache.get(ck);
+  const data = finishPersonData(computePersonData(spec, { quality }));
+  if (ck) cache.set(ck, data);
+  return data;
+}
+
+/** Adds the mouth builder (a closure over the face's surface) to data that came out of computePersonData — here or from the worker. */
+export function finishPersonData(plain) {
+  if (plain.mouth || !plain.lut) return plain;
+  const lut = surfaceLUTFromTable(plain.lut);
+  const A = plain.anchors;
+  const head = plain.rig.ids.head;
+  plain.mouth = (m) => { const B = new MeshBuilder(); buildMouth(B, A, m, lut, plain.face.lipColor, { head }); return B.finish(); };
+  return plain;
+}
+
+/** The anchors without their functions (they are the numbers the faces and the crowd read, and they can be cloned between threads). */
+const plainAnchors = (A) => ({ eye: A.eye, brow: A.brow, mouth: A.mouth, nose: A.nose, ear: A.ear, chin: A.chin, top: A.top });
+
+/** PURE and thread-safe: everything about a person as plain data (typed arrays, numbers). */
+export function computePersonData(spec, { quality = 1 } = {}) {
   const f = faceSpec(spec.face);
   const cell = 0.0058 / quality;
   const head = buildHead(f, { cell });
@@ -25,7 +53,7 @@ export function buildPersonData(spec, { quality = 1, key = null, crowd = false }
   const ids = rig.ids;
   const H = rig.headPos;
   const skinFn = skinColor(f);
-  const L = { skin: new MeshBuilder(), tee: new MeshBuilder(), jeans: new MeshBuilder(), shoes: new MeshBuilder(), hair: new MeshBuilder(), eyes: new MeshBuilder(), shine: new MeshBuilder(), frame: new MeshBuilder(), lens: new MeshBuilder(), metal: new MeshBuilder() };
+  const L = { skin: new MeshBuilder(), tee: new MeshBuilder(), jeans: new MeshBuilder(), shoes: new MeshBuilder(), hair: new MeshBuilder(), eyes: new MeshBuilder(), shine: new MeshBuilder(), frame: new MeshBuilder(), lens: new MeshBuilder(), glint: new MeshBuilder(), metal: new MeshBuilder() };
 
   // the head, weighted between the head bone and the neck bone
   const hm = head.mesh;
@@ -56,7 +84,8 @@ export function buildPersonData(spec, { quality = 1, key = null, crowd = false }
   F.buildLids(lids, A, f, ids, skinFn);
   F.buildBrows(brows, A, f, ids, spec.brows?.color || spec.hair?.color || '#1a1210', spec.brows || {});
   if (spec.facialHair) F.buildFacialHair(fhair, A, f, ids, spec.facialHair, spec.facialHair.color || '#1a1210', skinFn);
-  if (spec.glasses) F.buildGlasses(frame, lens, A, f, ids, spec.glasses);
+  const glint = mk();
+  if (spec.glasses) F.buildGlasses(frame, lens, A, f, ids, spec.glasses, glint);
   if (spec.hoop) F.buildHoop(hoop, A, f, ids, spec.hoop.color, spec.hoop.side || 1);
   L.eyes.add(eyes.finish(), { offset: H });
   L.shine.add(shine.finish(), { offset: H });
@@ -65,6 +94,7 @@ export function buildPersonData(spec, { quality = 1, key = null, crowd = false }
   L.hair.add(fhair.finish(), { offset: H });
   L.frame.add(frame.finish(), { offset: H });
   L.lens.add(lens.finish(), { offset: H });
+  L.glint.add(glint.finish(), { offset: H });
   L.metal.add(hoop.finish(), { offset: H });
   if (spec.chain) L.metal.add(buildChain(rig, spec.chain.color), { scale: S });
   // hair (rigid to the hair bone, a bone that can jiggle a little)
@@ -73,12 +103,9 @@ export function buildPersonData(spec, { quality = 1, key = null, crowd = false }
 
   const layers = {};
   for (const [name, b] of Object.entries(L)) { const m = b.finish(); if (m.vertexCount) layers[name] = m; }
-  // the mouth is rebuilt every frame from an expression (head frame, parented to the head bone)
-  const lut = F.surfaceLUT(A.surface, -0.075, 0.075, -0.2, -0.03);
-  const mouth = (m) => { const B = new MeshBuilder(); F.buildMouth(B, A, m, lut, f.lipColor, { head: ids.head }); return B.finish(); };
-  const data = { spec, face: f, anchors: A, rig, layers, mouth, headPos: H };
-  if (ck) cache.set(ck, data);
-  return data;
+  // the mouth is rebuilt every frame from an expression (head frame, parented to the head bone): finishPersonData makes the builder
+  const lut = surfaceTable(A.surface, -0.075, 0.075, -0.2, -0.03);
+  return { spec, face: f, anchors: plainAnchors(A), rig, layers, headPos: H, lut };
 }
 
 /** Triangle counts per layer + the total (for the budget numbers). */
@@ -90,7 +117,7 @@ export function personStats(data) {
 }
 
 /** The far crowd's version of a person: the same head, hair and body but meshed coarsely, with no face parts, hands or curls. */
-function buildCrowdData(spec) {
+export function computeCrowdData(spec) {
   const f = faceSpec(spec.face);
   const head = buildHead(f, { cell: 0.022, ao: true });
   const A = head.anchors;
@@ -112,5 +139,5 @@ function buildCrowdData(spec) {
   if (hair) L.hair.add(hair.mesh, { offset: H, bone: rig.ids.hair });
   const layers = {};
   for (const [name, b] of Object.entries(L)) { const m = b.finish(); if (m.vertexCount) layers[name] = m; }
-  return { spec, face: f, anchors: A, rig, layers, headPos: H, crowd: true };
+  return { spec, face: f, anchors: plainAnchors(A), rig, layers, headPos: H, crowd: true };
 }

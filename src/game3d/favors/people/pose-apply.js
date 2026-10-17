@@ -25,8 +25,8 @@ export function applyPose(bones, rest, pose, face) {
     const up = S === 'L' ? face.lidUp : face.lidUpR;
     const lo = S === 'L' ? face.lidLo : face.lidLoR;
     set('eye' + S, -face.gy, face.gx, 0);
-    set('lidUp' + S, 0.12 + clampN(up, -1, 1.2) * 0.42 - face.gy * 0.55, 0, 0);
-    set('lidLo' + S, -(clampN(lo, 0, 1.2) * 0.5), 0, 0);
+    set('lidUp' + S, 0.12 + clampN(up, -1.2, 1.3) * 0.55 - face.gy * 0.55, 0, 0);
+    set('lidLo' + S, -(clampN(lo, 0, 1.3) * 0.55), 0, 0);
     const bi = bones['browIn' + S]; const bo = bones['browOut' + S];
     const ri = rest['browIn' + S]; const ro = rest['browOut' + S];
     const inL = S === 'L' ? face.browInL : face.browInR;

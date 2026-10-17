@@ -1,5 +1,6 @@
 // Production build → ./dist  (plain <script>, so it even works from file://)
 import * as esbuild from 'esbuild';
+import { workerSourcePlugin } from './scripts/esbuild-worker-plugin.mjs';
 import { cpSync, mkdirSync, rmSync } from 'node:fs';
 
 rmSync('dist', { recursive: true, force: true });
@@ -12,8 +13,8 @@ await esbuild.build({
   format: 'iife',
   target: 'es2020',
   outfile: 'dist/app.js',
-  loader: { '.jpg': 'dataurl' },
   legalComments: 'none',
+  plugins: [workerSourcePlugin({ minify: true })],
 });
 
 cpSync('public/index.html', 'dist/index.html');

@@ -14,11 +14,11 @@ export const ORI = {
   fullName: 'Ori Asher',
   // how he looks (people/specs.js builds the sculpted Ori from these values; the selfie only lives in .duo/assets as a private reference)
   look: {
-    hair: 0x4a2f1d, // dark brown curls
+    hair: 0x20130c, // very dark brown curls
     tee: 0x16171b, // black crew-neck
     jeans: 0x3a4b6e, // denim
     shoes: 0xf3f3f1,
-    skin: 0xc58f6c,
+    skin: 0xc28e6e,
     chain: 0xd5dae0, // silver rope chain
     earring: 0xe6e9ee, // small silver hoop (his left ear)
     glasses: 0x101114, // black rectangular frames

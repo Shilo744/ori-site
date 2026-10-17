@@ -10,11 +10,18 @@ const scale3 = (c, s) => [c[0] * s, c[1] * s, c[2] * s];
 const sstep = (a, b, x) => { const t = clamp01((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 
 /** A fast bilinear lookup of the skin's z over a window of the face (the mouth moves every frame). */
-export function surfaceLUT(S, x0, x1, y0, y1, step = 0.002) {
+export function surfaceLUT(S, x0, x1, y0, y1, step = 0.002) { return surfaceLUTFromTable(surfaceTable(S, x0, x1, y0, y1, step)); }
+
+/** The samples behind a surfaceLUT as plain data (it can be sent between threads). */
+export function surfaceTable(S, x0, x1, y0, y1, step = 0.002) {
   const nx = Math.ceil((x1 - x0) / step) + 1;
   const ny = Math.ceil((y1 - y0) / step) + 1;
   const z = new Float32Array(nx * ny);
   for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) z[j * nx + i] = S(x0 + i * step, y0 + j * step);
+  return { x0, x1, y0, y1, step, nx, ny, z };
+}
+
+export function surfaceLUTFromTable({ x0, y0, step, nx, ny, z }) {
   return (x, y) => {
     const fx = Math.max(0, Math.min(nx - 1.001, (x - x0) / step));
     const fy = Math.max(0, Math.min(ny - 1.001, (y - y0) / step));
@@ -82,7 +89,7 @@ export function buildLids(B, A, f, ids, skin) {
 /** Thick dark brows: a tapered tube per side on the brow ridge, weighted between an inner and an outer bone so they can arch and tilt. */
 export function buildBrows(B, A, f, ids, hairHex = '#1a1210', style = {}) {
   const dark = linear(hairHex);
-  const lift = style.lift ?? -0.002;
+  const lift = style.lift ?? 0.004;
   const thick = style.thick ?? 1;
   for (const [sx, bIn, bOut] of [[1, ids.browInL, ids.browOutL], [-1, ids.browInR, ids.browOutR]]) {
     const pts = [];
@@ -111,10 +118,10 @@ export function buildFacialHair(B, A, f, ids, spec = {}, hairHex = '#1a1210', sk
     for (let i = 0; i < N; i++) {
       const u = (i / (N - 1)) * 2 - 1; // -1..1
       const x = u * 0.0385;
-      const y = my + 0.0108 + 0.0042 * u * u - 0.0025 * Math.abs(u) ** 1.5;
+      const y = my + 0.0172 + 0.0042 * u * u - 0.0022 * Math.abs(u) ** 1.5;
       pts.push([x, y, A.surface(x, y) + 0.0028]);
     }
-    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.6; return [0.0045 * e + 0.0014, 0.0036 * e + 0.0012]; }, { sides: 7, color: (t, ph) => scale3(dark, 0.9 + 0.3 * Math.max(0, Math.cos(ph))), up: [0, 0.25, 1], bone });
+    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.55; return [0.0058 * e + 0.0014, 0.0046 * e + 0.0012]; }, { sides: 7, color: (t, ph) => scale3(dark, 0.9 + 0.3 * Math.max(0, Math.cos(ph))), up: [0, 0.25, 1], bone });
   }
   if (spec.goatee !== false) {
     const gy = my - 0.05;
@@ -136,7 +143,7 @@ export function buildFacialHair(B, A, f, ids, spec = {}, hairHex = '#1a1210', sk
 
 // ── glasses ──
 /** Black rectangular frames (rounded-rect rings with real thickness), two lenses, a bridge and temples that run back over the ears. */
-export function buildGlasses(Bframe, Blens, A, f, ids, spec = {}) {
+export function buildGlasses(Bframe, Blens, A, f, ids, spec = {}, Bglint = null) {
   const frameCol = linear(spec.frame || '#0d0e11');
   const lensCol = [0.55, 0.65, 0.7];
   const lw = spec.w ?? 0.083;
@@ -158,6 +165,11 @@ export function buildGlasses(Bframe, Blens, A, f, ids, spec = {}) {
     extrudeRing(Bframe, outer, inner, 0.0062, frameCol, { bone, place });
     fillOutline(Blens, inner, 0, 1, lensCol, { bone, place });
     fillOutline(Blens, inner, -0.0004, -1, lensCol, { bone, place });
+    if (Bglint) { // two slanted streaks of light across each lens
+      const streak = (pts) => { const vs = pts.map(([x, y]) => { const p = place(x, y, 0.0016); return Bglint.vertex(p[0], p[1], p[2], 0, 0, 1, [1, 1, 1], [bone, 1]); }); Bglint.quad(vs[0], vs[1], vs[2], vs[3]); };
+      streak([[-0.0385, 0.002], [-0.0345, 0.002], [-0.0215, 0.0225], [-0.0255, 0.0225]]);
+      streak([[-0.0305, -0.016], [-0.0285, -0.016], [-0.0235, -0.0085], [-0.0255, -0.0085]]);
+    }
     // the temple: from the top outer corner back along the side of the head, then a little hook down behind the ear
     const sideX = (y, z) => { let a = 0.26; let b = 0.04; for (let i = 0; i < 16; i++) { const m = (a + b) / 2; if (A.base(m, y, z) > 0) a = m; else b = m; } return (a + b) / 2; };
     const arm = [place(sx * (lw / 2 + fw * 0.4), lh * 0.32, 0)];

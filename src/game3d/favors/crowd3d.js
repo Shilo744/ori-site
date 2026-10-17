@@ -2,8 +2,8 @@
 // per hairstyle) each become one instanced mesh whose vertices carry a code (colour slot + which limb), so the vertex shader swings the legs and arms
 // and picks each instance's shirt, trousers, skin and hair colour: 40 different neighbours cost ~6 draw calls and no per-person work on the CPU.
 import * as THREE from 'three';
-import { buildPersonData } from './people/assemble.js';
-import { randomSpec } from './people/specs.js';
+import { getCrowdArchetype } from './people/loader.js';
+import { CROWD_STYLES } from './people/crowd-figure.js';
 import { BODY_SCALE } from './people/body.js';
 import { groundHeight } from './map.js';
 
@@ -11,49 +11,18 @@ const SHIRTS = [0xe5625e, 0x4a90e2, 0xf2c14e, 0x43b581, 0xf3efe7, 0xb07ad8, 0xff
 const PANTS = [0x2c3140, 0x4a4f58, 0x7a6a55, 0x30425f, 0xd9d3c4];
 const SKINS = [0xf1c9a5, 0xd9a07a, 0xb97c58, 0x8a5a3c, 0x634029];
 const HAIRS = [0x1e1612, 0x3a2a1c, 0x6b4a2a, 0xb5883e, 0x8c8c90, 0x120d0a];
-const STYLES = ['short', 'curly', 'long', 'bun', 'wavy', 'bald'];
-const SLOT = { tee: 0, jeans: 1, skin: 2, hair: 3, shoes: 4 };
+const STYLES = CROWD_STYLES;
 const S = BODY_SCALE;
 
-const white = '#ffffff';
-/** One archetype: the person data with every colour white (so the vertex colour is just the baked occlusion) and a code per vertex. */
+/** One archetype as a three.js geometry (the typed arrays were made by people/crowd-figure.js, in the worker when it could). */
 function archetype(style) {
-  const spec = randomSpec(11 + STYLES.indexOf(style) * 7, { hair: style, gender: style === 'long' || style === 'bun' ? 'f' : 'm', age: 'adult' });
-  spec.face = { ...spec.face, skin: white, blush: 0, stubble: 0, lipColor: white };
-  spec.outfit = { ...spec.outfit, topColor: white, bottomColor: white, shoeColor: white, soleColor: white, accent: white, skin: white, sleeve: 1, bottom: 'jeans' };
-  spec.hair = { ...spec.hair, color: white, highlight: white };
-  spec.glasses = null; spec.facialHair = null; spec.hoop = null; spec.chain = null;
-  spec.body = { ...spec.body, build: 1, belly: 0, shoulders: 1 };
-  const data = buildPersonData(spec, { crowd: true });
-  const names = data.rig.bones.map((b) => b.name);
-  const limbOf = (bone) => { const n = names[bone]; if (/^(upperArm|lowerArm|hand|finger|thumb)L/.test(n)) return 3; if (/^(upperArm|lowerArm|hand|finger|thumb)R/.test(n)) return 4; if (/^(upLeg|lowLeg|foot|toe)L/.test(n)) return 1; if (/^(upLeg|lowLeg|foot|toe)R/.test(n)) return 2; return 0; };
-  const A = data.anchors;
-  const H = data.headPos;
-  const eyes = [[A.eye.x, A.eye.y, A.eye.z], [-A.eye.x, A.eye.y, A.eye.z]].map((e) => [H[0] + e[0], H[1] + e[1], H[2] + e[2]]);
-  const pos = []; const nor = []; const col = []; const code = []; const idx = [];
-  let base = 0;
-  for (const [layer, m] of Object.entries(data.layers)) {
-    for (let i = 0; i < m.vertexCount; i++) {
-      pos.push(m.positions[i * 3] , m.positions[i * 3 + 1], m.positions[i * 3 + 2]);
-      nor.push(m.normals[i * 3], m.normals[i * 3 + 1], m.normals[i * 3 + 2]);
-      const ao = Math.min(1, (m.colors[i * 3] + m.colors[i * 3 + 1] + m.colors[i * 3 + 2]) / 3 * 1.0);
-      col.push(ao, ao, ao);
-      // the dominant bone gives the limb
-      let best = 0; let bw = 0;
-      for (let k = 0; k < 4; k++) if (m.skinWeight[i * 4 + k] > bw) { bw = m.skinWeight[i * 4 + k]; best = m.skinIndex[i * 4 + k]; }
-      let slot = SLOT[layer];
-      if (layer === 'skin') for (const e of eyes) if (Math.hypot(m.positions[i * 3] - e[0], m.positions[i * 3 + 1] - e[1], (m.positions[i * 3 + 2] - e[2]) * 0.5) < 0.026) slot = 4; // eyes
-      code.push(slot + 10 * limbOf(best));
-    }
-    for (let i = 0; i < m.indices.length; i++) idx.push(m.indices[i] + base);
-    base += m.vertexCount;
-  }
+  const m = getCrowdArchetype(style);
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  g.setAttribute('aCode', new THREE.Float32BufferAttribute(code, 1));
-  g.setIndex(new THREE.Uint32BufferAttribute(idx, 1));
+  g.setAttribute('position', new THREE.BufferAttribute(m.position.slice(), 3));
+  g.setAttribute('normal', new THREE.BufferAttribute(m.normal.slice(), 3));
+  g.setAttribute('color', new THREE.BufferAttribute(m.color.slice(), 3));
+  g.setAttribute('aCode', new THREE.BufferAttribute(m.code.slice(), 1));
+  g.setIndex(new THREE.BufferAttribute(m.index.slice(), 1));
   g.computeBoundingSphere();
   return g;
 }

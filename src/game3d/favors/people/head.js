@@ -100,9 +100,11 @@ export function skinColor(f) {
     c = mix3(c, warm, 0.55 * smooth01(0.012, 0.004, Math.hypot(ax - 0.12, y, z) - 0.03) * smooth01(0.1, 0.11, ax)); // ears
     c = mix3(c, dark, 0.3 * smooth01(0.036, 0.02, Math.hypot(ax - 0.045, y - 0.012, z - 0.1))); // under the eyes
     c = mix3(c, [0.02, 0.008, 0.006], 0.85 * smooth01(0.0085, 0.004, Math.hypot(ax - 0.0125, (y + 0.058) * 1.5, (z - 0.158) * 0.8))); // nostrils
-    if (f.stubble > 0) { // a shadow of beard along the jaw, the chin and over the lip
-      const jaw = smooth01(0.0, 0.02, -y - 0.045 + (z < 0.06 ? 0 : 0)) * smooth01(0.08, 0.04, Math.max(0, 0.05 - z) + 0) * (z > -0.02 ? 1 : 0);
-      c = mix3(c, shade, f.stubble * 0.5 * jaw * smooth01(0.1, 0.07, ax));
+    if (f.stubble > 0) { // a shadow of beard: the lower cheeks, the jaw line, the chin and a band over the lip
+      const lower = smooth01(-0.062, -0.1, y) * smooth01(0.118, 0.075, ax) * smooth01(-0.03, 0.02, z);
+      const lip = smooth01(0.05, 0.034, ax) * smooth01(-0.064, -0.072, y) * smooth01(-0.1, -0.084, y);
+      const grain = 0.78 + 0.4 * (0.5 + 0.5 * Math.sin(x * 1500 + y * 900) * Math.sin(y * 1300 - z * 700));
+      c = mix3(c, shade, Math.min(0.8, f.stubble * 0.62 * Math.max(lower, lip * 0.9) * grain));
     }
     return c;
   };

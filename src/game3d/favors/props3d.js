@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { mulberry32 } from '../rng.js';
 import { GeoBuilder } from './gfx.js';
 import { groundHeight } from './map.js';
+import { carGeometry, scooterGeometry, treeGeometry, plantGeometry, cafeSetGeometry } from './props-sdf.js';
 
 const CAR_COLORS = [0xe9e6df, 0x2d3139, 0xb23a3a, 0x3b6ea8, 0xd8b441, 0x6b8f71, 0xa9adb5, 0x7a4f8f];
 const SCOOTER_COLORS = [0xff6a3d, 0x2fb8d8, 0xf2c14e, 0x7be0a0];
@@ -148,7 +149,7 @@ function umbrellaGeos() {
 }
 
 /** Builds every prop of the map. */
-export function buildProps(map, { shadows = true } = {}) {
+export function buildProps(map, { shadows = true, tier = 'high' } = {}) {
   const rnd = mulberry32(map.seed + 91);
   const group = new THREE.Group();
   group.name = 'props';
@@ -211,15 +212,15 @@ export function buildProps(map, { shadows = true } = {}) {
   instanced(pg.trunk, vc(), byType.palm, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: 'palm-trunks' });
   instanced(pg.crown, palmMat, byType.palm, (p) => matrix(p.x, gy(p), p.z, p.rot, palmScale(p)), { name: 'palm-crowns' });
 
-  const tg = treeGeo();
+  const tg = tier === 'low' ? treeGeo() : treeGeometry({ cell: tier === 'high' ? 0.26 : 0.36 });
   instanced(tg, vc(), byType.tree, (p) => matrix(p.x, gy(p), p.z, p.rot, 1 + (p.v % 3) * 0.12), { name: 'trees' });
 
-  const cg = carGeos();
-  const carBody = vc(0xffffff, 0.35, { metalness: 0.25 });
+  const cg = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ cell: tier === 'high' ? 0.2 : 0.28 }); return { body: c.body, dark: c.details }; })();
+  const carBody = vc(0xffffff, 0.3, { metalness: 0.3 });
   instanced(cg.body, carBody, byType.car, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => CAR_COLORS[p.v % CAR_COLORS.length], name: 'car-bodies' });
   instanced(cg.dark, vc(0xffffff, 0.5, { metalness: 0.1 }), byType.car, (p) => matrix(p.x, 0, p.z, p.rot), { name: 'car-details' });
 
-  const sg = scooterGeos();
+  const sg = tier === 'low' ? scooterGeos() : (() => { const c = scooterGeometry({ cell: tier === 'high' ? 0.04 : 0.06 }); return { body: c.body, dark: c.details }; })();
   instanced(sg.body, vc(0xffffff, 0.45), byType.scooter, (p) => matrix(p.x, gy(p), p.z, p.rot, 1.2), { tint: (p) => SCOOTER_COLORS[p.v % SCOOTER_COLORS.length], name: 'scooter-bodies' });
   instanced(sg.dark, vc(0xffffff, 0.6), byType.scooter, (p) => matrix(p.x, gy(p), p.z, p.rot, 1.2), { name: 'scooter-details' });
 
@@ -228,6 +229,21 @@ export function buildProps(map, { shadows = true } = {}) {
   const ug = umbrellaGeos();
   instanced(ug.pole, vc(), byType.umbrella, (p) => matrix(p.x, 0, p.z, p.rot), { name: 'umbrella-poles' });
   instanced(ug.cap, vc(0xffffff, 0.8, { side: THREE.DoubleSide }), byType.umbrella, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => UMBRELLA_COLORS[p.v % UMBRELLA_COLORS.length], name: 'umbrella-caps' });
+
+  // dressing at the doors: a bougainvillea pot either side of every building door, and a few cafe tables out in front of the cafe
+  if (tier !== 'low') {
+    const plants = [];
+    const sets = [];
+    for (const pl of Object.values(map.places)) {
+      if (pl.kind !== 'building') continue;
+      const d = pl.door;
+      const tx = -d.nz; const tz = d.nx; // along the facade
+      for (const s of [-1, 1]) plants.push({ x: d.x + d.nx * 1.0 + tx * s * 1.9, z: d.z + d.nz * 1.0 + tz * s * 1.9, rot: (pl.id.length * 1.7 + s) % 6.28, v: s });
+      if (pl.id === 'cafe') for (const s of [-1.4, 1.4, 4.2]) sets.push({ x: d.x + d.nx * 2.7 + tx * s * 1.7, z: d.z + d.nz * 2.7 + tz * s * 1.7, rot: Math.atan2(d.nx, d.nz) + Math.PI / 2 });
+    }
+    instanced(plantGeometry({ cell: tier === 'high' ? 0.05 : 0.07 }), vc(0xffffff, 0.8), plants, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.5 + 0.15 * p.v), { name: 'door-plants' });
+    instanced(cafeSetGeometry({ cell: tier === 'high' ? 0.045 : 0.06 }), vc(0xffffff, 0.6), sets, (p) => matrix(p.x, groundHeight(map, p.x, p.z), p.z, p.rot, 1.35), { name: 'cafe-sets' });
+  }
 
   // the bus shelter (one of a kind)
   {

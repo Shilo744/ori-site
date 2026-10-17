@@ -6,7 +6,7 @@ import { wrapPi } from '../rng.js';
 const damp = (cur, target, rate, dt) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
 export function createCameraRig(world, { yaw = Math.PI, pitch = 0.42, dist = 7.6 } = {}) {
-  const c = { yaw, pitch, dist, cur: dist, x: 0, y: 3, z: 0, lx: 0, ly: 1.4, lz: 0, fov: 58, fovT: 58, init: false, hitT: 1 };
+  const c = { yaw, pitch, dist, cur: dist, x: 0, y: 3, z: 0, lx: 0, ly: 1.4, lz: 0, fov: 58, fovT: 58, init: false, hitT: 1, bobT: 0, by: 0 };
 
   return {
     state: c,
@@ -52,6 +52,9 @@ export function createCameraRig(world, { yaw = Math.PI, pitch = 0.42, dist = 7.6
         c.ly = damp(c.ly, ly, 9, dt);
         c.lz = damp(c.lz, lz, 9, dt);
       }
+      // a very small bob in step with his stride (none when standing still)
+      c.bobT += dt * (t.speed * 1.35 + 0.01);
+      c.by = damp(c.by, Math.sin(c.bobT * 2) * 0.022 * Math.min(1, t.speed / 4.4), 14, dt);
       c.fovT = 58 + (t.sprinting ? 7 : 0) + Math.min(3, t.speed * 0.25);
       c.fov = damp(c.fov, c.fovT, 4, dt);
       return c;
