@@ -236,7 +236,7 @@ export function createDesktop(opts = {}) {
     wm,
     /** Opens an app (or alias such as `about`). Returns the app id, or null for an unknown id. */
     open: (id, args) => wm.open(id, args),
-    listApps: () => listApps().map((a) => a.id),
+    listApps: () => listApps().filter((a) => !a.launch).map((a) => a.id), // (windows only: a launcher starts the 3D game, see apps/favors.js)
     listAliases,
     setLocked(v) {
       root.classList.toggle('locked', v);

@@ -147,8 +147,8 @@ export function registerRoom({ it, world, screenEl, achievements, hooks }) {
   const ph = on(parts.iphone, box(9.5, 3, 17, 0, 1, 0));
   it.register({
     id: 'iphone', name: 'iPhone', proxies: ph, outline: parts.iphone,
-    label: 'iPhone · click',
-    onClick({ engine }) { engine.fx.hop(parts.iphone, 3.2, 0.6); sfx.phone(); return 'iPhone · 9:41'; },
+    label: 'iPhone · 1 new task',
+    onClick({ engine }) { engine.fx.hop(parts.iphone, 3.2, 0.6); sfx.phone(); setTimeout(() => engine.fx.hop(parts.iphone, 2.4, 0.5), 260); if (hooks.launchFavors) hooks.launchFavors(); return 'iPhone · 1 new task'; }, // it buzzes — and the game starts
   });
   const pd = on(parts.ipad, box(27, 20, 12, 0, 10, 1));
   it.register({

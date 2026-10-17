@@ -17,6 +17,7 @@ import { runInteract } from './lib/interact-test.mjs';
 import { runCursors } from './lib/cursor-test.mjs';
 import { runFavors3d } from './lib/favors3d-test.mjs';
 import { runFavorsPhone } from './lib/favors-phone-test.mjs';
+import { runLauncher, runIphoneLaunch } from './lib/launcher-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
 import { runDrift } from './lib/drift-test.mjs';
@@ -84,6 +85,9 @@ try {
     // Arcade launcher (covers, scores, real click / keyboard launch, tabs, terminal commands)
     await runArcade(s, { ok, fail });
 
+    // "Ori, Can You...?" is easy to find: Dock icon, hero widget, Spotlight, Welcome, terminal, the iPhone on the desk (T59)
+    await runLauncher(s, { ok, fail });
+
     // window manager v2: drag / resize / zoom / snap / minimise to the Dock / geometry memory
     await runWm2(s, { ok, fail });
 
@@ -129,6 +133,9 @@ try {
 
     // 3D room interactions: hover outline + tag, clicks, discovery counter, achievements
     await runInteract(s, { ok, fail });
+
+    // ...and the iPhone on the desk starts the game too (T59)
+    await runIphoneLaunch(s, { ok, fail });
 
     // one pointer everywhere: the same cursor images on the room, HUD, screen, apps, handles (T57)
     await runCursors(s, { ok, fail });

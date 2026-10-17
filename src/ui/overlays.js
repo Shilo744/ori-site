@@ -7,6 +7,7 @@ import { system } from '../core/system.js';
 import { theme } from '../core/theme.js';
 import { bus } from '../core/bus.js';
 import { launchGame3D } from '../game3d/host.js';
+import { FAVORS_ICON } from './apps/favors.js';
 
 // (temporary Spotlight icon, T45 replaces it with the real NEON DRIFT app icon)
 const DRIFT_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="gdi" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#19e3ff"/><stop offset="1" stop-color="#ff3ea5"/></linearGradient></defs><rect width="24" height="24" rx="5.500" fill="#12082a"/><path d="M4 15.500l1.500-3.600c.3-.7.9-1.100 1.600-1.100h9.800c.7 0 1.300.4 1.600 1.100L20 15.500v2.300h-2.200v-1.100H6.200v1.100H4z" fill="url(#gdi)"/><circle cx="7.600" cy="15.600" r="1.300" fill="#12082a"/><circle cx="16.400" cy="15.600" r="1.300" fill="#12082a"/></svg>';
@@ -36,6 +37,7 @@ export function createOverlays({ root, wm, closeMenus }) {
       ...C.projects.map((p) => ({ n: p.name, k: 'Project', icon: icon('safari'), go: () => wm.open('projects') })),
       { n: `Email ${C.name}`, k: 'Mail', icon: icon('mail'), go: () => wm.open('contact') },
       ...listApps({ hidden: false }).map((a) => ({ n: a.name, k: a.spotlightKind, icon: a.icon, go: () => wm.open(a.id) })),
+      { n: 'Play: Ori, Can You...?', k: 'Game', icon: FAVORS_ICON, go: () => wm.open('favors') },
       { n: 'Play NEON DRIFT', k: 'Game', icon: DRIFT_ICON, go: () => launchGame3D('drift') },
     ];
   };

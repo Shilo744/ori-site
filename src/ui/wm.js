@@ -231,6 +231,11 @@ export function createWM({ root, layer, isLocked, isCompact, scale, hooks = {} }
     const { def } = r;
     if (hooks.beforeOpen) hooks.beforeOpen();
     sound.pop();
+    if (typeof def.launch === 'function') { // a launcher (the 3D game): no window, the Dock icon bounces and the game takes over the page
+      if (hooks.beforeCreate) hooks.beforeCreate(def);
+      def.launch(r.args);
+      return def.id;
+    }
     if (wins.has(def.id)) { restore(def.id, r.args); return def.id; }
     if (hooks.beforeCreate) hooks.beforeCreate(def);
 

@@ -1,0 +1,49 @@
+/* The "Ori, Can You...?" hero widget (2 x 2 widgets wide / tall: 274 px, to the left of the Calendar and Weather column). */
+.mac .wg-hero {
+  position: absolute; top: 46px; right: 160px; z-index: 1; width: 274px; height: 274px; padding: 14px 15px 15px; border-radius: 22px; overflow: hidden;
+  color: #fff; display: flex; flex-direction: column; gap: 10px;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(255, 255, 255, 0.28), transparent 55%), linear-gradient(150deg, #ffb25b 0%, #ff6e7f 52%, #8a5bff 100%);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.22);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease;
+}
+.mac .wg-hero:hover { transform: translateY(-2px) scale(1.012); box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.3); }
+.mac .oh-top { display: flex; align-items: center; gap: 11px; }
+.mac .oh-ori { flex: none; width: 76px; height: 76px; border-radius: 50%; background: rgba(255, 255, 255, 0.26); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45); }
+.mac .oh-t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.mac .oh-t b { font: 800 18px/1.1 Inter, -apple-system, system-ui, sans-serif; letter-spacing: -0.02em; }
+.mac .oh-t span { font: 600 11.5px/1.25 Inter, -apple-system, system-ui, sans-serif; opacity: 0.88; }
+.mac .oh-stack { list-style: none; margin: 0; padding: 0; position: relative; height: 98px; flex: none; }
+.mac .oh-stack li {
+  position: absolute; left: 0; right: 0; top: 0; display: flex; align-items: center; gap: 9px; padding: 9px 11px; border-radius: 15px; color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.9); box-shadow: 0 4px 14px rgba(40, 10, 60, 0.22); animation: oh-cycle 7.8s ease-in-out infinite; animation-delay: calc(var(--i) * -2.6s);
+}
+.mac .oh-stack i { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+.mac .oh-stack div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mac .oh-stack b { font: 700 12px/1.1 Inter, -apple-system, system-ui, sans-serif; }
+.mac .oh-stack span { font: 500 11.5px/1.2 Inter, -apple-system, system-ui, sans-serif; color: rgba(29, 29, 31, 0.78); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mac .oh-stack em { font: 500 10px Inter, system-ui, sans-serif; font-style: normal; color: rgba(60, 60, 67, 0.55); align-self: flex-start; }
+@keyframes oh-cycle {
+  0% { transform: translateY(0) scale(1); opacity: 1; z-index: 3; }
+  30% { transform: translateY(0) scale(1); opacity: 1; z-index: 3; }
+  33.4% { transform: translateY(14px) scale(0.95); opacity: 0.86; z-index: 2; }
+  63% { transform: translateY(14px) scale(0.95); opacity: 0.86; z-index: 2; }
+  66.7% { transform: translateY(28px) scale(0.9); opacity: 0.6; z-index: 1; }
+  96% { transform: translateY(28px) scale(0.9); opacity: 0.6; z-index: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; z-index: 3; }
+}
+.mac .oh-play {
+  margin-top: auto; align-self: center; width: 100%; height: 40px; border: 0; border-radius: 999px; background: #fff; color: #c2410c; font: 800 15px/1 Inter, -apple-system, system-ui, sans-serif;
+  letter-spacing: 0.14em; text-transform: uppercase; box-shadow: 0 6px 18px rgba(80, 20, 40, 0.3); transition: transform 0.15s cubic-bezier(0.22, 1, 0.36, 1), filter 0.15s ease;
+}
+.mac .wg-hero:hover .oh-play, .mac .oh-play:hover { filter: brightness(1.04); }
+.mac .oh-play:active { transform: scale(0.97); }
+.mac .wg-hero:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+/* nothing moves while the screen is not in front of the camera */
+.mac.locked .oh-stack li { animation-play-state: paused; }
+.mac.compact .wg-hero { display: none; }
+@media (prefers-reduced-motion: reduce) { .mac .oh-stack li { animation: none; } .mac .oh-stack li:nth-child(n + 2) { display: none; } .mac .wg-hero { transition: none; } }
+/* the cards behind the front one show only a sliver (no text through the gap) */
+.mac .oh-stack li > * { animation: oh-child 7.8s ease-in-out infinite; animation-delay: calc(var(--i) * -2.6s); }
+@keyframes oh-child { 0%, 30% { opacity: 1; } 33.4%, 96% { opacity: 0; } 100% { opacity: 1; } }
+.mac.locked .oh-stack li > * { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .mac .oh-stack li > * { animation: none; } }

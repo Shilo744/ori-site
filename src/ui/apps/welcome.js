@@ -10,6 +10,7 @@ const template = (C) => `
       <h1>${esc(C.name)}</h1>
       <p class="role">${esc(C.title)}</p>
       <p class="tagline">${esc(C.tagline)}</p>
+      <button class="btn wl-play" data-open="favors">Play: Ori, Can You...?</button>
       <div class="wl-btns">
         <button class="btn def" data-open="projects">View Projects</button>
         <button class="btn" data-open="about">About</button>

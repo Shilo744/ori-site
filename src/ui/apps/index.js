@@ -1,6 +1,7 @@
 // Every app is a module that registers itself (registerApp). Import order = Dock order.
 // Adding an app: create ./<id>.js, then add one import line here.
 import './finder.js';
+import './favors.js'; // "Ori, Can You...?": the 2nd Dock icon, a launcher for the 3D game
 import './safari.js';
 import './notes.js';
 import './mail.js';

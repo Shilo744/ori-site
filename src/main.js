@@ -489,6 +489,8 @@ registerRoom({
   hooks: {
     cycleTime() { sound.click(); daylight.cycleMode(); syncTimeBtn(); return TIME_LABEL[daylight.mode]; },
     enterScreen,
+    // the iPhone on the desk buzzes and the game starts (tests switch it off with __ori.noAutoLaunch)
+    launchFavors() { setTimeout(() => { if (!window.__ori || !window.__ori.noAutoLaunch) launchGame3D('favors'); }, 700); },
   },
 });
 

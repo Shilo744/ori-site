@@ -37,9 +37,11 @@ function initTerminal(el, ctx) {
     open: (a) => (resolve(a) ? (ctx.open(a), [`opening ${esc(a)}…`]) : [`unknown app: ${esc(a || '')}  (try: ${openable()})`]),
     games: () => [
       'Arcade games (type <b>play &lt;id&gt;</b>):',
+      '  <b>favors</b>      Ori, Can You...?   <span class="dim">(3D, the main event)</span>',
       ...listApps({ category: 'game' }).map((g) => `  <b>${esc(g.id)}</b>${' '.repeat(Math.max(1, 12 - g.id.length))}${esc(g.name)}`),
     ],
     play: (a) => {
+      if (a === 'favors' || a === 'ori') { ctx.open('favors'); return ['launching <b>Ori, Can You...?</b> — your phone is buzzing…']; }
       const g = a && listApps({ category: 'game' }).find((x) => x.id === a);
       if (!g) return [`unknown game: ${esc(a || '')}  (try: ${listApps({ category: 'game' }).map((x) => x.id).join(', ')})`];
       ctx.open(g.id);

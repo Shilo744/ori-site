@@ -4,6 +4,7 @@ import { content as C } from '../content.js';
 import { listApps } from './apps/registry.js';
 import { APPLE, I, ICON } from './apps/icons.js';
 import { esc } from './apps/shared.js';
+import { favorsWidgetHTML } from './favors-widget.js';
 
 const WIDGETS = `
       <div class="wg wg-cal"><div class="d" id="wg-day">THURSDAY</div><div class="n" id="wg-date">15</div><div class="ev"><i></i><span>Coffee &amp; code</span><em>10:30</em></div><div class="ev"><i class="b"></i><span>Portfolio review</span><em>16:00</em></div></div>
@@ -57,6 +58,7 @@ export function shellHTML() {
 
     <div class="widgets">${WIDGETS}
     </div>
+    ${favorsWidgetHTML()}
 
     <div class="wins"></div>
 
