@@ -144,6 +144,40 @@ export async function runFavors3d(session, { ok, fail }) {
   await D('setHour', 13);
   check(await g(() => window.__ori.game3d.game.scene.getObjectByName('rain').visible === false), 'the sky clears when the weather is released');
 
+  // ── talking (T61): the hint, the conversation with real faces, choices, a compliment, effects, Esc, no leaks ──
+  await g(() => { const x = window.__ori.game3d; x.setHour(13); x.teleport('mum'); });
+  await sleep(500);
+  check(await g(() => document.querySelector('.fv-talkhint.on') && /Mum/.test(document.querySelector('.fv-talkhint').textContent)), "standing at Mum's door the hint says 'T Talk to Mum'");
+  const rel0 = await g(() => window.__ori.game3d.game.state().quests.rel);
+  await page.keyboard.press('KeyT');
+  await sleep(700);
+  let ts = await g(() => window.__ori.game3d.talkState());
+  check(ts.open && ts.who === 'ima' && /Habibi/.test(ts.line.text), 'T starts the conversation with Mum, in her own words');
+  check(await g(() => { const c = [...document.querySelectorAll('.fv-talk canvas')]; return c.length === 2 && c.every((x) => x.width > 100 && x.getContext('2d').getImageData(120, 130, 1, 1).data[3] > 0); }), 'both faces are drawn (Ori and Mum, real 3D heads)');
+  await page.keyboard.down('KeyW'); await sleep(500); await page.keyboard.up('KeyW');
+  check((await st()).player.speed < 0.3, 'Ori stands and listens while they talk (W does nothing)');
+  await page.keyboard.press('Space'); await sleep(120); // finishes the typing
+  ts = await g(() => window.__ori.game3d.talkState());
+  check(ts.line.choices && ts.line.choices.length === 3 && ts.line.shown === ts.line.text.length, 'the line is typed out, then three choices appear');
+  await page.keyboard.press('Digit3'); await sleep(200); // "you look wonderful today"
+  ts = await g(() => window.__ori.game3d.talkState());
+  check(ts.flags.includes('ima.complimented'), 'a choice sets a flag');
+  const rel1 = await g(() => window.__ori.game3d.game.state().quests.rel);
+  check(rel1.family > rel0.family, `the relationship moves (family ${rel0.family.toFixed(1)} -> ${rel1.family.toFixed(1)})`);
+  await page.keyboard.press('KeyC'); await sleep(200);
+  ts = await g(() => window.__ori.game3d.talkState());
+  check(ts.line && ts.line.speaker === 'ori', 'C pays a compliment: Ori speaks first');
+  await page.keyboard.press('Escape'); await sleep(400);
+  ts = await g(() => window.__ori.game3d.talkState());
+  check(!ts.open && !(await g(() => window.__ori.game3d.state().paused)), 'Esc says goodbye (and does not open the pause menu)');
+  // a stranger
+  await g(() => { const x = window.__ori.game3d; x.teleport('park'); });
+  const open2 = await g(() => window.__ori.game3d.talk('stranger:4'));
+  await sleep(300);
+  ts = await g(() => window.__ori.game3d.talkState());
+  check(open2 && ts.who === 'stranger:4' && /Bus 5/.test(ts.line.text), 'a passer-by can be talked to');
+  await page.keyboard.press('Escape'); await sleep(300);
+
   // ── pause: Esc opens the menu and the simulation stands still; Esc resumes ──
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => window.__ori.game3d.paused, null, { timeout: 3000 });

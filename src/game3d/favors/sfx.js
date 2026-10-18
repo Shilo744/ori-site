@@ -151,6 +151,8 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     /** A gentle "next time": two soft notes, the second one a little higher (never a sad sound). */
     soft() { tone('sine', 523, 523, 0.22, 0.08); tone('sine', 659, 659, 0.3, 0.07, 0.14); },
     tap() { tone('sine', 1200, 900, 0.05, 0.07); },
+    /** One letter of a character's voice (voices.js): a short blip of their timbre at the given pitch. */
+    blip(voice, hz) { if (hz > 0) tone(voice.wave, hz, hz * (1 + (voice.wobble - 0.3) * 0.2), 0.07, 0.035 + 0.02 * voice.bright); },
     pop() { tone('sine', 520, 980, 0.09, 0.09); },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },
     dispose() { engine(-1); musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },

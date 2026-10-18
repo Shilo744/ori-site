@@ -30,6 +30,7 @@ import { randomSpec } from './people/specs.js';
 import { prewarmOri, prewarmCrowd } from './people/loader.js';
 import { createFavorsHud } from './hud.js';
 import { createPhone } from './phone.js';
+import { createSocial } from './social.js';
 import { createSfx } from './sfx.js';
 import { createBeam } from './beam3d.js';
 import { createQuests, rankFor } from './quests.js';
@@ -96,6 +97,7 @@ export function createFavorsGame(o) {
   let fill = null;
   let quests = null;
   let phone = null;
+  let social = null;
   let beam = null;
   const sfx = createSfx({ isMuted: o.isMuted || (() => false), volume: o.volume || (() => 1) });
   const clock = createClock({ startHour: o.startHour ?? DAY.startHour, realMinutes: o.dayMinutes ?? DAY.realMinutes });
@@ -205,6 +207,7 @@ export function createFavorsGame(o) {
     rain = createRain({ count: tier === 'high' ? 2600 : 1400 });
     scene.add(rain.mesh);
     startQuests();
+    social = createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl: () => ctrl, quests: () => quests, ori: () => ori, hour: () => clock.hour });
     sfx.music(true);
 
     if (tier !== 'low') post = createFavorsPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
@@ -323,6 +326,7 @@ export function createFavorsGame(o) {
     ctrl.teleport(map.spawn.x, map.spawn.z, map.spawn.heading);
     ctrl.state.stamina = 1;
     rig.state.yaw = map.spawn.heading;
+    if (social) social.reset();
     plan = weatherPlan(questSeed);
     startQuests();
     api.resume();
@@ -564,6 +568,7 @@ export function createFavorsGame(o) {
       const dts = dt * scale;
       t += dt;
       const yaw = rig.state.yaw;
+      if (social && social.isTalking) { input.fwd = 0; input.strafe = 0; input.sprint = false; } // (he stands and listens)
       const dir = moveDir(yaw, input.fwd, input.strafe);
       wish.mx = dir.mx;
       wish.mz = dir.mz;
@@ -579,6 +584,7 @@ export function createFavorsGame(o) {
       if (traffic) traffic.update(dts, [{ x: ctrl.state.x, z: ctrl.state.z, r: drive ? 1.1 : 0.45 }, ...(bodies ? bodies.bodies.map((b) => ({ x: b.x, z: b.z, r: 1.4 })) : [])]);
       clock.tick(dt, scale);
       crowd.update(intro ? dt : dts, ctrl.state);
+      if (social) social.update(dt, { blocked: !!(drive || intro || over) });
       rig.update(dt, { ...ctrl.state }, intro ? {} : { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
       findPlaces();
       if (!drive) findCar();
@@ -675,6 +681,7 @@ export function createFavorsGame(o) {
         return true;
       }
       // the phone is a panel on the side: its keys (1-9, F, Y / L / N, [ ]) are used, everything else still walks Ori
+      if (social && !drive && social.key(e)) return true;
       if (phone && phone.isOpen && phone.key(e)) return true;
       return undefined;
     },
@@ -725,6 +732,10 @@ export function createFavorsGame(o) {
     /** Dev / tests: hold the weather fixed ({ rain, wet, overcast } 0..1) or give it back to the day (null). */
     setWeather(w) { forcedWeather = w ? { rain: w.rain ?? 0, wet: w.wet ?? w.rain ?? 0, overcast: w.overcast ?? w.rain ?? 0 } : null; applySky(true); return weatherNow; },
     weather() { return { ...weatherNow, plan: { ...plan } }; },
+    /** Dev / tests: start a conversation ('ima', 'clerk', 'stranger:3', 'roee' ...), read its state, close it. */
+    talk(id) { return social ? social.start(id, { from: 'dev' }) : false; },
+    talkState() { return social ? social.state() : null; },
+    talkKey(code) { return social ? social.key({ code }) : false; },
     clockInfo() { return { hour: clock.hour, label: clock.label(), progress: clock.progress, done: clock.done }; },
     /** Dev / tests: do the favour for a task at once (as Space at its door would). */
     doFavour(uid) { const r = quests.complete(uid, 1); syncQuests(); return r; },
@@ -739,7 +750,7 @@ export function createFavorsGame(o) {
         near: nearPlace ? nearPlace.id : null,
         camera: { x: camera.position.x, y: camera.position.y, z: camera.position.z, yaw: rig.state.yaw, fov: camera.fov },
         crowd: crowd ? crowd.walkers.length : 0,
-        quests: { min: q.min, open: quests.open().length, arrived: q.stats.arrived, done: q.stats.done, failed: q.stats.failed, score: q.score, chaos: q.chaos, rank: rankFor(q.score), following, phoneOpen: phone.isOpen, focus: q.focus.on },
+        quests: { min: q.min, open: quests.open().length, arrived: q.stats.arrived, done: q.stats.done, failed: q.stats.failed, score: q.score, chaos: q.chaos, rel: { ...q.rel }, rank: rankFor(q.score), following, phoneOpen: phone.isOpen, focus: q.focus.on },
         radius: PLAYER_R, walk: WALK_SPEED,
       };
     },
@@ -752,6 +763,7 @@ export function createFavorsGame(o) {
       sfx.dispose();
       if (!opened) return;
       phone.dispose();
+      if (social) { social.dispose(); social = null; }
       beam.dispose();
       ori.dispose();
       for (const p of extras) { scene.remove(p.group); p.dispose(); }

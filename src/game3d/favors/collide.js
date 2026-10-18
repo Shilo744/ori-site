@@ -41,7 +41,7 @@ export function createCollisionWorld(colliders, cell = 8) {
         }
       }
     }
-    for (let n = 0; n < dyn.length; n++) fn(dyn[n]);
+    for (let n = 0; n < dyn.length; n++) if (!dyn[n].off) fn(dyn[n]);
   }
 
   const out = { x: 0, z: 0, hit: false, nx: 0, nz: 0 };

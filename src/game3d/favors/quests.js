@@ -198,6 +198,8 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
   }
 
   const api = {
+    /** A conversation's effects: relationship (a REL key) +/-, chaos +/-. */
+    nudge(relKey, dRel = 0, dChaos = 0) { if (relKey && relKey in state.rel) adjRel(relKey, dRel); state.chaos = clamp(state.chaos + dChaos, 0, 100); },
     state, plan,
     get(uid) { return get(uid); },
     open() { return state.tasks.filter(isOpen); },

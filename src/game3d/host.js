@@ -285,6 +285,10 @@ export const game3dDebug = {
   place(id) { return current?.api?.game?.place?.(id) ?? null; },
   /** Ori, Can You...?: the game clock { hour, label, progress, done }; `setHour(h)` jumps the day. */
   clock() { return current?.api?.game?.clockInfo?.() ?? null; },
+  /** Ori, Can You...?: conversations (dev / tests). */
+  talk(id) { return current?.api?.game?.talk?.(id) ?? false; },
+  talkState() { return current?.api?.game?.talkState?.() ?? null; },
+  talkKey(code) { return current?.api?.game?.talkKey?.(code) ?? false; },
   setHour(h) { current?.api?.game?.setHour?.(h); current?.api?.game?.render?.(1 / 60); },
   camera(mode, ...rest) { const g = current?.api?.game; if (g) { g.setCamera(mode, ...rest); g.render(1 / 60); } },
   /** Rebuilds the world: { biome, look, tier, seed } (a free drive stays a free drive, the menu stays the menu). */
