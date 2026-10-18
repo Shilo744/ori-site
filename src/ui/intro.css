@@ -100,23 +100,33 @@
 /* the one call to action */
 #intro .iv-cta { position: absolute; left: 0; right: 0; bottom: max(7vh, calc(24px + env(safe-area-inset-bottom))); display: flex; flex-direction: column; align-items: center; gap: 12px; min-height: 100px; transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.7s ease, filter 0.9s ease; }
 #intro .iv-btn {
-  height: 44px;
-  min-width: 132px;
-  padding: 0 30px;
+  position: relative;
+  height: 52px;
+  min-width: 156px;
+  padding: 0 38px;
   border: 0;
   border-radius: 999px;
-  background: var(--iv-accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.3) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.5);
+  backdrop-filter: blur(16px) saturate(1.5);
   color: #fff;
-  font: 500 17px/1 var(--iv-font);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+  font: 500 18px/1 var(--iv-font);
   letter-spacing: -0.01em;
-  box-shadow: 0 8px 26px var(--iv-accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.28);
-  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease, box-shadow 0.18s ease;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.7),
+    inset 0 -1.5px 3px rgba(255, 255, 255, 0.18),
+    inset 0 -10px 18px -8px rgba(255, 255, 255, 0.2),
+    0 10px 30px rgba(0, 0, 0, 0.22),
+    0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.2s ease, box-shadow 0.2s ease;
   animation: iv-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-#intro .iv-btn:hover { filter: brightness(1.1); transform: scale(1.02); }
-#intro .iv-btn:active { transform: scale(0.97); filter: brightness(0.95); }
+#intro .iv-btn:hover { filter: brightness(1.12) saturate(1.1); transform: scale(1.04); }
+#intro .iv-btn:active { transform: scale(0.96); filter: brightness(0.95); }
 #intro .iv-btn:focus-visible, #intro .iv-sound:focus-visible { outline: none; } /* the ring is for keyboard users only (#intro.kbd): script focus must not draw one */
-#intro.kbd .iv-btn:focus-visible { outline: none; box-shadow: 0 8px 26px var(--iv-accent-glow), 0 0 0 3px color-mix(in srgb, var(--iv-accent) 26%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.28); }
+#intro.kbd .iv-btn:focus-visible { outline: none; box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--iv-accent) 40%, transparent), inset 0 0 0 1px rgba(255,255,255,0.4), inset 0 1.5px 1px rgba(255,255,255,0.7); }
 #intro .iv-btn[hidden], #intro .iv-hint[hidden] { display: none; }
 #intro .iv-hint { margin: 0; font-size: 13px; color: var(--iv-ink-2); animation: iv-rise 0.9s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes iv-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
@@ -181,7 +191,7 @@
   #intro .iv-sub { font-size: 17px; }
   #intro .iv-sound span { display: none; }
   #intro .iv-sound { padding: 0 11px; }
-  #intro .iv-btn { height: 48px; min-width: 156px; }
+  #intro .iv-btn { height: 52px; min-width: 168px; }
 }
 @media (max-height: 460px) {
   #intro .iv-hero { top: 38%; }

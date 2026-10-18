@@ -33,7 +33,7 @@ function archetype(style) {
 /**
  * extras: people who just stand somewhere (on a balcony, at a window): [{ x, y, z, heading, look: { hair, shirt, pants, skin, height } }]. They are drawn with the walkers.
  */
-export function createCrowd3d(map, crowd, { shadows = true, extras = [] } = {}) {
+export function createCrowd3d(map, crowd, { shadows = true, extras = [], range = RANGE } = {}) {
   const folk = [...crowd.walkers, ...extras.map((e) => ({ x: e.x, y: e.y, z: e.z, heading: e.heading, look: e.look, speed: 0, still: true }))];
   // which archetype each walker is
   const style = folk.map((w, i) => (w.look.hair * 5 + w.look.shirt * 3 + i * 7) % STYLES.length);
@@ -127,7 +127,7 @@ export function createCrowd3d(map, crowd, { shadows = true, extras = [] } = {}) 
           if (camera) {
             const dx = w.x - cx; const dz = w.z - cz;
             const d = Math.hypot(dx, dz);
-            if (d > RANGE || (d > 14 && dx * fx + dz * fz < -0.25 * d)) return; // too far, or behind the camera
+            if (d > range || (d > 14 && dx * fx + dz * fz < -0.25 * d)) return; // too far, or behind the camera
           }
           q.setFromAxisAngle(up, w.heading);
           const sz = w.look.height;

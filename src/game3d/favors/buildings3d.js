@@ -111,6 +111,8 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
   }
   Object.values(fgeos).forEach((g) => { g.leaf.dispose(); if (g.bloom) g.bloom.dispose(); });
 
+  const rangeScale = tier === 'low' ? 0.3 : tier === 'medium' ? 0.6 : 1; // lower tiers draw the small detail only close by
+
   return {
     group,
     /** Where a person could stand on a balcony: [{ x, y, z, heading, seed }]. */
@@ -120,8 +122,8 @@ export function buildBuildings(map, { lib, aniso = 4, shadows = true, tier = 'hi
     update(x, z) {
       for (const c of lod) {
         const d = Math.hypot(c.x - x, c.z - z) - CHUNK * 0.7;
-        const det = d < DETAIL_RANGE;
-        const fol = d < FOLIAGE_RANGE;
+        const det = d < DETAIL_RANGE * rangeScale;
+        const fol = d < FOLIAGE_RANGE * rangeScale;
         for (const m of c.detail) m.visible = det;
         for (const m of c.foliage) m.visible = fol;
       }

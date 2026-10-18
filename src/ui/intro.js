@@ -6,10 +6,6 @@ const GREETINGS = [
   { t: 'Hello', lang: 'en' },
   { t: 'שלום', lang: 'he', dir: 'rtl' },
   { t: 'Hola', lang: 'es' },
-  { t: 'こんにちは', lang: 'ja' },
-  { t: 'Bonjour', lang: 'fr' },
-  { t: 'مرحبا', lang: 'ar', dir: 'rtl' },
-  { t: 'Ciao', lang: 'it' },
 ];
 const WORD_MS = 1450;
 const MIN_SHOW_MS = 1500; // the greeting is seen at least this long before the button appears
@@ -96,13 +92,9 @@ export function createIntro({ fast = false, name, tagline, year, whenReady, getH
   }
   const fonts = (document.fonts && document.fonts.ready ? Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 2500))]) : Promise.resolve()).then(() => { steps.fonts = true; paint(); });
   const frame = Promise.resolve(whenReady).then(() => { steps.frame = true; paint(); });
-  const waitTimer = setTimeout(() => { if (!gone && el.btn.hidden) { el.wait.hidden = false; requestAnimationFrame(() => el.wait.classList.add('on')); } }, fast ? 0 : 450);
+  const waitTimer = 0; // (no loading state: the button is there from the first moment)
   paint();
-  Promise.all([fonts, frame]).then(() => {
-    if (gone) return;
-    const rest = fast ? 0 : Math.max(0, MIN_SHOW_MS - (performance.now() - t0));
-    setTimeout(revealCta, rest);
-  });
+  revealCta();
   function revealCta() {
     if (gone) return;
     clearTimeout(waitTimer);
@@ -112,6 +104,7 @@ export function createIntro({ fast = false, name, tagline, year, whenReady, getH
     el.hint.hidden = false;
     if (fast) { el.btn.style.animation = 'none'; el.hint.style.animation = 'none'; }
     el.btn.focus({ preventScroll: true });
+    el.btn.style.animationDelay = '0s';
   }
 
   // Return / Space starts as soon as the button is there

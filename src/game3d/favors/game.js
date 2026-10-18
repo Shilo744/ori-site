@@ -161,7 +161,7 @@ export function createFavorsGame(o) {
     // a few neighbours out on their balconies, near where the game starts
     const folkSpots = buildings.balconies.filter((s) => Math.hypot(s.x - map.spawn.x, s.z - map.spawn.z) < 110).sort((a, b) => Math.hypot(a.x - map.spawn.x, a.z - map.spawn.z) - Math.hypot(b.x - map.spawn.x, b.z - map.spawn.z));
     const balconyFolk = folkSpots.filter((_, i) => i % 3 === 1).slice(0, 8).map((s, i) => ({ ...s, look: { hair: i + 1, shirt: i * 3 + 1, pants: i, skin: (i * 2 + 1) % 5, height: 0.92 + (i % 3) * 0.04 } }));
-    crowd3d = createCrowd3d(map, crowd, { shadows, extras: balconyFolk });
+    crowd3d = createCrowd3d(map, crowd, { shadows, extras: balconyFolk, range: tier === "low" ? 40 : tier === "medium" ? 65 : 95 });
     scene.add(crowd3d.mesh);
     lap('crowd');
     ori = createOri({ shadows, tier });
@@ -176,6 +176,7 @@ export function createFavorsGame(o) {
     rain = createRain({ count: tier === 'high' ? 2600 : 1400 });
     scene.add(rain.mesh);
     startQuests();
+    sfx.music(true);
 
     if (tier !== 'low') post = createFavorsPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
     applySky(true);
@@ -511,8 +512,8 @@ export function createFavorsGame(o) {
       setOutlineView(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
       if (post) post.setSize(w, h);
     },
-    pause() { if (paused || !opened || over) return false; paused = true; hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
-    resume() { if (!paused) return; paused = false; hud.showPause(false); },
+    pause() { if (paused || !opened || over) return false; paused = true; sfx.music(false); hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
+    resume() { if (!paused) return; paused = false; sfx.music(true); hud.showPause(false); },
     onEscape() { if (over) return; if (phone && phone.isOpen) { phone.close(); return; } if (paused) api.resume(); else api.pause(); },
     onReset() { /* R: nothing to reset yet */ },
     onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.42; } },

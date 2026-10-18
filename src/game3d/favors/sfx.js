@@ -43,17 +43,92 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     o.start(t);
     o.stop(t + dur + 0.05);
   };
+  /** A soft bell: a sine with a quiet octave-and-a-bit partial, a quick attack and a long gentle tail. */
+  const bell = (f, dur, peak, delay = 0) => { tone('sine', f, f, dur, peak, delay); tone('sine', f * 2.76, f * 2.76, dur * 0.4, peak * 0.2, delay); };
+
+  // ── the music: a light, cheerful loop (C – Am – F – G, marimba-like plucks over a round bass), scheduled a bar ahead ──
+  const BPM = 104;
+  const BEAT = 60 / BPM;
+  const CHORDS = [[48, [60, 64, 67, 71]], [45, [57, 60, 64, 69]], [41, [57, 60, 65, 69]], [43, [55, 59, 62, 67]]];
+  const mtof = (m) => 440 * 2 ** ((m - 69) / 12);
+  let musicOn = false;
+  let musicTimer = 0;
+  let nextBar = 0;
+  let barIdx = 0;
+  let mgain = null;
+  const pluck = (c, f, t, dur, peak) => {
+    const o = c.createOscillator();
+    const g = c.createGain();
+    o.type = 'triangle';
+    o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g);
+    g.connect(mgain);
+    o.start(t);
+    o.stop(t + dur + 0.05);
+  };
+  function scheduleBar(c, t) {
+    const [root, tones] = CHORDS[barIdx % 4];
+    pluck(c, mtof(root), t, BEAT * 1.6, 0.16);
+    pluck(c, mtof(root), t + BEAT * 2.5, BEAT * 1.2, 0.12);
+    for (let i = 0; i < 8; i++) {
+      const m = tones[(i * 3 + barIdx) % 4] + (i % 4 === 3 ? 12 : 0);
+      pluck(c, mtof(m), t + i * BEAT * 0.5, BEAT * 0.9, i % 2 ? 0.05 : 0.08);
+    }
+    // a tiny shaker on the off-beats
+    for (let i = 0; i < 4; i++) {
+      const n = c.createBufferSource();
+      const len = Math.floor(c.sampleRate * 0.03);
+      const buf = c.createBuffer(1, len, c.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / len);
+      n.buffer = buf;
+      const g = c.createGain();
+      g.gain.value = 0.03;
+      n.connect(g);
+      g.connect(mgain);
+      n.start(t + (i + 0.5) * BEAT);
+    }
+    barIdx++;
+  }
+  function musicTick() {
+    const c = ready();
+    if (!c || !musicOn) return;
+    while (nextBar < c.currentTime + 0.6) {
+      if (nextBar < c.currentTime) nextBar = c.currentTime + 0.05;
+      scheduleBar(c, nextBar);
+      nextBar += BEAT * 4;
+    }
+  }
+
   return {
-    /** A new task: the phone buzzes twice. */
-    buzz() { tone('square', 92, 88, 0.16, 0.16, 0, 38); tone('square', 92, 88, 0.16, 0.16, 0.21, 38); tone('sine', 880, 880, 0.07, 0.05, 0.02); try { if (!isMuted() && navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch { /* no vibration */ } },
-    /** An urgent one: a third buzz and a rising ping. */
-    urgent() { tone('square', 96, 90, 0.14, 0.18, 0.42, 38); tone('triangle', 660, 990, 0.18, 0.07, 0.5); },
+    /** Starts / stops the loop (kept quiet under the sound effects). */
+    music(on) {
+      if (on === musicOn) return;
+      musicOn = on;
+      clearInterval(musicTimer);
+      if (!on) { if (mgain) mgain.gain.setTargetAtTime(0, ctx.currentTime, 0.15); return; }
+      const c = ready();
+      if (!c) { musicOn = false; return; }
+      if (!mgain) { mgain = c.createGain(); mgain.connect(master); }
+      mgain.gain.cancelScheduledValues(c.currentTime);
+      mgain.gain.setTargetAtTime(0.55, c.currentTime, 0.4);
+      nextBar = c.currentTime + 0.1;
+      musicTimer = setInterval(musicTick, 150);
+      musicTick();
+    },
+    /** A new task: a soft two-note bell (and a short vibration on phones). */
+    buzz() { bell(784, 0.34, 0.12); bell(1175, 0.5, 0.1, 0.11); try { if (!isMuted() && navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch { /* no vibration */ } },
+    /** An urgent one: the same bell, then a brighter third note. */
+    urgent() { bell(784, 0.3, 0.12); bell(1175, 0.3, 0.1, 0.1); bell(1568, 0.5, 0.1, 0.2); },
     ding() { tone('sine', 880, 880, 0.16, 0.14); tone('sine', 1320, 1320, 0.28, 0.12, 0.09); tone('sine', 1760, 1760, 0.3, 0.06, 0.18); },
     /** A gentle "next time": two soft notes, the second one a little higher (never a sad sound). */
     soft() { tone('sine', 523, 523, 0.22, 0.08); tone('sine', 659, 659, 0.3, 0.07, 0.14); },
     tap() { tone('sine', 1200, 900, 0.05, 0.07); },
     pop() { tone('sine', 520, 980, 0.09, 0.09); },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },
-    dispose() { if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
+    dispose() { musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
   };
 }
