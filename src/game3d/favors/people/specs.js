@@ -10,12 +10,12 @@ export const ORI_SPEC = (() => {
   return {
     id: 'ori', seed: 2026,
     // olive-tan skin, a strong jaw, a prominent rounded nose, full lower lip, thick straight brows, relaxed eyes
-    face: { skin: hex(L.skin), width: 1.03, jaw: 1.1, chinW: 1.12, cheek: 1.18, brow: 1.2, nose: { len: 0.82, width: 0.8, tip: 0.8, bridge: 0.85 }, lips: { upper: 1.05, lower: 1.2, width: 1.05 }, eyeSep: 1.02, eyeSize: 0.7, ear: 1.3, stubble: 0.85, blush: 0.1, lipColor: '#a85a4e' },
+    face: { skin: hex(L.skin), width: 1.03, jaw: 1.1, chinW: 1.12, cheek: 1.18, brow: 1.2, nose: { len: 0.82, width: 0.8, tip: 0.8, bridge: 0.85 }, lips: { upper: 1.05, lower: 1.2, width: 1.05 }, eyeSep: 1.02, eyeSize: 0.86, ear: 1.3, stubble: 0.85, blush: 0.1, lipColor: '#a85a4e' },
     eyes: { iris: '#3a2216' },
     brows: { color: '#17100d', thick: 1.1 },
     hair: { style: 'curly', color: hex(L.hair), highlight: '#4a3020', volume: 1 },
     facialHair: { moustache: true, goatee: true, color: '#17100d' },
-    glasses: { frame: hex(L.glasses), frameW: 0.0068 },
+    glasses: { frame: hex(L.glasses), frameW: 0.006, w: 0.074, h: 0.048, r: 0.014 },
     hoop: { color: hex(L.earring), side: 1 }, // his LEFT ear (+x, the model faces +z)
     chain: { color: hex(L.chain) },
     body: { build: 1.08, shoulders: 1.12, belly: 0.12, arms: 1.35, hands: 1.3 },
@@ -65,7 +65,7 @@ export function randomSpec(seed, opts = {}) {
       skin, width: range(rnd, 0.92, 1.1) * (kid ? 1.05 : 1), height: range(rnd, 0.94, 1.06), jaw: range(rnd, 0.9, 1.1) * (gender === 'f' ? 0.94 : 1.02), chinW: range(rnd, 0.85, 1.15), chinLen: range(rnd, 0.9, 1.1), cheek: range(rnd, 0.85, 1.2) * (kid ? 1.15 : 1), brow: range(rnd, 0.8, 1.2) * (gender === 'f' ? 0.85 : 1),
       nose: { len: range(rnd, 0.82, 1.15), width: range(rnd, 0.85, 1.2), tip: range(rnd, 0.85, 1.2), bridge: range(rnd, 0.8, 1.2) },
       lips: { upper: range(rnd, 0.85, 1.2), lower: range(rnd, 0.95, 1.35), width: range(rnd, 0.9, 1.1) },
-      eyeSep: range(rnd, 0.92, 1.1), eyeSize: range(rnd, 0.95, 1.15) * (kid ? 1.12 : 1), eyeY: range(rnd, -0.004, 0.004), ear: range(rnd, 0.85, 1.2), earOut: range(rnd, 0.95, 1.08),
+      eyeSep: range(rnd, 0.92, 1.1), eyeSize: range(rnd, 0.8, 0.95) * (kid ? 1.1 : 1), eyeY: range(rnd, -0.004, 0.004), ear: range(rnd, 0.85, 1.2), earOut: range(rnd, 0.95, 1.08),
       blush: range(rnd, 0.2, 0.5), lipColor: gender === 'f' && rnd() < 0.5 ? '#b3485a' : '#b8665a', stubble: gender === 'm' && !kid && rnd() < 0.35 ? range(rnd, 0.2, 0.6) : 0,
     },
     eyes: { iris: pick(rnd, ['#3a2216', '#4a3322', '#2e4a5a', '#3f5a3a', '#6a4a22']) },

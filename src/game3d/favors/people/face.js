@@ -35,20 +35,20 @@ export function surfaceLUTFromTable({ x0, y0, step, nx, ny, z }) {
 /** The painted eyeball: pupil, iris with a lighter ring and radial streaks, a dark limbal ring, a warm white that dims towards the back. */
 export function eyeballColor(irisHex = '#4a2c1a') {
   const iris = linear(irisHex);
-  const light = mix(iris, [0.55, 0.36, 0.18], 0.55);
+  const light = mix(iris, [0.6, 0.4, 0.2], 0.7);
   const sclera = linear('#f4efe8');
   const rim = linear('#cdb7ae');
   return (dx, dy, dz, th, ph) => {
-    if (th < 0.25) return [0.006, 0.004, 0.004];
-    if (th < 0.6) {
-      const t = (th - 0.25) / 0.35;
+    if (th < 0.2) return [0.006, 0.004, 0.004];
+    if (th < 0.64) {
+      const t = (th - 0.2) / 0.44;
       const streak = 0.5 + 0.5 * Math.sin(ph * 17 + th * 5);
       let c = mix(light, iris, sstep(0.0, 0.85, t) * 0.8 + 0.1 * streak);
       c = mix(c, [0.004, 0.003, 0.003], sstep(0.82, 1, t) * 0.9); // limbal ring
       c = mix(c, [0.003, 0.002, 0.002], sstep(0.35, 0.0, t) * 0.5); // dark rim round the pupil
       return c;
     }
-    return mix(sclera, rim, sstep(0.9, 1.5, th));
+    return mix(sclera, rim, sstep(0.75, 1.4, th));
   };
 }
 
@@ -88,7 +88,7 @@ export function buildLids(B, A, f, ids, skin) {
 // ── brows, moustache, goatee ──
 /** Thick dark brows: a tapered tube per side on the brow ridge, weighted between an inner and an outer bone so they can arch and tilt. */
 export function buildBrows(B, A, f, ids, hairHex = '#1a1210', style = {}) {
-  const dark = linear(hairHex);
+  const dark = scale3(linear(hairHex), 0.55);
   const lift = style.lift ?? 0.004;
   const thick = style.thick ?? 1;
   for (const [sx, bIn, bOut] of [[1, ids.browInL, ids.browOutL], [-1, ids.browInR, ids.browOutR]]) {
@@ -117,26 +117,26 @@ export function buildFacialHair(B, A, f, ids, spec = {}, hairHex = '#1a1210', sk
     const N = 13;
     for (let i = 0; i < N; i++) {
       const u = (i / (N - 1)) * 2 - 1; // -1..1
-      const x = u * 0.043;
-      const y = my + 0.0225 + 0.0042 * u * u - 0.0022 * Math.abs(u) ** 1.5;
-      pts.push([x, y, A.surface(x, y) + 0.007]);
+      const x = u * 0.038;
+      const y = my + 0.0295 + 0.003 * u * u - 0.003 * Math.abs(u) ** 1.5;
+      pts.push([x, y, A.surface(x, y) + 0.0045]);
     }
-    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.55; return [0.0088 * e + 0.0018, 0.0066 * e + 0.0016]; }, { sides: 7, color: (t, ph) => scale3(dark, 0.9 + 0.3 * Math.max(0, Math.cos(ph))), up: [0, 0.25, 1], bone });
+    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.6; return [0.0072 * e + 0.0014, 0.0052 * e + 0.0014]; }, { sides: 7, color: (t, ph) => mix(scale3(dark, 0.9 + 0.5 * Math.max(0, Math.cos(ph))), skin(0, my + 0.03, 0.1), 0.05 + 0.5 * Math.abs(t * 2 - 1) ** 2.5), up: [0, 0.25, 1], bone });
   }
   if (spec.goatee !== false) {
     const gy = my - 0.05;
-    const H = 0.0042;
+    const H = 0.0036;
     surfacePatch(B, {
       x0: -0.05, x1: 0.05, y0: gy - 0.035, y1: gy + 0.034, step: 0.0016, bone,
       surface: (x, y) => A.surface(x, y),
       thick: (x, y) => {
         // the goatee: a crescent on the chin that runs up into a soul patch under the lip
-        const chin = 1 - Math.hypot(x / 0.021, (y - gy + 0.004) / 0.03);
-        const soul = 1 - Math.hypot(x / 0.0085, (y - (my - 0.0275)) / 0.0105);
+        const chin = 1 - Math.hypot(x / 0.02, (y - gy + 0.006) / 0.026);
+        const soul = 1 - Math.hypot(x / 0.008, (y - (my - 0.0275)) / 0.01);
         const v = Math.max(chin * 1.1, soul * 1.3);
         return v > 0 ? Math.min(1, v * 1.6) * H : 0;
       },
-      color: (x, y, t) => { const k = Math.min(1, t / H); const grain = 0.85 + 0.5 * (Math.sin(x * 1900 + y * 1300) * Math.sin(y * 1700 - x * 900) * 0.5 + 0.5); return mix(skin(x, y, A.surface(x, y)), scale3(dark, 1.5 * grain), sstep(0.15, 0.75, k)); },
+      color: (x, y, t) => { const k = Math.min(1, t / H); const grain = 0.85 + 0.5 * (Math.sin(x * 1900 + y * 1300) * Math.sin(y * 1700 - x * 900) * 0.5 + 0.5); return mix(skin(x, y, A.surface(x, y)), scale3(dark, 1.9 * grain), sstep(0.3, 0.95, k) * 0.8); },
     });
   }
 }
@@ -244,7 +244,7 @@ export function buildMouth(B, A, m, S, lipHex = '#b8665a', ids = {}) {
       }
       for (let i = 0; i < colsN - 1; i++) B.quad(rowsT[i], rowsB[i], rowsB[i + 1], rowsT[i + 1]);
     };
-    strip((i) => up[i], (i) => lo[i], (u, k) => (k ? [0.04, 0.006, 0.01] : [0.08, 0.012, 0.016]), 0.0016);
+    strip((i) => up[i], (i) => lo[i], (u, k) => (k ? [0.11, 0.02, 0.026] : [0.2, 0.04, 0.045]), 0.0016);
     if (m.tongue > 0.01) {
       const tl = (i, u) => [lo[i][0] * 0.78, lo[i][1] + (up[i][1] - lo[i][1]) * (0.18 + 0.32 * m.tongue) * (1 - u * u) ** 0.5];
       strip(tl, (i) => [lo[i][0] * 0.78, lo[i][1] + 0.0006], (u, k) => (k ? [0.5, 0.1, 0.1] : [0.74, 0.22, 0.2]), 0.0022);

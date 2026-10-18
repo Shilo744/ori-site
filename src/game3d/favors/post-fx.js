@@ -64,6 +64,8 @@ float aoAt(vec2 uv, float z) {
   }
   return sum / max(wsum, 1e-4);
 }
+// a NaN / Inf pixel (a hot specular, a zero-length normal) would smear through the bloom's blur chain as a big black block: never let one out
+vec3 safe(vec3 c) { return (isnan(c.x + c.y + c.z) || isinf(c.x + c.y + c.z)) ? vec3(0.0) : min(c, vec3(32.0)); }
 void main() {
   float d = texture2D(tDepth, vUv).x;
   float z = lin(d);
@@ -81,11 +83,11 @@ void main() {
       vec2 q = vUv + vec2(cos(a), sin(a)) * r * rad / uRes;
       float zq = lin(texture2D(tDepth, q).x);
       float w = (zq > z - 2.0 || coc > 0.4) ? 1.0 : 0.15; // do not smear a near thing over a far one
-      col += texture2D(tColor, q).rgb * w; wsum += w;
+      col += safe(texture2D(tColor, q).rgb) * w; wsum += w;
     }
-    col += texture2D(tColor, vUv).rgb; wsum += 1.0;
+    col += safe(texture2D(tColor, vUv).rgb); wsum += 1.0;
     col /= wsum;
-  } else col = texture2D(tColor, vUv).rgb;
+  } else col = safe(texture2D(tColor, vUv).rgb);
   if (!sky && uAoMix > 0.0) {
     float ao = aoAt(vUv, z);
     col *= mix(1.0, ao, uAoMix);
@@ -105,7 +107,7 @@ void main() {
     float rays = acc / float(SHAFT_TAPS) * smoothstep(1.3, 0.05, dist);
     col += uSunCol * rays * uShafts * (sky ? 0.25 : 1.0);
   }
-  gl_FragColor = vec4(col, 1.0);
+  gl_FragColor = vec4(safe(col), 1.0);
 }`;
 
 const GRADE_FRAG = /* glsl */ `

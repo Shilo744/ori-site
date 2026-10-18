@@ -170,7 +170,7 @@ export function createPerson(spec, { shadows = true, quality = 1, tier = 'high',
       const acc = s.acc || 0;
       hairV += (-hairP * 90 - hairV * 9 + acc * 0.9) * dt; hairP += hairV * dt;
       hairVz += (-hairPz * 90 - hairVz * 9) * dt; hairPz += hairVz * dt;
-      bones.hair.rotation.set(clamp(hairP, -0.12, 0.12), 0, clamp(hairPz, -0.08, 0.08));
+      bones.hair.rotation.set(clamp(hairP, -0.012, 0.012), 0, clamp(hairPz, -0.008, 0.008)); // (the whole hair mesh turns as one piece, so it must stay tiny or it reads as a wig)
     },
     dispose() { skeleton.dispose(); disposables.forEach((d) => d.dispose && d.dispose()); },
   };

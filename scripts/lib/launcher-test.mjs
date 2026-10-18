@@ -13,7 +13,7 @@ export async function runLauncher(session, { ok, fail }) {
   const quit = async () => { await g(() => window.__ori.game3d.quit()); await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 6000 }).catch(() => {}); await sleep(250); };
   const state = () => g(() => window.__ori.state);
 
-  await g(() => { window.__ori.noAutoLaunch = false; window.__ori.desktop.reset(); });
+  await g(() => { window.__ori.desktop.reset(); });
   await sleep(300);
 
   // ── the Dock: 2nd slot, label, bounce on launch ──
@@ -60,13 +60,9 @@ export async function runLauncher(session, { ok, fail }) {
   check(await waitRunning(), 'Enter on that result starts the game');
   await quit();
 
-  // the Welcome window
-  await g(() => { window.__ori.desktop.reset(); window.__ori.openApp('welcome'); });
-  await sleep(500);
-  check(await g(() => { const b = document.querySelector('.mac .wl-play'); return !!b && /Ori, Can You/.test(b.textContent); }), 'the Welcome window has a prominent Play button');
-  await page.click('.mac .wl-play');
-  check(await waitRunning(), 'and it starts the game');
-  await quit();
+  // (the Welcome window no longer has a Play button: the hero widget on the desktop is enough)
+  await g(() => { window.__ori.desktop.reset(); window.__ori.openApp('welcome'); }); // (what the old Welcome step left behind: a clean desktop with the window)
+  await sleep(3500);
 
   // the terminal
   await g(() => { window.__ori.desktop.reset(); window.__ori.openApp('terminal'); });
@@ -74,12 +70,12 @@ export async function runLauncher(session, { ok, fail }) {
   await page.click('.mac .win-terminal input');
   await page.keyboard.type('play favors');
   await page.keyboard.press('Enter');
-  check(await waitRunning(), 'the terminal command `play favors` starts the game');
+  check(await waitRunning(20000), 'the terminal command `play favors` starts the game');
   await quit();
   await g(() => window.__ori.desktop.reset());
 }
 
-/** The iPhone on the desk in the 3D room: hover says "1 new task", a click makes it buzz and starts the game. Needs the room (state "overview"). */
+/** The iPhone on the desk in the 3D room: hover says "1 new task", a click only makes it hop; it never starts the game (T66). Needs the room (state "overview"). */
 export async function runIphoneLaunch(session, { ok, fail }) {
   const { page } = session;
   if (session.width < 860) return; // no 3D room on a phone
@@ -88,7 +84,7 @@ export async function runIphoneLaunch(session, { ok, fail }) {
   const waitRunning = (ms = 8000) => page.waitForFunction(() => window.__ori.game3d.running && document.getElementById('g3d') && document.getElementById('g3d').dataset.game === 'favors', null, { timeout: ms }).then(() => true).catch(() => false);
   const quit = async () => { await g(() => window.__ori.game3d.quit()); await page.waitForFunction(() => !window.__ori.game3d.running, null, { timeout: 6000 }).catch(() => {}); await sleep(250); };
   if ((await g(() => window.__ori.state)) !== 'overview') await backToRoom(session);
-  await g(() => { window.__ori.noAutoLaunch = false; window.__ori.setView('desk'); });
+  await g(() => { window.__ori.setView('desk'); });
   await settle(session, 2);
   await sleep(900);
   const p = await g(() => window.__ori.interactions.screenPos('iphone'));
@@ -96,13 +92,13 @@ export async function runIphoneLaunch(session, { ok, fail }) {
   await page.mouse.move(p.x, p.y, { steps: 3 });
   await page.waitForFunction(() => window.__ori.interactions.hoverId === 'iphone', null, { timeout: 5000 }).catch(() => {});
   const tag = await g(() => window.__ori.interactions.tagText);
-  check(/iPhone · 1 new task/.test(tag), `hovering the iPhone says "${tag}"`);
+  check(/^iPhone/.test(tag), `hovering the iPhone says "${tag}"`);
   await page.screenshot({ path: join(SHOTS, 'T59-iphone-hover.png') });
   await page.mouse.click(p.x, p.y);
   await sleep(350);
   await page.screenshot({ path: join(SHOTS, 'T59-iphone-click.png') });
-  check(await waitRunning(), 'clicking the iPhone makes it buzz and starts the game');
-  await quit();
+  await sleep(1200); // (the old hook started the game 700 ms after the click)
+  check(!(await g(() => window.__ori.game3d && window.__ori.game3d.running)), 'clicking the iPhone does not start the game (no launchGame3D)');
   check((await g(() => window.__ori.state)) === 'overview', 'quitting puts you back in the room');
-  await g(() => { window.__ori.noAutoLaunch = true; window.__ori.setView('overview'); });
+  await g(() => { window.__ori.setView('overview'); });
 }

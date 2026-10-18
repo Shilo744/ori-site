@@ -24,6 +24,7 @@ export function createCollisionWorld(colliders, cell = 8) {
   }
   let stamp = 0;
   const seen = new Map();
+  const dyn = []; // a few colliders that come and go (the car Ori left in the street): checked every time, no spatial hash
 
   /** Calls fn(collider) once for every collider whose cells touch the square around (x, z). */
   function near(x, z, r, fn) {
@@ -34,12 +35,13 @@ export function createCollisionWorld(colliders, cell = 8) {
         if (!a) continue;
         for (let n = 0; n < a.length; n++) {
           const c = a[n];
-          if (seen.get(c) === stamp) continue;
+          if (c.off || seen.get(c) === stamp) continue; // (`off`: a parked car that Ori has driven away)
           seen.set(c, stamp);
           fn(c);
         }
       }
     }
+    for (let n = 0; n < dyn.length; n++) fn(dyn[n]);
   }
 
   const out = { x: 0, z: 0, hit: false, nx: 0, nz: 0 };
@@ -149,5 +151,7 @@ export function createCollisionWorld(colliders, cell = 8) {
     return best;
   }
 
-  return { near, push, blocked, segment, count: colliders.length };
+  const addDynamic = (c) => { dyn.push(c); return c; };
+  const removeDynamic = (c) => { const i = dyn.indexOf(c); if (i >= 0) dyn.splice(i, 1); };
+  return { near, push, blocked, segment, addDynamic, removeDynamic, count: colliders.length };
 }

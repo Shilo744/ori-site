@@ -489,8 +489,6 @@ registerRoom({
   hooks: {
     cycleTime() { sound.click(); daylight.cycleMode(); syncTimeBtn(); return TIME_LABEL[daylight.mode]; },
     enterScreen,
-    // the iPhone on the desk buzzes and the game starts (tests switch it off with __ori.noAutoLaunch)
-    launchFavors() { setTimeout(() => { if (!window.__ori || !window.__ori.noAutoLaunch) launchGame3D('favors'); }, 700); },
   },
 });
 
@@ -498,6 +496,7 @@ startBtn.addEventListener('click', () => {
   sound.unlock();
   sound.click();
   sound.startAmbient();
+  if (sound.isEnabled() && !sound.padOn()) { sound.padStart(); world.life.homepod.setActive(true); } // the music is on from the start (the HomePod can still stop it)
   if (introUi) introUi.leave(); // the veil's blur melts while the camera pushes in
   state = 'ready';
   promptEl.classList.add('on');

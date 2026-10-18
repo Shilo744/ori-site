@@ -1,7 +1,9 @@
 // Shared SVG icon kit for the macOS desktop: toolbar glyphs (16px) and squircle app icons (64px).
-// Hand-drawn approximations — no Apple artwork.
-const APPLE_PATH = 'M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701';
-export const APPLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${APPLE_PATH}"/></svg>`;
+// Hand-drawn icons — no third-party artwork.
+// the logo of this little desktop: a peach (body with a dip at the top, a leaf) - ours, not anyone's trademark
+const PEACH_BODY = 'M12 6.4C10 4.9 5 6.2 4.5 11.3c-.5 4.4 2.7 8.9 7.5 8.9s8-4.5 7.5-8.9C19 6.2 14 4.9 12 6.4z';
+const PEACH_LEAF = 'M12.6 5.7c-.1-2 1.3-3.6 3.7-3.9.1 2.2-1.4 3.8-3.7 3.9z';
+export const APPLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="${PEACH_BODY}"/><path fill="currentColor" d="${PEACH_LEAF}"/></svg>`;
 
 const s16 = (inner, w = 1.5) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${inner}</svg>`;
 export const I = {

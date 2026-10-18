@@ -136,7 +136,7 @@ export function buildMap(seed = 51) {
   const nearDoor = (x, z, m) => doorSpots.some((d) => Math.hypot(d.x - x, d.z - z) < m);
   const onRoadSeg = (x, z) => ROAD_X.some((rx) => Math.abs(x - rx) < ROAD_W / 2 + 0.5) || ROAD_Z.some((rz) => Math.abs(z - rz) < ROAD_W / 2 + 0.5);
   const clearOfLots = (x, z, m) => !lots.some((l) => inside({ x0: l.rect.x0 - m, z0: l.rect.z0 - m, x1: l.rect.x1 + m, z1: l.rect.z1 + m }, x, z));
-  const addProp = (p, shape) => { props.push(p); if (shape) colliders.push(shape); };
+  const addProp = (p, shape) => { props.push(p); if (shape) { colliders.push(shape); p.col = shape; } };
 
   // props along one street: axis 'x' = a street running east-west at z = c; side is -1 / +1 (north / south of the centre line)
   const placeAlong = (axis, c, side, off, step, startOff, make, skipCross = 16) => {
@@ -223,6 +223,14 @@ export function buildMap(seed = 51) {
   }
   // the raised pavement of each block (up to the kerb of the roads around it); the beach column only from the boardwalk inwards
   const slabs = blocks.map((b) => rect(b.c === 0 ? -124 : b.x0 - WALK, b.r > 0 ? b.z0 - WALK : b.z0, b.c < 3 ? b.x1 + WALK : b.x1, b.r < 3 ? b.z1 + WALK : b.z1));
+  // Ori's own car: the parked car closest to his front door (pearl white, a design of its own; props3d draws kind 'ori')
+  {
+    const hd = places.home.door;
+    let best = null;
+    let bd = Infinity;
+    for (const p of props) if (p.type === 'car') { const d = Math.hypot(p.x - hd.x, p.z - hd.z); if (d < bd) { bd = d; best = p; } }
+    if (best) { best.kind = 'ori'; best.mine = true; best.v = 0; }
+  }
   const map = {
     seed, bounds: BOUNDS, blocks, slabs, lots, places, props, colliders, nodes, edges,
     roads: { x: ROAD_X, z: ROAD_Z, width: ROAD_W, walk: WALK, half: HALF },

@@ -1,6 +1,8 @@
 // "Ori, Can You...?" — writes an animator pose (anim.js) and the face channels (expressions.js) onto a skeleton of three.js-style bones
 // (anything with .rotation.set / .position.set — real THREE.Bone objects in the game, plain Object3D in the node preview).
 
+export const HEAD_SCALE = 0.9;
+
 /** @param {Record<string, any>} bones name -> bone  @param {Record<string, number[]>} rest name -> local rest position  @param {object} pose  @param {object} face */
 export function applyPose(bones, rest, pose, face) {
   const R = pose.bones;
@@ -38,4 +40,5 @@ export function applyPose(bones, rest, pose, face) {
   }
   const hb = bones.head;
   hb.rotation.z += face.tilt || 0;
+  hb.scale.setScalar(HEAD_SCALE); // the sculpted head is cartoon-large: slim it to believable proportions (neck weights follow)
 }

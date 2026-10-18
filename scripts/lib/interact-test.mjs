@@ -43,7 +43,6 @@ export async function runInteract(session, { ok, fail }) {
     await until(() => window.__ori.state === 'overview', null, 60000);
   }
   await ev(() => window.__ori.setTime(13));
-  await ev(() => { window.__ori.noAutoLaunch = true; }); // (clicking the iPhone starts the game in real life; here we only want its reaction)
   const ids = await ev(() => window.__ori.interactions.ids());
   check(THINGS.every((t) => ids.includes(t.id)) && ids.includes('mac'), `all ${THINGS.length} things + the MacBook are registered (${ids.join(', ')})`);
   check((await ev(() => document.getElementById('hud-found').textContent)) === `Discovered 0/${THINGS.length}`, 'the HUD shows "Discovered 0/11"');
@@ -139,7 +138,6 @@ export async function runInteract(session, { ok, fail }) {
     await ev(() => { const o = window.__ori; o.core.storage.remove('room:found'); o.core.storage.remove('daylight:mode'); o.core.achievements.reset(); });
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => window.__ori && window.__ori.ready, null, { timeout: 60000 });
-    await ev(() => { window.__ori.noAutoLaunch = true; }); // (a fresh page: the iPhone would start the game)
     await page.click('#intro-start', { timeout: 15000 });
     await until(() => window.__ori.state === 'ready', null);
     // (no mouse movement yet) the first-visit hint pulses one thing's outline when nobody has touched anything

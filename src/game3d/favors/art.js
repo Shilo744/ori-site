@@ -36,7 +36,7 @@ function murals(g) {
   // 1: pop collage
   g.save(); g.translate(MW, 0); g.beginPath(); g.rect(0, 0, MW, MH); g.clip();
   g.fillStyle = '#fff4d6'; g.fillRect(0, 0, MW, MH);
-  for (let i = 0; i < 38; i++) {
+  for (let i = 0; i < 22; i++) {
     g.fillStyle = PALETTE[Math.floor(rnd() * PALETTE.length)];
     const x = rnd() * MW; const y = rnd() * MH; const s = 30 + rnd() * 90;
     g.beginPath();
@@ -44,8 +44,7 @@ function murals(g) {
     if (k === 0) g.arc(x, y, s / 2, 0, 6.283); else if (k === 1) g.roundRect(x - s / 2, y - s / 3, s, s * 0.66, 14); else { g.moveTo(x, y - s / 2); g.lineTo(x + s / 2, y + s / 2); g.lineTo(x - s / 2, y + s / 2); g.closePath(); }
     g.fill(); g.lineWidth = 5; g.strokeStyle = '#1b1b2f'; g.stroke();
   }
-  g.fillStyle = 'rgba(27,27,47,0.18)'; for (let y = 8; y < MH; y += 14) for (let x = (y / 14) % 2 ? 0 : 7; x < MW; x += 14) { g.beginPath(); g.arc(x, y, 2.4, 0, 6.283); g.fill(); }
-  for (const [ex, ey] of [[260, 120], [700, 100]]) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(ex, ey, 46, 30, 0, 0, 6.283); g.fill(); g.lineWidth = 6; g.strokeStyle = '#1b1b2f'; g.stroke(); g.fillStyle = '#1b1b2f'; g.beginPath(); g.arc(ex + 8, ey, 14, 0, 6.283); g.fill(); }
+    for (const [ex, ey] of [[260, 120], [700, 100]]) { g.fillStyle = '#fff'; g.beginPath(); g.ellipse(ex, ey, 46, 30, 0, 0, 6.283); g.fill(); g.lineWidth = 6; g.strokeStyle = '#1b1b2f'; g.stroke(); g.fillStyle = '#1b1b2f'; g.beginPath(); g.arc(ex + 8, ey, 14, 0, 6.283); g.fill(); }
   g.restore();
   // 2: a school of fish
   g.save(); g.translate(0, MH); g.beginPath(); g.rect(0, 0, MW, MH); g.clip();

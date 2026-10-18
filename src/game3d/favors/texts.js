@@ -14,6 +14,8 @@ export const TEXT = {
   coffee: 'Coffee! Free sprinting for a few seconds',
   focusOn: 'Do Not Disturb: a little quiet for me',
   focusOff: (n) => (n ? `Back online - ${n} lovely ${n === 1 ? 'person is' : 'people are'} waiting` : 'Back online - everyone is lovely'),
+  carIn: 'Seatbelt on. Off we go!',
+  carOut: 'Parked beautifully',
   nothingHere: 'Nothing to do here right now - the phone knows the next stop',
   nobodyAsked: (place) => `${place}: all good here, nobody needs anything right now`,
   // the phone

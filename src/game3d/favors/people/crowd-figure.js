@@ -3,6 +3,7 @@
 // code per vertex = colour slot + 10 * limb, which crowd3d's vertex shader uses to swing the arms and legs and to paint each instance.
 import { computeCrowdData } from './assemble.js';
 import { randomSpec } from './specs.js';
+import { HEAD_SCALE } from './pose-apply.js';
 
 export const CROWD_STYLES = ['short', 'curly', 'long', 'bun', 'wavy', 'bald'];
 const SLOT = { tee: 0, jeans: 1, skin: 2, hair: 3, shoes: 4 };
@@ -35,8 +36,24 @@ export function crowdArchetype(style) {
       let best = 0; let bw = 0;
       for (let k = 0; k < 4; k++) if (m.skinWeight[i * 4 + k] > bw) { bw = m.skinWeight[i * 4 + k]; best = m.skinIndex[i * 4 + k]; }
       let slot = SLOT[layer];
-      if (layer === 'skin') for (const e of eyes) if (Math.hypot(m.positions[i * 3] - e[0], m.positions[i * 3 + 1] - e[1], (m.positions[i * 3 + 2] - e[2]) * 0.5) < 0.026) slot = 4; // eyes
+      if (layer === 'skin') {
+        const px = m.positions[i * 3]; const py = m.positions[i * 3 + 1]; const pz = m.positions[i * 3 + 2];
+        if (pz > H[2] + 0.02) { // only the face side of the head
+          for (const e of eyes) {
+            const ex = (px - e[0]) / 0.03; const ey = (py - e[1]) / 0.02;
+            if (ex * ex + ey * ey < 1) slot = 4; // the eyes: a clear dark almond
+            const bx = (px - e[0]) / 0.042; const by = (py - e[1] - 0.04) / 0.009;
+            if (bx * bx + by * by < 1) slot = 4; // the brows
+          }
+          const mx = (px - H[0]) / 0.034; const my = (py - H[1] - A.mouth.y) / 0.006;
+          if (mx * mx + my * my < 1) slot = 4; // a closed mouth
+        }
+      }
       code[v] = slot + 10 * limbOf(best);
+      // the same slimmer head as the close-up people (pose-apply HEAD_SCALE), blended into the neck
+      const u = Math.max(0, Math.min(1, (position[v * 3 + 1] - H[1] + 0.18) / 0.07));
+      const k = 1 - (1 - HEAD_SCALE) * u * u * (3 - 2 * u);
+      if (limbOf(best) === 0 && k < 1) { position[v * 3] = H[0] + (position[v * 3] - H[0]) * k; position[v * 3 + 1] = H[1] + (position[v * 3 + 1] - H[1]) * k; position[v * 3 + 2] = H[2] + (position[v * 3 + 2] - H[2]) * k; }
     }
   }
   let base = 0;

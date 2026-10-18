@@ -8,6 +8,7 @@ import { carGeometry } from './props-cars.js';
 import { scooterGeometry, treeGeometry, plantGeometry, cafeSetGeometry, TREE_BLOBS } from './props-sdf.js';
 import { palmGeometry, treeCards } from './vegetation.js';
 
+const ORI_CAR_COLOR = 0xf4f2ec;
 const CAR_COLORS = [0xe9e6df, 0x2d3139, 0xb23a3a, 0x3b6ea8, 0xd8b441, 0x6b8f71, 0xa9adb5, 0x7a4f8f];
 const SCOOTER_COLORS = [0xff6a3d, 0x2fb8d8, 0xf2c14e, 0x7be0a0];
 const UMBRELLA_COLORS = [0xe5625e, 0xf2c14e, 0x4a90e2, 0x43b581];
@@ -178,7 +179,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   const gy = (p) => groundHeight(map, p.x, p.z);
 
   // one InstancedMesh per kind AND per chunk of the neighbourhood (so the ones behind the camera or out of the shadow box are never drawn)
-  const instanced = (geo, material, list, place, { tint = null, name, cast = shadows } = {}) => {
+  const instanced = (geo, material, list, place, { tint = null, name, cast = shadows, reg = null } = {}) => {
     if (!list || !list.length) return null;
     const cells = new Map();
     for (const p of list) { const k = Math.floor(p.x / 72) + ',' + Math.floor(p.z / 72); (cells.get(k) || cells.set(k, []).get(k)).push(p); }
@@ -188,6 +189,7 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
       im.name = name + ':' + key;
       items.forEach((p, i) => {
         im.setMatrixAt(i, place(p));
+        if (reg) reg(p, im, i, place(p));
         if (tint) im.setColorAt(i, new THREE.Color(tint(p, i)));
       });
       im.instanceMatrix.needsUpdate = true;
@@ -259,13 +261,43 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
   lib.applyWet(carBody);
   mats.push(carBody);
   const carDetails = vc(0xffffff, 0.5, { metalness: 0.1 });
-  for (const kind of ['hatch', 'sedan', 'van']) {
-    const list = (byType.car || []).filter((p) => CAR_KIND[p.v % CAR_KIND.length] === kind);
+  const kindOf = (p) => p.kind || CAR_KIND[p.v % CAR_KIND.length];
+  const carGeoCache = new Map(); // kind -> { body, dark }: shared by the parked cars, the one Ori drives and the traffic
+  const carGeoOf = (kind) => {
+    if (!carGeoCache.has(kind)) {
+      const g = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ kind }); return { body: c.body, dark: c.details }; })();
+      carGeoCache.set(kind, g);
+      geos.push(g.body, g.dark);
+    }
+    return carGeoCache.get(kind);
+  };
+  const carHandles = new Map(); // a parked car (map prop) -> [{ im, i, m }]: so one can be hidden while Ori drives it
+  const reg = (p, im, i, m) => { (carHandles.get(p) || carHandles.set(p, []).get(p)).push({ im, i, m }); };
+  const colourOf = (p) => (p.mine ? ORI_CAR_COLOR : CAR_COLORS[p.v % CAR_COLORS.length]);
+  for (const kind of ['hatch', 'sedan', 'van', 'ori']) {
+    const list = (byType.car || []).filter((p) => kindOf(p) === kind);
     if (!list.length) continue;
-    const cg = tier === 'low' ? carGeos() : (() => { const c = carGeometry({ cell: tier === 'high' ? 0.2 : 0.28, kind }); return { body: c.body, dark: c.details }; })();
-    instanced(cg.body, carBody, list, (p) => matrix(p.x, 0, p.z, p.rot), { tint: (p) => CAR_COLORS[p.v % CAR_COLORS.length], name: `car-bodies-${kind}` });
-    instanced(cg.dark, carDetails, list, (p) => matrix(p.x, 0, p.z, p.rot), { name: `car-details-${kind}`, cast: false });
+    const cg = carGeoOf(kind);
+    instanced(cg.body, carBody, list, (p) => matrix(p.x, 0, p.z, p.rot), { tint: colourOf, name: `car-bodies-${kind}`, reg });
+    instanced(cg.dark, carDetails, list, (p) => matrix(p.x, 0, p.z, p.rot), { name: `car-details-${kind}`, cast: false, reg });
   }
+  const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+  /** A car that moves (Ori's drive, the traffic): one-instance meshes sharing the parked cars' geometry and paint. Returns { group, setColor, dispose }. */
+  const makeCar = (kind, color) => {
+    const cg = carGeoOf(kind);
+    const grp = new THREE.Group();
+    const bi = new THREE.InstancedMesh(cg.body, carBody, 1);
+    bi.setMatrixAt(0, new THREE.Matrix4());
+    bi.setColorAt(0, new THREE.Color(color));
+    bi.castShadow = shadows;
+    bi.frustumCulled = false;
+    const di = new THREE.InstancedMesh(cg.dark, carDetails, 1);
+    di.setMatrixAt(0, new THREE.Matrix4());
+    di.frustumCulled = false;
+    grp.add(bi, di);
+    group.add(grp);
+    return { group: grp, kind, dispose() { group.remove(grp); bi.dispose(); di.dispose(); } };
+  };
 
   const sg = tier === 'low' ? scooterGeos() : (() => { const c = scooterGeometry({ cell: tier === 'high' ? 0.04 : 0.06 }); return { body: c.body, dark: c.details }; })();
   instanced(sg.body, vc(0xffffff, 0.45), byType.scooter, (p) => matrix(p.x, gy(p), p.z, p.rot, 1.2), { tint: (p) => SCOOTER_COLORS[p.v % SCOOTER_COLORS.length], name: 'scooter-bodies' });
@@ -313,6 +345,14 @@ export function buildProps(map, { shadows = true, tier = 'high', lib } = {}) {
 
   return {
     group,
+    /** The parked cars (map props with .kind / .mine), hide / show one while Ori has it out on the road, and the factory for moving cars. */
+    cars: byType.car || [],
+    carKind: kindOf,
+    carColor: colourOf,
+    setCarHidden(p, hidden) { for (const h of carHandles.get(p) || []) { h.im.setMatrixAt(h.i, hidden ? ZERO : h.m); h.im.instanceMatrix.needsUpdate = true; } },
+    makeCar,
+    /** A parked car moved (Ori left it somewhere else): its instance follows the new pose and shows again. */
+    setCarPose(p) { const m = matrix(p.x, 0, p.z, p.rot); for (const h of carHandles.get(p) || []) { h.m = m; h.im.frustumCulled = false; h.im.setMatrixAt(h.i, m); h.im.instanceMatrix.needsUpdate = true; } },
     /** lamps: 0..1 street light level. */
     setLight({ lamps }) { lampHeadMat.emissiveIntensity = lamps * 2.2; poolMat.opacity = lamps * 0.42; },
     stats: { meshes: meshes.length, instances: map.props.length },

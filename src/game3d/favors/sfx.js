@@ -103,7 +103,31 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     }
   }
 
+  // ── the engine: a soft electric hum that rises with the speed (a low saw through a low-pass + a whine), only while driving ──
+  let eng = null;
+  function engine(k, pedal = 0) {
+    if (k < 0) { if (eng) { eng.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); const e = eng; eng = null; setTimeout(() => { try { e.o1.stop(); e.o2.stop(); } catch { /* done */ } }, 400); } return; }
+    const c = ready();
+    if (!c) return;
+    if (!eng) {
+      const g = c.createGain(); g.gain.value = 0;
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
+      const o1 = c.createOscillator(); o1.type = 'sawtooth';
+      const o2 = c.createOscillator(); o2.type = 'sine';
+      const g2 = c.createGain(); g2.gain.value = 0.35;
+      o1.connect(lp); lp.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
+      o1.start(); o2.start();
+      eng = { g, lp, o1, o2 };
+    }
+    const t = c.currentTime;
+    eng.o1.frequency.setTargetAtTime(48 + k * 70, t, 0.08);
+    eng.o2.frequency.setTargetAtTime(180 + k * 520, t, 0.08);
+    eng.lp.frequency.setTargetAtTime(380 + k * 900 + Math.max(0, pedal) * 250, t, 0.1);
+    eng.g.gain.setTargetAtTime(0.025 + k * 0.05 + Math.max(0, pedal) * 0.01, t, 0.1);
+  }
+
   return {
+    engine,
     /** Starts / stops the loop (kept quiet under the sound effects). */
     music(on) {
       if (on === musicOn) return;
@@ -129,6 +153,6 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     tap() { tone('sine', 1200, 900, 0.05, 0.07); },
     pop() { tone('sine', 520, 980, 0.09, 0.09); },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },
-    dispose() { musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
+    dispose() { engine(-1); musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
   };
 }

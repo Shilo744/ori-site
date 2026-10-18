@@ -119,7 +119,7 @@ export function personStats(data) {
 /** The far crowd's version of a person: the same head, hair and body but meshed coarsely, with no face parts, hands or curls. */
 export function computeCrowdData(spec) {
   const f = faceSpec(spec.face);
-  const head = buildHead(f, { cell: 0.022, ao: true });
+  const head = buildHead(f, { cell: 0.016, ao: true }); // (a finer head than the body: the eyes have to be readable)
   const A = head.anchors;
   const rig = makeRig(A, BODY_SCALE);
   const L = { skin: new MeshBuilder(), tee: new MeshBuilder(), jeans: new MeshBuilder(), shoes: new MeshBuilder(), hair: new MeshBuilder() };

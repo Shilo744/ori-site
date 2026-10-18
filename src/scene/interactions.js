@@ -140,7 +140,9 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
   const api = {
     /** A little jump (cm) — phones, tablets. */
     hop(obj, h = 2.4, dur = 0.55) {
-      const y0 = obj.position.y;
+      // the resting height is remembered once: a second click in mid-air must not take the mid-air height as the new "rest" (the phone ended up floating)
+      if (obj.userData.hopRest == null) obj.userData.hopRest = obj.position.y;
+      const y0 = obj.userData.hopRest;
       addTween(dur, (k) => { obj.position.y = y0 + h * Math.sin(Math.PI * k) * (1 - 0.35 * k); }, () => { obj.position.y = y0; });
     },
     /** Scale up and settle back. */

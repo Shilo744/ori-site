@@ -11,9 +11,9 @@ const AWNINGS = [['#e5625e', '#fbf6ec'], ['#2f7f9a', '#fbf6ec'], ['#e8a73a', '#f
 function signQuad(b, atlas, f, r, id, s0, s1, y0, y1) {
   const [u0, v0, u1, v1] = atlas.uv(id);
   b.trim.setColor('#2b2d33');
-  faceBox(b.trim, f, r, s0 - 0.08, s1 + 0.08, y0 - 0.06, y1 + 0.06, 0.1, 0);
+  faceBox(b.trim, f, r, s0 - 0.08, s1 + 0.08, y0 - 0.06, y1 + 0.06, 0.2, 0); // (proud of the floor line that runs behind it: 0.07 + a little, or the line shows through)
   b.signs.setColor('#ffffff');
-  faceQuad(b.signs, f, r, s0, s1, y0, y1, 0.115, [u0, v0, u1, v0, u1, v1, u0, v1]);
+  faceQuad(b.signs, f, r, s0, s1, y0, y1, 0.215, [u0, v0, u1, v0, u1, v1, u0, v1]);
 }
 
 /** A striped awning with a scalloped valance, pinned at the wall and free at the front edge. */

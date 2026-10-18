@@ -70,6 +70,9 @@ export function buildBody(rig, spec = {}, { quality = 1, crowd = false } = {}) {
     d = smin(d, sdEllipsoid(ax, y, z, 0, 1.2, 0.008, 0.172 * bw * sh, 0.14, 0.116 * bw), 0.08);
     d = smin(d, sdCapsule(ax, y, z, 0, 1.3, -0.004, 0.172 * sh, 1.295, -0.004, 0.062), 0.06);
     d = smin(d, sdEllipsoid(ax, y, z, 0, 1.335, -0.03, 0.095, 0.05, 0.07), 0.05);
+    // cloth folds: soft diagonal creases that gather round the waist and under the arms
+    const gather = sstep(0.88, 0.93, y) * (1 - sstep(1.02, 1.1, y)) + 0.6 * sstep(1.12, 1.18, y) * (1 - sstep(1.2, 1.26, y)) * sstep(0.1, 0.17, ax);
+    d += 0.0026 * gather * Math.sin(y * 84 + ax * 19 + Math.sin(ax * 41 + z * 17) * 1.4);
     d = smax(d, 0.9 - y, 0.016); // the hem
     if (of.top !== 'none') d = smax(d, -sdEllipsoid(ax, y, z, 0, 1.372, -0.03, 0.058, 0.07, 0.058), 0.012); // the neck hole
     return d;
@@ -97,7 +100,7 @@ export function buildBody(rig, spec = {}, { quality = 1, crowd = false } = {}) {
     const toChest = (x, y) => sstep(1.3, 1.34, y) * (Math.abs(x) < 0.23 ? 1 : 0);
     const armSkin = (x, y, z) => {
       const m = k * x;
-      let d = sdCapsule(m, y, z, 0.205, 1.285, 0, 0.262, 1.025, 0, 0.0465 * bd.arms, 0.041 * bd.arms);
+      let d = sdCapsule(m, y, z, 0.2285, 1.185, 0, 0.262, 1.025, 0, 0.0465 * bd.arms, 0.041 * bd.arms);
       d = smin(d, sdCapsule(m, y, z, 0.262, 1.025, 0, 0.305, 0.8, 0, 0.041 * bd.arms, 0.0345 * bd.arms), 0.03);
       return d;
     };
@@ -109,12 +112,12 @@ export function buildBody(rig, spec = {}, { quality = 1, crowd = false } = {}) {
       const e1 = [0.205 + (0.305 - 0.205) * endT * 0.5, 1.285 - (1.285 - 0.8) * endT, 0];
       const sleeve = (x, y, z) => {
         const m = k * x;
-        let d = sdCapsule(m, y, z, 0.205, 1.285, 0, e1[0], e1[1], 0, 0.068 * bd.arms, 0.062 * bd.arms);
+        let d = sdCapsule(m, y, z, 0.185, 1.295, 0, e1[0], e1[1], 0, 0.0465 * bd.arms + 0.026, 0.041 * bd.arms + 0.024);
         if (endT > 0.6) d = smin(d, sdCapsule(m, y, z, 0.262, 1.025, 0, 0.305, 0.84, 0, 0.056, 0.05), 0.03);
         return d;
       };
       out.tee.push(part(sleeve, {
-        min: [-0.36, 0.78, -0.09], max: [0.36, 1.37, 0.09], cell: cellL, weights: blendWeights(armW, (x, y, z) => [id['upperArm' + S], 0.6, id['chest'], 0.4], toChest), reach: 0.03,
+        min: [-0.38, 0.76, -0.14], max: [0.38, 1.42, 0.14], cell: cellL, weights: blendWeights(armW, (x, y, z) => [id['upperArm' + S], 0.6, id['chest'], 0.4], toChest), reach: 0.03,
         colorFn: (x, y, z, ao) => [teeC[0] * ao, teeC[1] * ao, teeC[2] * ao],
       }));
     }
@@ -148,6 +151,8 @@ export function buildBody(rig, spec = {}, { quality = 1, crowd = false } = {}) {
     d = smin(d, shin, 0.04);
     d = smin(d, sdCapsule(ax, y, z, 0.105 * bw, 0.17, -0.005, 0.105 * bw, 0.1, -0.005, 0.071 * bw, 0.079 * bw), 0.03); // the cuff
     if (of.bottom === 'skirt') d = smin(d, sdEllipsoid(ax, y, z, 0, 0.62, 0, 0.27 * bw, 0.3, 0.2 * bw), 0.08);
+    const knee = Math.exp(-(((y - 0.5) / 0.07) ** 2)) + 0.8 * Math.exp(-(((y - 0.2) / 0.06) ** 2)) + 0.6 * Math.exp(-(((y - 0.86) / 0.05) ** 2));
+    d += 0.0032 * knee * Math.sin(y * 105 + ax * 23 + z * 11); // creases behind the knee, at the ankle and at the hip
     d = smax(d, cutY - y, 0.012);
     return d;
   };

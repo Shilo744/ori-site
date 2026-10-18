@@ -7,6 +7,10 @@ import { createSky } from '../sky3d.js';
 import { createFavorsPost } from './post-fx.js';
 import { buildMap, groundHeight, walkDistance, PLAYER_R } from './map.js';
 import { createController, moveDir, WALK_SPEED } from './controller.js';
+import { createVehicle } from './vehicle.js';
+import { createTraffic } from './traffic.js';
+import { createFire } from './fire.js';
+import { createBodies } from './bodies.js';
 import { createCameraRig } from './camera-rig.js';
 import { createClock, skyAt, gradeAt } from './daycycle.js';
 import { createCrowd } from './crowd.js';
@@ -71,6 +75,14 @@ export function createFavorsGame(o) {
   let lampTick = 0;
   let ground = null;
   let props = null;
+  let traffic = null;
+  let veh = null; // the car's physics while Ori drives (null on foot)
+  let drive = null; // { p: the parked car (a map prop), mesh: the moving copy }
+  let nearCar = null; // the parked car within reach of Ori
+  let camDist = 8.9;
+  let bodies = null; // cars that were knocked about and now slide and spin on their own
+  let fire = null; // the afterburner flames
+  let carTag = null; // the bobbing "ORI CAR" arrow over Ori's own car, until he first gets in
   let beach = null;
   let life = null;
   let furniture = null;
@@ -151,6 +163,23 @@ export function createFavorsGame(o) {
     buildings = buildBuildings(map, { lib, aniso, shadows, tier });
     lap('buildings');
     props = buildProps(map, { shadows, tier, lib });
+    traffic = createTraffic({ props, seed: questSeed });
+    bodies = createBodies({ world: map.world });
+    fire = createFire(scene, { height: renderer.domElement.height * 0.9 });
+    const mine = props.cars.find((p) => p.mine);
+    if (mine && !o.quick) {
+      const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+      const x = cv.getContext('2d');
+      x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.roundRect(36, 30, 440, 120, 60); x.fill();
+      x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 4; x.stroke();
+      x.fillStyle = '#ffffff'; x.font = '800 62px Inter, system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('ORI CAR', 256, 92);
+      x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.moveTo(216, 150); x.lineTo(296, 150); x.lineTo(256, 214); x.closePath(); x.fill();
+      const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, fog: false }));
+      sp.scale.set(3.8, 1.9, 1); sp.renderOrder = 999;
+      scene.add(sp);
+      carTag = { sp, tex, car: mine };
+    }
     lap('props');
     beach = buildBeach(map, { lib, shadows, tier });
     life = createLife(map, { lib, shadows, tier });
@@ -302,6 +331,100 @@ export function createFavorsGame(o) {
     api.render(0);
   }
 
+  // ── cars: get in (F / Space next to one), drive, get out ──
+  const CAR_REACH = 3.6;
+  function findCar() {
+    const st = ctrl.state;
+    let best = null;
+    let bd = CAR_REACH;
+    for (const p of props.cars) { const d = Math.hypot(p.x - st.x, p.z - st.z); if (d < bd) { bd = d; best = p; } }
+    nearCar = best;
+  }
+  function enterCar(p) {
+    if (drive || over) return;
+    if (p.body) { bodies.remove(p.body); if (p.body.mesh) p.body.mesh.dispose(); p.body = null; } // (a car that was knocked about: it is driven from where it lies)
+    if (p.dyn) { for (const c of p.dyn) map.world.removeDynamic(c); p.dyn = null; }
+    if (p.col) p.col.off = true;
+    props.setCarHidden(p, true);
+    const mesh = props.makeCar(props.carKind(p), props.carColor(p));
+    drive = { p, mesh };
+    if (carTag) { scene.remove(carTag.sp); carTag.sp.material.dispose(); carTag.tex.dispose(); carTag = null; } // he found it: the arrow's job is done
+    veh = createVehicle(map.world, { x: p.x, z: p.z, heading: p.rot + Math.PI / 2, ...(p.mine ? { accel: 21, top: 27 } : { accel: 9.5, top: 17 }) }); // Ori's own car is the quick one
+    ori.group.visible = false;
+    ctrl.teleport(p.x, p.z, veh.state.heading);
+    camDist = rig.state.dist;
+    rig.state.dist = 11.5;
+    nearCar = null;
+    sfx.tap();
+    hud.toast(TEXT.carIn);
+  }
+  function exitCar() {
+    if (!drive) return;
+    const { p, mesh } = drive;
+    const s = veh.state;
+    // the car stays where it was left (hidden instance moved there, three circles in the collision world), Ori steps out on the driver's side
+    p.x = s.x; p.z = s.z; p.rot = s.heading - Math.PI / 2;
+    props.setCarPose(p);
+    props.setCarHidden(p, false);
+    mesh.dispose();
+    p.dyn = [-1.35, 0, 1.35].map((o) => map.world.addDynamic({ t: 1, x: s.x + Math.sin(s.heading) * o, z: s.z + Math.cos(s.heading) * o, r: 0.98 }));
+    const fx = Math.sin(s.heading); const fz = Math.cos(s.heading);
+    const rx = -fz; const rz = fx; // to the right of the car
+    let ox = s.x + rx * 2.1; let oz = s.z + rz * 2.1;
+    for (const [k, b] of [[2.1, 0], [-2.1, 0], [2.6, 2], [-2.6, 2], [2.1, -2], [-2.1, -2]]) {
+      const tx = s.x + rx * k + fx * b; const tz = s.z + rz * k + fz * b;
+      if (!map.world.blocked(tx, tz, PLAYER_R)) { ox = tx; oz = tz; break; }
+    }
+    ctrl.teleport(ox, oz, s.heading);
+    ctrl.state.sprinting = false;
+    drive = null; veh = null;
+    ori.group.visible = true;
+    rig.state.dist = camDist;
+    sfx.engine(-1);
+    sfx.tap();
+    hud.toast(TEXT.carOut);
+  }
+  /** What the car Ori drives touches gets knocked loose: parked cars and traffic cars turn into free bodies that take the hit. */
+  function knockThings(s) {
+    const fx = Math.sin(s.heading); const fz = Math.cos(s.heading);
+    const reach = (o) => [s.x + fx * o, s.z + fz * o];
+    const touches = (x, z, rad = 3.1) => [-1.35, 0, 1.35].some((o) => { const [cx, cz] = reach(o); return Math.hypot(x - cx, z - cz) < rad; });
+    for (const p of props.cars) {
+      if (p === drive.p || p.body || !touches(p.x, p.z, 4.3)) continue; // (a parked car's collider is a long box: free it before the wall stops the car)
+      if (p.dyn) { for (const c of p.dyn) map.world.removeDynamic(c); p.dyn = null; }
+      if (p.col) p.col.off = true;
+      props.setCarHidden(p, true);
+      const mesh = props.makeCar(props.carKind(p), props.carColor(p));
+      p.body = bodies.add({ x: p.x, z: p.z, heading: p.rot + Math.PI / 2, mesh, long: p.mine ? 1.5 : 1.35, src: { p } });
+    }
+    if (traffic) {
+      for (const c of [...traffic.cars]) {
+        if (!touches(c.x, c.z)) continue;
+        const d = traffic.detach(c);
+        if (d) bodies.add({ x: d.x, z: d.z, heading: d.heading, vx: d.vx, vz: d.vz, mesh: d.mesh, src: { traffic: true } });
+      }
+    }
+    const hit = bodies.hitBy(s, drive.p.mine ? [-1.5, 0, 1.5] : [-1.35, 0, 1.35]);
+    if (hit > 0) s.hit = Math.max(s.hit, hit);
+  }
+  function stepDrive(dts) {
+    const s = veh.state;
+    const mineCar = !!drive.p.mine;
+    veh.update(dts, { throttle: input.fwd, steer: input.strafe, brake: !mineCar && input.sprint, boost: mineCar && input.sprint }); // Ori's car boosts on Shift, the others brake
+    knockThings(s);
+    const c = ctrl.state;
+    c.x = s.x; c.z = s.z; c.heading = s.heading; c.vx = s.vx; c.vz = s.vz; c.speed = Math.abs(s.speed); c.sprinting = s.speed > (drive.p.mine ? 18 : 13);
+    sfx.engine(Math.min(1, Math.abs(s.speed) / (drive.p.mine ? 27 : 17)), input.fwd);
+    if (s.hit > 2.5) { sfx.pop(); s.hit = 0; if (!reduceMotion()) hud.shake(); }
+    // the afterburner: flames out of the two tail pipes while the boost is on
+    if (fire && s.boost > 0.15) {
+      const fx = Math.sin(s.heading); const fz = Math.cos(s.heading);
+      for (const side of [-0.42, 0.42]) for (let k = 0; k < 2; k++) fire.emit(s.x - fx * 2.55 - fz * side + (Math.random() - 0.5) * 0.15, 0.5 + Math.random() * 0.1, s.z - fz * 2.55 + fx * side + (Math.random() - 0.5) * 0.15, -fx * (6 + Math.random() * 5) + s.vx * 0.5 + (Math.random() - 0.5) * 1.2, (Math.random() - 0.3) * 0.8, -fz * (6 + Math.random() * 5) + s.vz * 0.5 + (Math.random() - 0.5) * 1.2, 0.5 + s.boost * 0.5);
+    }
+    drive.mesh.group.position.set(s.x, 0, s.z);
+    drive.mesh.group.rotation.set(0, s.heading - Math.PI / 2, 0);
+  }
+
   /** Space: do the favour at the door Ori stands at (the followed task first, then the soonest one there). T53 puts a little action here. */
   function useDoor() {
     if (!nearest) return;
@@ -445,11 +568,20 @@ export function createFavorsGame(o) {
       wish.mx = dir.mx;
       wish.mz = dir.mz;
       wish.sprint = input.sprint;
-      if (!over) ctrl.update(dts, wish);
+      if (!over) { if (drive) stepDrive(dts); else ctrl.update(dts, wish); }
+      if (bodies) {
+        bodies.update(dts);
+        for (const b of [...bodies.bodies]) {
+          if (b.src && b.src.p) { b.src.p.x = b.x; b.src.p.z = b.z; b.src.p.rot = b.heading - Math.PI / 2; } // (so it can still be found and entered)
+          else if (b.src && b.src.traffic && b.rest > 12) { bodies.remove(b); b.mesh.dispose(); if (traffic) traffic.spawn(ctrl.state); } // a wreck is towed away; a fresh car joins the traffic
+        }
+      }
+      if (traffic) traffic.update(dts, [{ x: ctrl.state.x, z: ctrl.state.z, r: drive ? 1.1 : 0.45 }, ...(bodies ? bodies.bodies.map((b) => ({ x: b.x, z: b.z, r: 1.4 })) : [])]);
       clock.tick(dt, scale);
       crowd.update(intro ? dt : dts, ctrl.state);
       rig.update(dt, { ...ctrl.state }, intro ? {} : { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
       findPlaces();
+      if (!drive) findCar();
       syncQuests();
     },
     /** Draws one frame (also used by the tests with dt = 0). */
@@ -461,6 +593,8 @@ export function createFavorsGame(o) {
       ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
       for (const p of extras) p.update(dt, { speed: 0 });
       fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
+      if (fire) fire.update(dt);
+      if (carTag) carTag.sp.position.set(carTag.car.x, 3.0 + Math.sin(t * 3) * 0.25, carTag.car.z);
       crowd3d.update(t, camera);
       lib.update(t);
       buildings.update(camera.position.x, camera.position.z);
@@ -494,7 +628,7 @@ export function createFavorsGame(o) {
       const q = quests.state;
       const rankIdx = RANKS.reduce((a, r, i) => (q.score >= r.min ? i : a), 0);
       const next = RANKS[rankIdx + 1];
-      hud.update({ time: clock.label(), label: partOfDay(clock.hour), day: clock.progress, place: nearPlace ? { name: nearPlace.name, kind: nearPlace.kind === 'building' ? 'Here' : 'Near' } : null, stamina: st.stamina, winded: st.winded });
+      hud.update({ time: clock.label(), label: partOfDay(clock.hour), day: clock.progress, place: drive ? { name: 'F · get out', kind: 'Driving' } : nearCar ? { name: 'F · get in', kind: 'Car' } : nearPlace ? { name: nearPlace.name, kind: nearPlace.kind === 'building' ? 'Here' : 'Near' } : null, stamina: st.stamina, winded: st.winded });
       hud.meters({ chaos: q.chaos, score: q.score, rankProgress: next ? (q.score - RANKS[rankIdx].min) / (next.min - RANKS[rankIdx].min) : 1 });
       const task = following != null ? quests.get(following) : null;
       if (task && (task.state === 'new' || task.state === 'accepted')) {
@@ -502,7 +636,13 @@ export function createFavorsGame(o) {
         const m = Math.round(walkDistance(map, st.x, st.z, place.door.x, place.door.z));
         hud.goal({ title: `${task.giverName}: ${task.title}`, meta: `${m} m · ${left(task.deadline - q.min)}` });
         hud.arrow(arrowFor(place));
-      } else { hud.goal(null); hud.arrow(null); }
+      } else {
+        hud.goal(null);
+        // no task to follow: the edge arrow points at Ori's car instead (the floating tag shows once the car is on screen)
+        const ca = carTag ? arrowFor({ door: { x: carTag.car.x, z: carTag.car.z }, sign: 'ORI CAR' }) : null;
+        hud.arrow(ca);
+        if (carTag) carTag.sp.visible = !ca;
+      }
       phone.update(t, dt, ctrl.state.speed);
     },
     resize(w, h) {
@@ -519,7 +659,7 @@ export function createFavorsGame(o) {
     onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.42; } },
     onAction(name) {
       if (paused || !opened || over) return;
-      if (name === 'phone') { phone.toggle(); sfx.tap(); } else if (name === 'interact') useDoor();
+      if (name === 'phone') { phone.toggle(); sfx.tap(); } else if (name === 'interact') { if (drive) exitCar(); else if (nearCar) enterCar(nearCar); else useDoor(); }
     },
     onKey(e) {
       if (over) { if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native'; return true; }
@@ -593,7 +733,7 @@ export function createFavorsGame(o) {
       const s = ctrl.state;
       const q = quests.state;
       return {
-        phase: over ? 'over' : 'play', paused, tier,
+        phase: over ? 'over' : 'play', paused, tier, driving: !!drive, car: drive ? { x: veh.state.x, z: veh.state.z, speed: veh.state.speed, heading: veh.state.heading } : null, nearCar: nearCar ? { x: nearCar.x, z: nearCar.z, mine: !!nearCar.mine } : null, traffic: traffic ? traffic.cars.length : 0,
         clock: { hour: clock.hour, label: clock.label(), progress: clock.progress },
         player: { x: s.x, z: s.z, heading: s.heading, speed: s.speed, stamina: s.stamina, sprinting: s.sprinting, winded: s.winded, blocked: s.blocked, hash: ctrl.hash() },
         near: nearPlace ? nearPlace.id : null,
@@ -616,6 +756,10 @@ export function createFavorsGame(o) {
       ori.dispose();
       for (const p of extras) { scene.remove(p.group); p.dispose(); }
       extras.length = 0;
+      if (traffic) traffic.dispose();
+      if (fire) { fire.dispose(); fire = null; }
+      if (bodies) { bodies.dispose(); bodies = null; }
+      if (carTag) { scene.remove(carTag.sp); carTag.sp.material.dispose(); carTag.tex.dispose(); carTag = null; }
       crowd3d.dispose();
       buildings.dispose();
       rain.dispose();

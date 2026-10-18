@@ -38,7 +38,7 @@ function fib(n) {
 
 const STYLE = {
   // dome radii (x, y, z), centre y, curl blob radius range, how many blobs, hairline height, how low the sides / back go
-  curly: { r: [0.165, 0.158, 0.17], cy: 0.046, cz: -0.024, blob: [0.032, 0.05], n: 110, n2: 0, line: 0.064, side: -0.034, back: -0.13, k: 0.012, curls: 860, curlR: 0.0135, curlL: 0.042 },
+  curly: { r: [0.165, 0.158, 0.17], cy: 0.046, cz: -0.024, blob: [0.032, 0.05], n: 110, n2: 0, line: 0.064, side: -0.04, back: -0.165, k: 0.012, curls: 860, curlR: 0.0135, curlL: 0.042 },
   wavy: { r: [0.14, 0.138, 0.15], cy: 0.04, cz: -0.02, blob: [0.03, 0.044], n: 70, n2: 0, line: 0.082, side: 0.0, back: -0.1, k: 0.03, curls: 120, curlR: 0.016, curlL: 0.07 },
   short: { r: [0.131, 0.128, 0.136], cy: 0.034, cz: -0.014, blob: [0.02, 0.03], n: 40, n2: 0, line: 0.085, side: 0.02, back: -0.04, k: 0.03 },
   buzz: { r: [0.1235, 0.1215, 0.1285], cy: 0.032, cz: -0.012, blob: [0.01, 0.01], n: 0, n2: 0, line: 0.075, side: 0.02, back: -0.03, k: 0.02 },
@@ -62,7 +62,7 @@ export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 }
     let made = 0;
     for (const d of dirs) {
       const [dx, dy, dz] = d;
-      if (dy < (style === 'curly' ? -0.42 : -0.12)) continue; // none far below the dome's equator
+      if (dy < (style === 'curly' ? -0.62 : -0.12)) continue; // none far below the dome's equator
       if (dz > 0.25 && dy < 0.62) continue; // keep the face clear
       if (dz > 0.25 && Math.abs(dx) < 0.55 && dy < 0.78) continue;
       const jitter = 0.9 + rnd() * 0.18;
@@ -96,6 +96,7 @@ export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 }
     const shrink = S.curls ? 0.93 : 0.93; // the curls stand on a smaller, darker mass
     let d = sdEllipsoid(ax, y, z, C[0], C[1], C[2], R[0] * shrink, R[1] * shrink, R[2] * shrink);
     if (S.n || S.n2 || style === 'curly') d = smin(d, blobsD(x, y, z), S.k);
+    if (style === 'curly' || style === 'wavy') d = smin(d, sdEllipsoid(ax, y, z, 0, -0.035, -0.03, 0.112, 0.092, 0.108), 0.03); // the nape: hair down to the neck at the back
     if (bunC) d = smin(d, sdSphere(ax, y, z, bunC[0], bunC[1], bunC[2], 0.07), 0.03);
     if (longBack) { // a sheet of hair hanging behind the head and over the shoulders
       d = smin(d, sdEllipsoid(ax, y, z, 0, -0.17, -0.1, 0.125, 0.2, 0.06), 0.06);
@@ -129,7 +130,7 @@ export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 }
     const grad = (x, y, z) => { const e = 0.004; const gx = field(x + e, y, z) - field(x - e, y, z); const gy = field(x, y + e, z) - field(x, y - e, z); const gz = field(x, y, z + e) - field(x, y, z - e); const l = Math.hypot(gx, gy, gz) || 1; return [gx / l, gy / l, gz / l]; };
     for (const d of dirs) {
       const [dx, dy, dz] = d;
-      if (dy < -0.4) continue;
+      if (dy < (style === 'curly' ? -0.6 : -0.4)) continue;
       // march out from the dome's centre to the hair surface
       let lo = 0.04; let hi = 0.36;
       if (field(C[0] + dx * lo, C[1] + dy * lo, C[2] + dz * lo) > 0) continue;

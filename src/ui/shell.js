@@ -12,7 +12,7 @@ const WIDGETS = `
 
 const MENUBAR = `
       <div class="mb-l">
-        <button class="mbi logo" data-menu="apple" aria-label="Apple menu">${APPLE}</button>
+        <button class="mbi logo" data-menu="apple" aria-label="Main menu">${APPLE}</button>
         <button class="mbi app" data-menu="app" id="mb-app">Finder</button>
         <button class="mbi" data-menu="file">File</button><button class="mbi" data-menu="edit">Edit</button><button class="mbi" data-menu="view">View</button><button class="mbi" data-menu="go">Go</button><button class="mbi" data-menu="window">Window</button><button class="mbi" data-menu="help">Help</button>
       </div>
