@@ -7,7 +7,7 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 
 /** Neutral values of every channel. lid: 0 = relaxed open, 1 = shut; lidWide < 0 opens wider. smile channel is the mouth's corner lift. */
 export const NEUTRAL = {
-  lidUp: 0.26, lidUpR: 0.26, lidLo: 0.08, lidLoR: 0.08, // relaxed, friendly lids; the right eye can differ (a wink)
+  lidUp: 0.4, lidUpR: 0.4, lidLo: 0.14, lidLoR: 0.14, // relaxed, friendly lids; the right eye can differ (a wink)
   browInL: 0, browOutL: 0, browInR: 0, browOutR: 0, browTilt: 0, // metres of lift (+up) / tilt
   w: 1, smile: 0.35, open: 0, round: 0, asym: 0, teeth: 0, tongue: 0, // the mouth
   gx: 0, gy: 0, // the gaze (radians)

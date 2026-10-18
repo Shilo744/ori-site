@@ -18,7 +18,7 @@ export const ORI = {
     tee: 0x16171b, // black crew-neck
     jeans: 0x3a4b6e, // denim
     shoes: 0xf3f3f1,
-    skin: 0xc28e6e,
+    skin: 0xb48a63,
     chain: 0xd5dae0, // silver rope chain
     earring: 0xe6e9ee, // small silver hoop (his left ear)
     glasses: 0x101114, // black rectangular frames

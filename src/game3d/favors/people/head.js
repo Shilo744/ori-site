@@ -95,7 +95,7 @@ export function skinColor(f) {
     const ax = Math.abs(x);
     let c = base;
     c = mix3(c, flush, f.blush * smooth01(0.055, 0.0, Math.hypot(ax - 0.068, y + 0.03, (z - 0.085) * 0.6) - 0.02)); // cheeks
-    c = mix3(c, warm, 0.5 * smooth01(0.03, 0.0, Math.hypot(x, y + 0.045, z - 0.16))); // nose tip
+    c = mix3(c, warm, 0.12 * smooth01(0.03, 0.0, Math.hypot(x, y + 0.045, z - 0.16))); // nose tip
     c = mix3(c, lips, smooth01(0.0, 0.012, 0.016 - Math.abs(y + 0.091)) * smooth01(0.045, 0.02, ax) * smooth01(0.085, 0.1, z));
     c = mix3(c, warm, 0.55 * smooth01(0.012, 0.004, Math.hypot(ax - 0.12, y, z) - 0.03) * smooth01(0.1, 0.11, ax)); // ears
     c = mix3(c, dark, 0.3 * smooth01(0.036, 0.02, Math.hypot(ax - 0.045, y - 0.012, z - 0.1))); // under the eyes

@@ -52,7 +52,7 @@ function skinSSS(m, strength = 1) {
       .replace('#include <common>', '#include <common>\nuniform float uSSS;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         float rimS = pow(1.0 - saturate(dot(normalize(normal), normalize(vViewPosition))), 2.4);
-        totalEmissiveRadiance += uSSS * rimS * vec3(0.30, 0.085, 0.045);`);
+        totalEmissiveRadiance += uSSS * rimS * vec3(0.14, 0.06, 0.035);`);
   };
   m.customProgramCacheKey = () => 'ori-skin';
   return m;
@@ -64,7 +64,7 @@ export function createMaterials({ tier = 'high' } = {}) {
   const std = (o) => new THREE.MeshStandardMaterial({ vertexColors: true, ...o });
   const phys = (o) => (lit ? new THREE.MeshPhysicalMaterial({ vertexColors: true, ...o }) : new THREE.MeshStandardMaterial({ vertexColors: true, roughness: o.roughness }));
   const M = {
-    skin: skinSSS(std({ roughness: 0.56, metalness: 0 })),
+    skin: skinSSS(std({ roughness: 0.74, metalness: 0 })),
     tee: phys({ roughness: 0.92, sheen: 1, sheenRoughness: 0.5, sheenColor: new THREE.Color(0x7d8394) }),
     jeans: phys({ roughness: 0.88, sheen: 0.6, sheenRoughness: 0.6, sheenColor: new THREE.Color(0x56688f) }),
     shoes: std({ roughness: 0.42 }),
@@ -72,7 +72,7 @@ export function createMaterials({ tier = 'high' } = {}) {
     eyes: std({ roughness: 0.2, metalness: 0, envMapIntensity: 0.4 }),
     shine: new THREE.MeshBasicMaterial({ color: 0xffffff }),
     frame: std({ roughness: 0.28, metalness: 0.25 }),
-    lens: new THREE.MeshPhysicalMaterial({ color: 0xd7ecff, vertexColors: false, transparent: true, opacity: 0.04, roughness: 0.03, metalness: 0, envMapIntensity: 0.7, depthWrite: false, side: THREE.DoubleSide }),
+    lens: new THREE.MeshPhysicalMaterial({ color: 0xaec4d6, vertexColors: false, transparent: true, opacity: 0.04, roughness: 0.03, metalness: 0, envMapIntensity: 0.7, depthWrite: false, side: THREE.DoubleSide }),
     glint: new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide }),
     metal: std({ roughness: 0.2, metalness: 0.95, envMapIntensity: 1.6 }),
     mouth: std({ roughness: 0.45 }),

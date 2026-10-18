@@ -117,11 +117,11 @@ export function buildFacialHair(B, A, f, ids, spec = {}, hairHex = '#1a1210', sk
     const N = 13;
     for (let i = 0; i < N; i++) {
       const u = (i / (N - 1)) * 2 - 1; // -1..1
-      const x = u * 0.0385;
-      const y = my + 0.0172 + 0.0042 * u * u - 0.0022 * Math.abs(u) ** 1.5;
-      pts.push([x, y, A.surface(x, y) + 0.0028]);
+      const x = u * 0.043;
+      const y = my + 0.0225 + 0.0042 * u * u - 0.0022 * Math.abs(u) ** 1.5;
+      pts.push([x, y, A.surface(x, y) + 0.007]);
     }
-    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.55; return [0.0058 * e + 0.0014, 0.0046 * e + 0.0012]; }, { sides: 7, color: (t, ph) => scale3(dark, 0.9 + 0.3 * Math.max(0, Math.cos(ph))), up: [0, 0.25, 1], bone });
+    sweepTube(B, pts, (t) => { const e = Math.sin(t * Math.PI) ** 0.55; return [0.0088 * e + 0.0018, 0.0066 * e + 0.0016]; }, { sides: 7, color: (t, ph) => scale3(dark, 0.9 + 0.3 * Math.max(0, Math.cos(ph))), up: [0, 0.25, 1], bone });
   }
   if (spec.goatee !== false) {
     const gy = my - 0.05;
