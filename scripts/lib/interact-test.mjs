@@ -67,6 +67,14 @@ export async function runInteract(session, { ok, fail }) {
     await page.mouse.click(p.x, p.y);
     const clicked = await until(([rx]) => new RegExp(rx).test(window.__ori.interactions.tagText), th.after, 30000);
     if (!clicked) { clicksOk = false; fail(`interact: clicking ${th.id}: tag "${await ev(() => window.__ori.interactions.tagText)}" does not match /${th.after}/`); }
+    if (th.id === 'clock') { // clicking again and again in mid-pulse must not make the clock grow (a bug: every click took the enlarged scale as its new rest)
+      await sleep(700); // (the first click's pulse settles)
+      const s0 = await ev(() => window.__ori.life.clock.group.scale.x);
+      for (let k = 0; k < 8; k++) { await page.mouse.click(p.x, p.y); await sleep(60); }
+      await sleep(700);
+      const s1 = await ev(() => window.__ori.life.clock.group.scale.x);
+      check(Math.abs(s1 - s0) < 1e-6, `the wall clock keeps its size however fast you click it (${s0.toFixed(3)} -> ${s1.toFixed(3)})`);
+    }
   }
   check(tagsOk && outlinesOk, 'hovering every thing shows its tag, an outline (plant: sway) and the pointer cursor');
   check(clicksOk, 'clicking every thing runs its reaction and shows its message');

@@ -147,12 +147,15 @@ export function createInteractions({ camera, canvas, getState, tagEl, counterEl,
     },
     /** Scale up and settle back. */
     pulse(obj, s = 1.07, dur = 0.42) {
-      const s0 = obj.scale.clone();
+      // the resting scale is remembered once: clicking again in mid-pulse must not take the enlarged scale as the new "rest" (the clock grew with every click)
+      if (!obj.userData.pulseRest) obj.userData.pulseRest = obj.scale.clone();
+      const s0 = obj.userData.pulseRest;
       addTween(dur, (k) => { obj.scale.copy(s0).multiplyScalar(1 + (s - 1) * Math.sin(Math.PI * k)); }, () => obj.scale.copy(s0));
     },
     /** Damped wobble about the z axis — wall art. */
     wobble(obj, amp = 0.05, dur = 1.0) {
-      const r0 = obj.rotation.z;
+      if (obj.userData.wobbleRest == null) obj.userData.wobbleRest = obj.rotation.z; // (same rule: the rest angle is remembered once)
+      const r0 = obj.userData.wobbleRest;
       addTween(dur, (k) => { obj.rotation.z = r0 + amp * Math.sin(k * Math.PI * 5) * (1 - k) * (1 - k); }, () => { obj.rotation.z = r0; });
     },
     say: sayTag,
