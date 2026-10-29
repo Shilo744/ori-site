@@ -10,10 +10,12 @@ import { runDrift } from './lib/drift-test.mjs';
 import { runDriftRace } from './lib/drift-race-test.mjs';
 import { runCursors } from './lib/cursor-test.mjs';
 import { runFavors3d } from './lib/favors3d-test.mjs';
-import { runFavorsPhone } from './lib/favors-phone-test.mjs';
+import { runFavorsPlay } from './lib/favors-play-test.mjs';
+import { runFavorsLife } from './lib/favors-life-test.mjs';
+import { runFavorsSound } from './lib/favors-sound-test.mjs';
 import { runLauncher, runIphoneLaunch } from './lib/launcher-test.mjs';
 
-const BLOCKS = { 'favors-phone': async (s, h) => { await runFavorsPhone(s, h); }, launcher: async (s, h) => { await runLauncher(s, h); await runIphoneLaunch(s, h); }, favors3d: async (s, h) => { await runFavors3d(s, h); await runFavorsPhone(s, h); }, cursors: runCursors, drift: runDrift, 'drift-race': runDriftRace, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
+const BLOCKS = { 'favors-sound': async (s, h) => { await runFavorsSound(s, h); }, 'favors-life': async (s, h) => { await runFavorsLife(s, h); }, 'favors-play': async (s, h) => { await runFavorsPlay(s, h); }, launcher: async (s, h) => { await runLauncher(s, h); await runIphoneLaunch(s, h); }, favors3d: async (s, h) => { await runFavors3d(s, h); }, cursors: runCursors, drift: runDrift, 'drift-race': runDriftRace, life: runLife, daylight: runDaylight, wm2: runWm2, interact: runInteract, settings: async (s, h) => { await runSettings(s, h); await runSettingsReload(s, h); }, notify: async (s, h) => { await runNotify(s, h); await runNotifyOnboarding(s, h); } };
 const args = process.argv.slice(2);
 const name = args.find((a) => !a.startsWith('--'));
 const flag = (n) => args.includes(`--${n}`);

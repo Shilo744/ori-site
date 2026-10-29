@@ -29,7 +29,7 @@ const SETTLE = 0.6; // seconds standing still before a peek opens up
  * @param {HTMLElement} overlay the game overlay (the panel goes in it)
  * @param {{ map: object, q: object, sfx: object, getPlayer: () => {x:number,z:number,heading:number,near:string|null}, onPin: (uid: number|null) => void }} o
  */
-export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin }) {
+export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin, placeOf = (t) => t.at }) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'fv-btn fv-glass fv-phonebtn';
@@ -98,7 +98,7 @@ export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin })
       const detail = !sel_ ? '' : `
         <div class="fv-detail">
           <p>${esc(t.body)}</p>
-          <p class="fv-do">At <b>${esc(placeName(t.at))}</b> · ${esc(t.doText)}</p>
+          <p class="fv-do">At <b>${esc(placeName(placeOf(t)))}</b> · ${esc(t.doText)}</p>
           <div class="fv-actions">
             <button type="button" data-act="pin" class="fv-chip primary" tabindex="-1">${active === t.uid ? TEXT.following : TEXT.follow} <kbd>F</kbd></button>
             ${t.state === 'new' ? `<button type="button" data-act="yes" class="fv-chip" tabindex="-1">${esc(reply(t.uid, 'yes'))} <kbd>Y</kbd></button>` : ''}
@@ -109,7 +109,7 @@ export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin })
         </div>`;
       return `<li class="fv-task${sel_ ? ' sel' : ''}${urgent ? ' hot' : ''}${active === t.uid ? ' pinned' : ''}${fresh.has(t.uid) ? ' fresh' : ''}" data-uid="${t.uid}" data-state="${t.state}">
         <div class="fv-row" role="button">${i < 9 ? `<i class="fv-num">${i + 1}</i>` : ''}${avatar(t.giver)}
-          <div class="fv-tt"><b>${esc(t.title)}</b><small>${esc(t.giverName)} · ${esc(placeName(t.at))} · ${t.metres} m</small></div>
+          <div class="fv-tt"><b>${esc(t.title)}</b><small>${esc(t.giverName)} · ${esc(placeName(placeOf(t)))} · ${t.metres} m</small></div>
           <div class="fv-tm"><em class="fv-left">${left(t.remaining)}</em><span class="fv-pri p${t.pri}" aria-label="priority ${t.pri}">${'!'.repeat(t.pri)}</span></div>
         </div>${detail}</li>`;
     }).join('');
@@ -197,7 +197,7 @@ export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin })
     const r = el.map.getBoundingClientRect();
     const id = map2d.hit(((e.clientX - r.left) / r.width) * el.map.width, ((e.clientY - r.top) / r.height) * el.map.height);
     if (!id) return;
-    const t = q.list(getPlayer().near || 'home').find((x) => x.at === id);
+    const t = q.list(getPlayer().near || 'home').find((x) => placeOf(x) === id);
     if (t) { api.setActive(t.uid); sfx.tap(); sig = ''; api.refresh(true); }
     refocus();
   });
@@ -274,7 +274,7 @@ export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin })
     /** Redraws what changed (the list only when something in it did); `force` rebuilds now. */
     refresh(force = false) {
       const p = getPlayer();
-      const list = q.list(p.near || 'home').map((t) => { const d = map.places[t.at].door; return { ...t, metres: Math.round(walkDistance(map, p.x, p.z, d.x, d.z)) }; });
+      const list = q.list(p.near || 'home').map((t) => { const d = map.places[placeOf(t)].door; return { ...t, metres: Math.round(walkDistance(map, p.x, p.z, d.x, d.z)) }; });
       order = list.map((t) => t.uid);
       const n = list.length;
       el.badge.hidden = n === 0;
@@ -315,9 +315,9 @@ export function createPhone(hudRoot, overlay, { map, q, sfx, getPlayer, onPin })
         lastDraw = now;
         const p = getPlayer();
         const byPlace = {};
-        for (const t of q.list(p.near || 'home')) (byPlace[t.at] ||= []).push(t);
+        for (const t of q.list(p.near || 'home')) (byPlace[placeOf(t)] ||= []).push(t);
         const cur = active != null ? q.get(active) : null;
-        const pins = Object.entries(byPlace).map(([id, ts]) => ({ id, color: colorOf(ts[0].giver), label: PLACES[id].sign.charAt(0), count: ts.length, active: !!cur && cur.at === id }));
+        const pins = Object.entries(byPlace).map(([id, ts]) => ({ id, color: colorOf(ts[0].giver), label: PLACES[id].sign.charAt(0), count: ts.length, active: !!cur && placeOf(cur) === id }));
         map2d.draw({ player: p, pins });
       }
       api.refresh();

@@ -4,13 +4,14 @@
 // same code makes Ori and every passer-by. The eyes, brows, mouth, hair and glasses are separate parts (face.js, hair.js).
 // Head frame: x right, y up, z forward; origin = the centre of the skull; one unit = one metre.
 import { smin, smax, sdEllipsoid, sdCapsule, sdSphere, meshSDF, aoAt } from '../sdf.js';
+import { headFieldReal, anchorsReal, skinColorReal } from './head-real.js';
 
 /** Default proportions (a friendly average); a person spec overrides any of them. */
 export const FACE_DEFAULTS = {
   width: 1, height: 1, jaw: 1, chinW: 1, chinLen: 1, cheek: 1, brow: 1, // overall shape
   nose: { len: 1, width: 1, tip: 1, bridge: 1 },
   lips: { upper: 1, lower: 1.1, width: 1 },
-  eyeSep: 1, eyeSize: 1, eyeY: 0, ear: 1, earOut: 1,
+  eyeSep: 1, eyeSize: 1, eyeY: 0, ear: 1, earOut: 1, sculpt: null,
   skin: '#c98f6b', blush: 0.35, lipColor: '#b8665a', stubble: 0, // colours
 };
 
@@ -20,6 +21,7 @@ export function faceSpec(spec = {}) {
 
 /** The distance field of the whole head (negative inside). `f` = a faceSpec(); with `carve` the eye sockets, nostrils and ear bowls are cut. */
 export function headField(f, { carve = true } = {}) {
+  if (f.sculpt && f.sculpt.real) return headFieldReal(f, { carve }); // (a head built from measured profiles: head-real.js)
   const w = f.width;
   const h = f.height;
   const nose = f.nose;
@@ -55,6 +57,7 @@ export function headField(f, { carve = true } = {}) {
 
 /** Where the facial parts attach (head frame). Read by face.js / hair.js. `surface(x, y)` = the z of the (uncarved) skin at x, y. */
 export function anchorsOf(f) {
+  if (f.sculpt && f.sculpt.real) return anchorsReal(f);
   const base = headField(f, { carve: false });
   const surface = (x, y) => {
     let z0 = 0.26;
@@ -85,6 +88,7 @@ const smooth01 = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b -
 
 /** Skin colour by position: base tone, a flush on the cheeks and nose, redder lips and ears, shadowed sockets, a hint of stubble. (Linear RGB.) */
 export function skinColor(f) {
+  if (f.sculpt && f.sculpt.real) return skinColorReal(f, { lin, hexNum });
   const base = lin(hexNum(f.skin));
   const flush = mix3(base, lin(0xd9786a), 0.7);
   const lips = lin(hexNum(f.lipColor));
@@ -116,7 +120,7 @@ export function buildHead(spec = {}, { cell = 0.0055, ao = true } = {}) {
   const field = headField(f);
   const color = skinColor(f);
   const m = meshSDF(field, {
-    min: [-0.17, -0.31, -0.16], max: [0.17, 0.2, 0.185], cell, smooth: 1,
+    min: f.sculpt && f.sculpt.real ? [-0.2, -0.31, -0.19] : [-0.17, -0.31, -0.16], max: f.sculpt && f.sculpt.real ? [0.2, 0.23, 0.23] : [0.17, 0.2, 0.185], cell, smooth: 1,
     color: (x, y, z, nx, ny, nz) => { const c = color(x, y, z); const o = ao ? 0.62 + 0.38 * aoAt(field, x, y, z, nx, ny, nz, 0.03) : 1; return [c[0] * o, c[1] * o, c[2] * o]; },
   });
   return { mesh: m, anchors: anchorsOf(f), face: f };

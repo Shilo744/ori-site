@@ -200,8 +200,28 @@ export function buildBody(rig, spec = {}, { quality = 1, crowd = false } = {}) {
     const ring = [];
     const topY = (x, z) => { let lo = 1.2; let hi = 1.5; for (let i = 0; i < 16; i++) { const m = (lo + hi) / 2; if (torso(x, m, z) < 0) lo = m; else hi = m; } return (lo + hi) / 2; };
     for (let i = 0; i < 28; i++) { const a = (i / 28) * Math.PI * 2; const x = Math.sin(a) * 0.066; const z = -0.03 + Math.cos(a) * 0.064; ring.push([x, topY(x, z) + 0.002, z]); }
-    sweepTube(B, ring, () => [0.0115, 0.0105], { sides: 6, color: [teeC[0] * 1.35 + 0.004, teeC[1] * 1.35 + 0.004, teeC[2] * 1.4 + 0.005], closed: true, up: [0, 1, 0], bone: id.chest });
+    if (of.collar) {
+      // a button-up shirt: a collar band round the neck, a placket down the middle and a row of small buttons
+      const flapCol = [teeC[0] * 1.25 + 0.003, teeC[1] * 1.25 + 0.003, teeC[2] * 1.3 + 0.004];
+      sweepTube(B, ring, () => [0.0115, 0.0105], { sides: 6, color: flapCol, closed: true, up: [0, 1, 0], bone: id.chest }); // a flat collar band round the neck
+      // the placket (a thin raised strip) and the buttons
+      const strip = [];
+      for (let i = 0; i <= 12; i++) { const y = 1.255 - (i / 12) * 0.335; strip.push([0, y, frontZ(torso, 0, y) + 0.0012]); }
+      sweepTube(B, strip, () => [0.0085, 0.0018], { sides: 6, color: [teeC[0] * 1.18 + 0.002, teeC[1] * 1.18 + 0.002, teeC[2] * 1.2 + 0.003], up: [0, 0, 1], bone: id.chest });
+      for (const y of [1.215, 1.14, 1.065, 0.99, 0.925]) {
+        const z0 = frontZ(torso, 0, y);
+        sweepTube(B, [[0, y, z0 + 0.001], [0, y, z0 + 0.004]], () => 0.0062, { sides: 8, color: [0.62, 0.64, 0.68], up: [0, 1, 0], bone: id.chest });
+      }
+    } else sweepTube(B, ring, () => [0.0115, 0.0105], { sides: 6, color: [teeC[0] * 1.35 + 0.004, teeC[1] * 1.35 + 0.004, teeC[2] * 1.4 + 0.005], closed: true, up: [0, 1, 0], bone: id.chest });
     out.tee.push(B.finish());
+  }
+  if (of.watch && !crowd) { // a black digital watch on his left wrist
+    const W = new MeshBuilder();
+    const band = [];
+    for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; band.push([0.2985 + Math.cos(a) * 0.0335, 0.84, Math.sin(a) * 0.03]); }
+    sweepTube(W, band, () => [0.0085, 0.0105], { sides: 6, color: [0.025, 0.026, 0.03], closed: true, up: [0, 1, 0], bone: id.lowerArmL });
+    sweepTube(W, [[0.3375, 0.84, -0.0025], [0.3375, 0.84, 0.0025]], () => [0.019, 0.016], { sides: 8, color: [0.03, 0.035, 0.05], up: [0, 1, 0], bone: id.lowerArmL });
+    out.tee.push(W.finish());
   }
   return out;
 }

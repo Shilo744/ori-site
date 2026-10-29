@@ -24,10 +24,10 @@ const KINDS = {
   // Ori's own car: nothing like the neighbours' - a low, wide wedge in pearl white: a nose that dives, a glass bubble far back, flared haunches, big aero wheels with peach rims, one
   // thin light bar nose and tail, a floating rear wing and a pale under-glow. No grille, no badge but the peach.
   ori: {
-    hw: 0.96, cabHw: 0.74, wr: 0.43, wheels: [-1.6, 1.62], nose: 2.55, tail: -2.55, lampY: 0.72, noseY: 0.44, glassCab: true, aero: true, wedge: true,
-    lower: [[-2.55, 0.3], [-2.58, 0.82], [-2.3, 0.94], [-0.4, 0.88], [1.0, 0.7], [2.1, 0.52], [2.55, 0.42], [2.55, 0.3]],
-    cab: [[-2.0, 0.84], [-1.35, 1.26], [-0.45, 1.32], [0.55, 0.98], [0.85, 0.74]],
-    wind: [[0.85, 0.74], [-0.45, 1.32]], rear: [[-2.0, 0.84], [-1.35, 1.26]], pillar: null,
+    hw: 0.96, cabHw: 0.74, wr: 0.43, wheels: [-1.6, 1.62], nose: 2.55, tail: -2.55, lampY: 0.72, noseY: 0.6, glassCab: true, aero: true, wedge: true,
+    lower: [[-2.55, 0.3], [-2.58, 0.84], [-2.3, 0.97], [-0.3, 0.93], [1.1, 0.88], [2.0, 0.78], [2.5, 0.66], [2.55, 0.3]],
+    cab: [[-2.0, 0.88], [-1.35, 1.3], [-0.4, 1.36], [0.6, 1.02], [0.95, 0.84]],
+    wind: [[0.95, 0.84], [-0.4, 1.36]], rear: [[-2.0, 0.84], [-1.35, 1.26]], pillar: null,
   },
   van: {
     hw: 0.85, cabHw: 0, wr: 0.4, wheels: [-1.45, 1.5], nose: 2.3, tail: -2.3, lampY: 0.9,
@@ -102,16 +102,23 @@ function slope([a, b], halfW, push) {
 
 /** Ori's peach: a little badge (a body with a dip at the top and a leaf), in the XY plane facing +z, about `size` m wide. */
 function peachBadge(size) {
+  // a round peach: a smooth top, a slight point at the bottom, a groove down one side (cut out, so the paint shows through) and one long pointed leaf: nothing like a bitten apple
   const body = new THREE.Shape();
-  body.moveTo(0, 0.3);
-  body.bezierCurveTo(-0.15, 0.45, -0.55, 0.32, -0.55, -0.02);
-  body.bezierCurveTo(-0.55, -0.4, -0.25, -0.62, 0, -0.62);
-  body.bezierCurveTo(0.25, -0.62, 0.55, -0.4, 0.55, -0.02);
-  body.bezierCurveTo(0.55, 0.32, 0.15, 0.45, 0, 0.3);
+  body.moveTo(0, 0.4);
+  body.bezierCurveTo(0.35, 0.46, 0.62, 0.2, 0.58, -0.12);
+  body.bezierCurveTo(0.54, -0.42, 0.24, -0.62, 0.04, -0.7);
+  body.bezierCurveTo(-0.16, -0.62, -0.54, -0.42, -0.58, -0.12);
+  body.bezierCurveTo(-0.62, 0.2, -0.35, 0.46, 0, 0.4);
+  const groove = new THREE.Path();
+  groove.moveTo(0.0, 0.36);
+  groove.bezierCurveTo(0.2, 0.1, 0.22, -0.2, 0.08, -0.5);
+  groove.bezierCurveTo(0.12, -0.2, 0.1, 0.12, -0.04, 0.36);
+  groove.closePath();
+  body.holes.push(groove);
   const leaf = new THREE.Shape();
-  leaf.moveTo(0.03, 0.33);
-  leaf.quadraticCurveTo(0.0, 0.7, 0.36, 0.76);
-  leaf.quadraticCurveTo(0.38, 0.4, 0.03, 0.33);
+  leaf.moveTo(0.02, 0.42);
+  leaf.bezierCurveTo(0.04, 0.8, 0.34, 0.98, 0.7, 0.92);
+  leaf.bezierCurveTo(0.6, 0.6, 0.34, 0.42, 0.02, 0.42);
   const mk = (sh, c) => { const g = new THREE.ExtrudeGeometry(sh, { depth: 0.04, bevelEnabled: false, curveSegments: 10 }).toNonIndexed(); g.scale(size, size, 1); g.translate(0, 0, -0.02); return paint(g, c); };
   return [mk(body, lin(0.04, 0.04, 0.05)), mk(leaf, lin(0.04, 0.04, 0.05))]; // black, like a chrome-black car badge
 }
@@ -167,20 +174,19 @@ export function carGeometry({ kind = 'hatch' } = {}) {
     box(K.tail - 0.04, K.lampY, s * 0.5, K.tail + 0.08, K.lampY + 0.14, s * 0.76, lin(0.85, 0.12, 0.12));
   }
   if (K.wedge) {
-    for (const x of K.wheels) for (const sd of [-1, 1]) box(x - 0.62, 0.62, sd > 0 ? hw - 0.16 : -hw - 0.1, x + 0.62, 0.98, sd > 0 ? hw + 0.1 : -hw + 0.16, white, bodyParts); // the flared haunches over the wheels
-    box(K.tail - 0.55, 1.12, -hw + 0.12, K.tail + 0.25, 1.17, hw - 0.12, trim); // the rear wing (it floats on two posts)
-    for (const sd of [-1, 1]) box(K.tail - 0.25, 0.9, sd * (hw - 0.45) - 0.03, K.tail - 0.1, 1.12, sd * (hw - 0.45) + 0.03, trim);
+    box(K.tail - 0.1, 0.98, -hw + 0.2, K.tail + 0.55, 1.02, hw - 0.2, white, bodyParts); // a slim ducktail lip on the rear deck, in the paint colour
     for (const sd of [-1, 1]) box(-1.9, 0.2, sd * (hw - 0.02) - 0.02, 1.9, 0.26, sd * (hw - 0.02) + 0.02, lin(0.45, 0.95, 1)); // under-glow strips
   }
   if (K.aero) { // one thin light bar across the nose and one across the tail instead of separate lamps and a plate
     box(K.nose - 0.05, K.noseY ?? K.lampY, -hw + 0.12, K.nose + 0.04, (K.noseY ?? K.lampY) + 0.045, hw - 0.12, lin(1, 0.97, 0.88));
     box(K.tail - 0.04, K.lampY + 0.02, -hw + 0.1, K.tail + 0.05, K.lampY + 0.065, hw - 0.1, lin(0.95, 0.1, 0.1));
   } else box(K.tail - 0.06, 0.5, -0.23, K.tail + 0.05, 0.62, 0.23, lin(0.95, 0.9, 0.62));
-  if (K.aero) { // Ori's car wears a black peach badge on both doors and on the tail
-    const place = (x, y, z, ry) => { for (const g of peachBadge(0.34)) { g.rotateY(ry); g.translate(x, y, z); parts.push(g); } };
-    place(-0.1, 0.62, hw + 0.004, 0);
-    place(-0.1, 0.62, -hw - 0.004, Math.PI);
-    place(K.tail - 0.145, 0.5, 0, -Math.PI / 2);
+  if (K.aero) { // the peach badge: small, lying on the middle of the bonnet (black on the white paint), the leaf pointing at the windscreen
+    const pos = bodyParts[0].attributes.position;
+    const bx = K.nose - 0.9; // a little back from the nose
+    let top = 0.9;
+    for (let i = 0; i < pos.count; i++) if (Math.abs(pos.getX(i) - bx) < 0.06 && Math.abs(pos.getZ(i)) < 0.12) top = Math.max(top, pos.getY(i));
+    for (const g of peachBadge(0.16)) { g.rotateX(-Math.PI / 2); g.rotateY(Math.PI / 2); g.translate(bx, top + 0.012, 0); parts.push(g); }
   }
   return { body: mergeGeos(bodyParts), details: mergeGeos(parts), kind };
 }

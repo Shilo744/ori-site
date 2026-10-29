@@ -8,6 +8,53 @@ const BLOCK = '#f1eee8';
 const ROAD = '#ffffff';
 const LOT = '#d9d4ca';
 
+export const ICON_NAMES = ['ring', 'arcade', 'garage', 'coffee', 'car'];
+/** A round badge with a white picture in it: the stars of the map (places-guide.js LANDMARKS). */
+function badge(g, icon, x, y, r, color) {
+  g.save();
+  g.translate(x, y);
+  g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, r + 1.6, 0, 7); g.fill();
+  g.fillStyle = color; g.beginPath(); g.arc(0, 0, r, 0, 7); g.fill();
+  g.strokeStyle = '#fff'; g.fillStyle = '#fff'; g.lineWidth = Math.max(1.3, r * 0.17); g.lineCap = 'round'; g.lineJoin = 'round';
+  const u = r * 0.58;
+  if (icon === 'ring') { // a boxing glove: the round fist, the thumb on the side, the cuff with a stripe
+    g.beginPath(); g.arc(-u * 0.12, -u * 0.3, u * 0.82, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(u * 0.72, u * 0.05, u * 0.3, u * 0.5, -0.35, 0, 7); g.fill();
+    g.fillRect(-u * 0.66, u * 0.42, u * 1.1, u * 0.62);
+    g.fillStyle = color; g.fillRect(-u * 0.66, u * 0.66, u * 1.1, u * 0.12); g.fillStyle = '#fff';
+  } else if (icon === 'arcade') { // a monitor on a little stand
+    g.strokeRect(-u, -u * 0.85, u * 2, u * 1.45);
+    g.beginPath(); g.moveTo(0, u * 0.6); g.lineTo(0, u * 1.0); g.moveTo(-u * 0.6, u * 1.0); g.lineTo(u * 0.6, u * 1.0); g.stroke();
+    g.fillRect(-u * 0.45, -u * 0.35, u * 0.9, u * 0.5);
+  } else if (icon === 'garage') { // a spanner
+    g.beginPath(); g.moveTo(-u * 0.75, u * 0.75); g.lineTo(u * 0.35, -u * 0.35); g.stroke();
+    g.beginPath(); g.arc(u * 0.45, -u * 0.45, u * 0.55, 0.9, 5.4); g.stroke();
+  } else if (icon === 'car') { // a car from above: the body, the windscreen and the rear window
+    g.beginPath(); g.roundRect(-u * 0.62, -u * 1.05, u * 1.24, u * 2.1, u * 0.4); g.stroke();
+    g.beginPath(); g.moveTo(-u * 0.42, -u * 0.38); g.lineTo(u * 0.42, -u * 0.38); g.moveTo(-u * 0.42, u * 0.5); g.lineTo(u * 0.42, u * 0.5); g.stroke();
+    g.fillRect(-u * 0.9, -u * 0.8, u * 0.22, u * 0.5); g.fillRect(u * 0.68, -u * 0.8, u * 0.22, u * 0.5); g.fillRect(-u * 0.9, u * 0.35, u * 0.22, u * 0.5); g.fillRect(u * 0.68, u * 0.35, u * 0.22, u * 0.5);
+  } else if (icon === 'coffee') { // a cup with steam
+    g.beginPath(); g.moveTo(-u * 0.75, -u * 0.1); g.lineTo(-u * 0.55, u * 0.85); g.lineTo(u * 0.55, u * 0.85); g.lineTo(u * 0.75, -u * 0.1); g.closePath(); g.fill();
+    g.beginPath(); g.arc(u * 0.95, u * 0.3, u * 0.38, -1.4, 1.4); g.stroke();
+    g.beginPath(); g.moveTo(-u * 0.25, -u * 0.35); g.quadraticCurveTo(-u * 0.5, -u * 0.7, -u * 0.2, -u * 0.95); g.moveTo(u * 0.25, -u * 0.35); g.quadraticCurveTo(0, -u * 0.7, u * 0.3, -u * 0.95); g.stroke();
+  }
+  g.restore();
+}
+/** Text with a white halo, readable on any colour of the map. */
+function haloText(g, text, x, y, size, color = '#26303f') {
+  g.font = `800 ${size}px Inter, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.lineJoin = 'round'; g.lineWidth = Math.max(3, size * 0.32); g.strokeStyle = 'rgba(255,255,255,0.92)'; g.strokeText(text, x, y);
+  g.fillStyle = color; g.fillText(text, x, y);
+}
+/** Paints a badge on a small canvas (the list of the big map). */
+export function paintBadge(canvas, icon, color) {
+  const k = window.devicePixelRatio > 1 ? 2 : 1;
+  canvas.width = 30 * k; canvas.height = 30 * k;
+  const g = canvas.getContext('2d');
+  g.scale(k, k);
+  badge(g, icon, 15, 15, 12, color);
+}
+
 /** @param {HTMLCanvasElement} canvas @param {object} map from buildMap */
 export function createMap2d(canvas, map) {
   const W = canvas.width;
@@ -59,7 +106,7 @@ export function createMap2d(canvas, map) {
     /** Canvas pixel → world, and back. */
     toCanvas: (x, z) => [X(x), Z(z)],
     /**
-     * @param {{ player: {x:number,z:number,heading:number}, pins: {id:string, color:string, label:string, count?:number, active?:boolean}[] }} s
+     * @param {{ player: {x:number,z:number,heading:number}, pins: {id:string, color:string, label:string, count?:number, active?:boolean}[], points?: object[], goal?: {x:number,z:number}, landmarks?: {place:string, x:number, z:number, icon:string, color:string, short?:string, big?:boolean, pulse?:boolean}[], labels?: {id?:string, x:number, z:number, text:string, size?:number, dy?:number, color?:string}[], time?: number }} s
      */
     draw(s) {
       const g = canvas.getContext('2d');
@@ -91,6 +138,45 @@ export function createMap2d(canvas, map) {
           g.font = '700 9px Inter, system-ui, sans-serif';
           g.fillText(String(p.count), x + pinR * 0.9, z - pinR * 0.9 + 0.5);
         }
+      }
+      // extra points that are not places (the runaway parrot, the rival, a checkpoint): { x, z, color, label, ring }
+      for (const q of s.points || []) {
+        const x = X(q.x);
+        const z = Z(q.z);
+        if (q.ring) { g.strokeStyle = q.color; g.lineWidth = 2.5; g.beginPath(); g.arc(x, z, pinR + 3, 0, 7); g.stroke(); }
+        g.fillStyle = q.color;
+        g.beginPath();
+        g.arc(x, z, q.ring ? pinR - 2 : pinR - 1, 0, 7);
+        g.fill();
+        g.strokeStyle = '#fff';
+        g.lineWidth = 1.5;
+        g.stroke();
+        if (q.label) { g.fillStyle = '#fff'; g.font = `700 ${Math.round(pinR)}px Inter, system-ui, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(q.label, x, z + 0.5); }
+      }
+      // the goal of the moment: a pulsing orange ring (the beam in the street, the ring on the map)
+      if (s.goal) { const gx = X(s.goal.x); const gz = Z(s.goal.z); const k2 = 0.5 + 0.5 * Math.sin((s.time || 0) * 5); g.strokeStyle = `rgba(255,140,40,${(0.55 + 0.4 * k2).toFixed(2)})`; g.lineWidth = 3; g.beginPath(); g.arc(gx, gz, pinR + 5 + k2 * 4, 0, 7); g.stroke(); }
+      // names (the big map) and the stars of the map (badges with a short word under them)
+      // (a label that would sit on another label or on a badge steps up or down until it does not)
+      const placed = [];
+      const overlap = (a, b) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+      for (const m of s.landmarks || []) { const r = m.big ? pinR + 4 : pinR + 1; placed.push({ x0: X(m.x) - r - 2, x1: X(m.x) + r + 2, y0: Z(m.z) - r - 2, y1: Z(m.z) + r + 16 }); }
+      for (const l of s.labels || []) {
+        const size = l.size || 10;
+        g.font = `800 ${size}px Inter, system-ui, sans-serif`;
+        const w = g.measureText(l.text).width + 4;
+        const x = Math.max(w / 2 + 2, Math.min(W - w / 2 - 2, X(l.x)));
+        const z0 = Z(l.z) + (l.dy || 0);
+        let z = z0;
+        for (const off of [0, 13, -13, 26, -26, 39]) { z = z0 + off; const b = { x0: x - w / 2, x1: x + w / 2, y0: z - size / 2 - 1, y1: z + size / 2 + 1 }; if (!placed.some((q) => overlap(q, b)) || off === 39) { placed.push(b); break; } }
+        haloText(g, l.text, x, z, size, l.color);
+        if (l.id) pins.push({ id: l.id, x, z });
+      }
+      for (const m of s.landmarks || []) {
+        const x = X(m.x); const z = Z(m.z); const r = m.big ? pinR + 4 : pinR + 1;
+        if (m.pulse) { const k3 = 0.5 + 0.5 * Math.sin((s.time || 0) * 3); g.fillStyle = m.color; g.globalAlpha = 0.22 + 0.2 * k3; g.beginPath(); g.arc(x, z, r + 5 + k3 * 5, 0, 7); g.fill(); g.globalAlpha = 1; }
+        badge(g, m.icon, x, z, r, m.color);
+        if (m.short) haloText(g, m.short, x, z + r + 8, Math.max(8, Math.round(pinR * 0.95)));
+        pins.push({ id: m.place, x, z });
       }
       // Ori: a blue dot with a pointer
       const px = X(s.player.x);

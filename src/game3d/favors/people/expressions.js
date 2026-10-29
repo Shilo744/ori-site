@@ -26,9 +26,11 @@ export const EXPRESSIONS = {
   flustered: { smile: 0.75, open: 0.28, teeth: 0.8, lidUp: -0.35, lidUpR: -0.35, browInL: 0.016, browInR: 0.016, browOutL: 0.006, browOutR: 0.006, sweat: 1, flush: 0.8, tilt: 0.08, w: 0.95 },
   sleepy: { smile: 0.6, open: 0.04, lidUp: 0.95, lidUpR: 0.95, lidLo: 0.35, lidLoR: 0.35, browInL: -0.001, browInR: -0.001, flush: 0.25, tilt: -0.1, gy: -0.12 },
   smirk: { smile: 0.85, asym: 0.9, w: 0.95, lidUp: 0.5, lidUpR: 0.1, lidLo: 0.3, browInL: 0.0, browInR: 0.013, browOutL: -0.002, browOutR: 0.018, tilt: 0.07 },
+  determined: { smile: 0.45, open: 0.06, lidUp: 0.35, lidUpR: 0.35, lidLo: 0.4, lidLoR: 0.4, browInL: 0.0, browInR: 0.0, browOutL: 0.002, browOutR: 0.002, w: 0.95 }, // a boxer's face
   talking: { smile: 0.55 }, // the animator adds the jaw flaps
   proud: { smile: 0.9, lidUp: 0.45, lidUpR: 0.45, lidLo: 0.35, lidLoR: 0.35, browInL: 0.005, browInR: 0.005, browOutL: 0.008, browOutR: 0.008, tilt: -0.06 },
   love: { smile: 0.95, open: 0.1, lidUp: 0.35, lidUpR: 0.35, lidLo: 0.7, lidLoR: 0.7, browInL: 0.009, browInR: 0.009, browOutL: 0.011, browOutR: 0.011, flush: 0.9, tilt: 0.07 },
+  wince: { smile: 0.4, open: 0.42, round: 0.3, teeth: 0.45, lidUp: 1.15, lidUpR: 1.15, lidLo: 0.9, lidLoR: 0.9, browInL: 0.014, browInR: 0.014, browOutL: 0.004, browOutR: 0.004, w: 0.85, tilt: 0.05 }, // the "oof" of a punch that lands (face.react, 0.3 s): eyes squeezed, brows up, a small O - a flinch, never a frown
 };
 
 export const EXPRESSION_NAMES = Object.keys(EXPRESSIONS);
@@ -57,18 +59,29 @@ export function createFace(seed = 1) {
   let gazeTx = 0; let gazeTy = 0;
   let talkPhase = 0;
   let t = 0;
+  let reactT = 0; // a reaction that lasts a moment (a flinch) and then lets go
+  let reactTgt = null;
+  let reactName = '';
   const speed = { default: 11, lid: 24, mouth: 14, sweat: 6 };
   return {
     get name() { return name; },
     cur,
     set(n, k = 1) { if (!EXPRESSIONS[n]) n = 'neutral'; name = n; tgt = target(n, k); },
+    /** A reaction for `dur` seconds on top of the mood (the 0.3 s flinch of a hit): the face eases into it, then back to what `set` chose. */
+    react(n, dur = 0.3) {
+      if (!EXPRESSIONS[n]) return;
+      if (n === reactName) { reactT = Math.max(reactT, dur); return; } // (the same one again: it lasts a little longer)
+      if (dur >= reactT) { reactName = n; reactTgt = target(n, 1); reactT = dur; } // (a shorter one never cuts a longer one off)
+    },
     blink() { if (blinkT < 0) blinkT = 0; },
     update(dt, { talk = false, look = null, calm = false } = {}) {
       t += dt;
-      // ease every channel to its target
+      // ease every channel to its target (the reaction's while there is one)
+      const aim = reactT > 0 ? reactTgt : tgt;
+      if (reactT > 0) reactT = Math.max(0, reactT - dt);
       for (const k of Object.keys(cur)) {
         const sp = k.startsWith('lid') ? speed.lid : k === 'sweat' || k === 'flush' ? speed.sweat : k === 'open' || k === 'w' || k === 'smile' || k === 'round' ? speed.mouth : speed.default;
-        cur[k] += (tgt[k] - cur[k]) * Math.min(1, dt * sp);
+        cur[k] += (aim[k] - cur[k]) * Math.min(1, dt * sp);
       }
       // gaze: glances now and then, or at `look` ({ x, y } radians) when given
       glanceIn -= dt;

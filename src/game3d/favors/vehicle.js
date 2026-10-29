@@ -13,9 +13,10 @@ const MAX_STEER = 0.52; // rad at standstill
 const R = 0.98; // collision circle radius
 const OFFS = [1.35, 0, -1.35]; // circle centres along the car
 
-export function createVehicle(world, { x = 0, z = 0, heading = 0, top = TOP_SPEED, accel = ACCEL } = {}) {
+export function createVehicle(world, { x = 0, z = 0, heading = 0, top = TOP_SPEED, accel = ACCEL, reverse = REVERSE_SPEED, maxSteer = MAX_STEER, grip = 1 } = {}) {
   const s = { x, z, heading, speed: 0, boost: 0, steer: 0, vx: 0, vz: 0, yawRate: 0, blocked: false, hit: 0, steps: 0 };
   let acc = 0;
+  let gripNow = grip; // the road can be wet: the game lowers it for a while (setGrip)
 
   function step(inp) {
     const th = Math.max(-1, Math.min(1, inp.throttle || 0));
@@ -26,17 +27,17 @@ export function createVehicle(world, { x = 0, z = 0, heading = 0, top = TOP_SPEE
     const topNow = top * (1 + 0.6 * s.boost);
     // pedals: W pushes forward, S brakes while rolling forward and then reverses
     if (th > 0.05) s.speed += s.speed < 0 ? BRAKE * th * STEP : accelNow * (1 - s.speed / (topNow * 1.08)) * th * STEP;
-    else if (th < -0.05) s.speed -= (s.speed > 0.4 ? BRAKE : accel * 0.6 * (1 - -s.speed / (REVERSE_SPEED * 1.1))) * -th * STEP;
+    else if (th < -0.05) s.speed -= (s.speed > 0.4 ? BRAKE : accel * 0.9 * (1 - -s.speed / (reverse * 1.1))) * -th * STEP;
     else {
       const d = COAST * STEP;
       s.speed = Math.abs(s.speed) <= d ? 0 : s.speed - Math.sign(s.speed) * d;
     }
     if (hand) { const d = BRAKE * 0.9 * STEP; s.speed = Math.abs(s.speed) <= d ? 0 : s.speed - Math.sign(s.speed) * d; }
-    s.speed = Math.max(-REVERSE_SPEED, Math.min(topNow, s.speed));
+    s.speed = Math.max(-reverse, Math.min(topNow, s.speed));
     if (s.speed > topNow) s.speed = topNow;
     // steering: eases towards the wish, and gets less sharp at speed
-    const lim = MAX_STEER / (1 + Math.abs(s.speed) * 0.11 * (TOP_SPEED / top) ** 0.5);
-    s.steer += (st * lim - s.steer) * Math.min(1, 9 * STEP);
+    const lim = maxSteer / (1 + Math.abs(s.speed) * 0.11 * (TOP_SPEED / top) ** 0.5 / gripNow);
+    s.steer += (st * lim - s.steer) * Math.min(1, 14 * STEP);
     const yaw = (s.speed / WHEELBASE) * Math.tan(s.steer);
     s.yawRate = yaw;
     s.heading = wrapPi(s.heading - yaw * STEP); // (steer > 0 = to the right = a smaller heading)
@@ -78,6 +79,7 @@ export function createVehicle(world, { x = 0, z = 0, heading = 0, top = TOP_SPEE
       return n;
     },
     step,
+    setGrip(g) { gripNow = g; },
     place(px, pz, heading) { s.x = px; s.z = pz; s.heading = heading; s.speed = 0; s.steer = 0; s.vx = 0; s.vz = 0; acc = 0; },
   };
 }

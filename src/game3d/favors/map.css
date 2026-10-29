@@ -1,0 +1,26 @@
+/* "Ori, Can You...?" — the big map (map-ui.js). Uses the overlay / card look of the ring (fight.css). */
+.mp-card { width: min(980px, 96vw); max-height: 94vh; overflow: auto; display: flex; flex-direction: column; gap: 10px; }
+.mp-card header h2 { margin: 2px 0 0; }
+.mp-body { display: grid; grid-template-columns: minmax(260px, 470px) 1fr; gap: 16px; align-items: start; }
+.mp-canvas { width: 100%; height: auto; aspect-ratio: 540 / 560; border-radius: 14px; background: #bfe3ee; box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35); display: block; cursor: pointer; }
+.mp-side h3 { margin: 4px 0 6px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+.mp-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+.mp-list li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.07); cursor: pointer; border: 1px solid transparent; }
+.mp-list li:hover, .mp-list li:focus-visible { background: rgba(255, 255, 255, 0.14); outline: none; border-color: rgba(255, 255, 255, 0.35); }
+.mp-list li.follow { border-color: #ff9f43; background: rgba(255, 159, 67, 0.18); }
+.mp-list b { display: block; font-size: 14px; }
+.mp-list small { display: block; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 12px; line-height: 1.3; }
+.mp-list em { font-style: normal; font-size: 11px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #ffb066; }
+.mp-badge { width: 30px; height: 30px; }
+.mp-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--c, #999); margin: 0 auto; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); }
+.mp-others { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.mp-others li { padding: 4px 10px; grid-template-columns: 18px 1fr; }
+.mp-others li em { display: none; }
+.mp-others li.follow em { display: block; grid-column: 2; }
+.mp-others b { font-size: 13px; }
+.mp-others small { font-size: 11px; }
+.mp-card footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+@media (max-width: 760px) { .mp-body { grid-template-columns: 1fr; } .mp-card { padding: 12px; } }
+
+/* the line under "G Go inside" at a door: what is in there */
+.fv-gohint small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; opacity: 0.8; letter-spacing: 0; }

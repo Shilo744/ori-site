@@ -1,0 +1,13 @@
+/* "Ori, Can You...?" — speech bubbles over heads. Prefix fb-. */
+.fb-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; overflow: hidden; font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.fb { position: absolute; left: 0; top: 0; max-width: 230px; padding: 7px 12px 8px; border-radius: 16px; background: #fff; color: #1d1d24; font: 600 14px/1.25 Inter, system-ui, sans-serif; text-align: center; box-shadow: 0 6px 18px rgba(10, 14, 30, 0.28); will-change: transform; margin-top: -10px; }
+.fb::after { content: ''; position: absolute; left: 50%; bottom: -7px; width: 14px; height: 14px; background: inherit; transform: translateX(-50%) rotate(45deg); border-radius: 0 0 4px 0; }
+.fb b { display: block; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: #8a6a3a; margin-bottom: 1px; }
+.fb span { position: relative; z-index: 1; display: block; }
+.fb-ori { background: #ffe6c4; }
+.fb-ori b { color: #b3541e; }
+.fb-boss { background: #0e1a24; color: #9be9ff; box-shadow: 0 0 18px rgba(47, 224, 255, 0.5); font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; }
+.fb-boss b { color: #2fe0ff; }
+.fb-heart { position: absolute; left: 0; top: 0; width: 18px; height: 18px; background: #ff5f8a; clip-path: polygon(50% 92%, 6% 46%, 6% 24%, 24% 6%, 42% 6%, 50% 18%, 58% 6%, 76% 6%, 94% 24%, 94% 46%); filter: drop-shadow(0 2px 4px rgba(255, 95, 138, 0.6)); margin-top: -26px; }
+@media (prefers-reduced-motion: no-preference) { .fb { animation: fb-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; } }
+@keyframes fb-in { from { scale: 0.6; opacity: 0; } to { scale: 1; opacity: 1; } }

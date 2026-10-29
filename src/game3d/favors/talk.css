@@ -51,3 +51,7 @@
   .fv-tk-text { font-size: 16px; }
 }
 @media (prefers-reduced-motion: reduce) { .fv-talk, .fv-tk-face, .fv-tk-float { transition: none; animation: none; } }
+
+/* the door: a quick fade, and the 'G go inside' / 'Space use' chip */
+.fv-fade { position: absolute; inset: 0; background: #0b0d14; opacity: 0; pointer-events: none; z-index: 9; }
+.fv-gohint { bottom: max(124px, env(safe-area-inset-bottom)); }

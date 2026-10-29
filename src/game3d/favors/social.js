@@ -7,6 +7,7 @@ import { speaker } from './dialogue/cast.js';
 import { barkFor } from './dialogue/barks.js';
 import { blipPitch } from './voices.js';
 import { createTalk } from './talk.js';
+import { replyFor, helloFor, loveFor, HELLO_COOLDOWN } from './greet.js';
 
 const TALK_AT_DOOR = 5.5; // metres from a resident's door
 const TALK_AT_WALKER = 3.4; // metres from a passer-by
@@ -17,9 +18,9 @@ const GIFTS = { cookies: 'a box of cookies' };
 
 /**
  * @param {{ overlay: HTMLElement, hud: object, sfx: object, map: object, crowd: object, tier: string,
- *           ctrl: () => object, quests: () => object, ori: () => object, hour: () => number }} o
+ *           ctrl: () => object, quests: () => object, ori: () => object, hour: () => number, bubbles?: object, onHello?: (h: object) => void }} o
  */
-export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests, ori, hour }) {
+export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests, ori, hour, bubbles = null, onHello = null }) {
   const flags = new Set();
   const residents = new Map(); // place id -> [cast ids]
   for (const [id, c] of Object.entries(CAST)) {
@@ -39,10 +40,12 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
   overlay.append(bark);
 
   let target = null; // { id, name, x, z, walker? }
+  let inside = null; // the people in the room Ori is in: [{ id, name, x, z }] (null = outdoors)
   let talking = null; // the walker / door being talked to
   let barkIn = 6;
   let barkOff = 0;
   let barkTimer = 0;
+  let driving = false; // he is in a car: people are found from further away, a toot of the horn is the wave, no barks
   const gifts = [];
 
   const talk = createTalk(overlay, {
@@ -68,6 +71,12 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
 
   function findTarget() {
     const c = ctrl().state;
+    if (inside) {
+      let near = null;
+      let nd = TALK_AT_WALKER + 0.4;
+      for (const n of inside) { const d = Math.hypot(n.x - c.x, n.z - c.z); if (d < nd) { nd = d; near = { id: n.id, name: n.name, x: n.x, z: n.z }; } }
+      return near;
+    }
     let best = null;
     let bd = Infinity;
     // a resident at their door
@@ -75,7 +84,7 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
       const p = map.places[pid];
       if (!p) continue;
       const d = Math.hypot(p.door.x - c.x, p.door.z - c.z);
-      if (d > TALK_AT_DOOR || d >= bd) continue;
+      if (d > TALK_AT_DOOR * (driving ? 1.5 : 1) || d >= bd) continue;
       const q = quests();
       const open = q ? q.open().filter((t) => t.at === pid) : [];
       const giver = open.length ? open.sort((a, b) => a.deadline - b.deadline)[0].giver : null;
@@ -86,7 +95,7 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
     // a passer-by close enough
     for (const w of crowd.walkers) {
       const d = Math.hypot(w.x - c.x, w.z - c.z);
-      if (d > TALK_AT_WALKER || d >= bd - 0.5) continue;
+      if (d > TALK_AT_WALKER * (driving ? 2 : 1) || d >= bd - 0.5) continue;
       const id = `stranger:${w.id}`;
       best = { id, name: speaker(id).name, x: w.x, z: w.z, walker: w };
       bd = d;
@@ -97,21 +106,49 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
   function start(id, o = {}) {
     if (talk.isOpen) return false;
     const c = ctrl().state;
-    const w = id.startsWith('stranger') ? crowd.walkers.find((x) => `stranger:${x.id}` === id) : null;
+    const w = id.startsWith('stranger') && !inside ? crowd.walkers.find((x) => `stranger:${x.id}` === id) : null;
     talking = w ? { walker: w } : { door: true };
     let fx = o.x ?? (w ? w.x : null);
     let fz = o.z ?? (w ? w.z : null);
-    if (fx == null && CAST[id] && map.places[CAST[id].home]) { fx = map.places[CAST[id].home].door.x; fz = map.places[CAST[id].home].door.z; }
+    if (fx == null && !inside && CAST[id] && map.places[CAST[id].home]) { fx = map.places[CAST[id].home].door.x; fz = map.places[CAST[id].home].door.z; }
     if (w) { w.stop = 600; w.heading = Math.atan2(c.x - w.x, c.z - w.z); } // he stops and turns to Ori
     if (fx != null && Math.hypot(fx - c.x, fz - c.z) > 0.4) c.heading = Math.atan2(fx - c.x, fz - c.z); // Ori turns to them
     hint.classList.remove('on');
     return talk.start(id, { seed: w ? w.id + 1 : id.length, from: o.from || 'world' });
   }
 
+  // ── hello: a wave, a word, an answer in a speech bubble, the love goes up a little (no conversation panel) ──
+  const lastHello = new Map(); // person id -> seconds (performance.now) of the last hello
+  let helloCount = 0;
+  function hello(tg) {
+    const now = performance.now() / 1000;
+    const last = lastHello.get(tg.id);
+    const first = last == null || now - last > HELLO_COOLDOWN;
+    lastHello.set(tg.id, now);
+    const c = ctrl().state;
+    const o = driving ? null : ori();
+    if (o) o.play('wave'); else if (driving) sfx.honk();
+    if (tg.walker) { tg.walker.stop = 3.2; tg.walker.heading = Math.atan2(c.x - tg.walker.x, c.z - tg.walker.z); }
+    if (!driving && tg.x != null && Math.hypot(tg.x - c.x, tg.z - c.z) > 0.4) c.heading = Math.atan2(tg.x - c.x, tg.z - c.z);
+    const seed = ++helloCount * 7 + (tg.walker ? tg.walker.id * 13 : tg.id.length * 5);
+    const sp = speaker(tg.id);
+    if (bubbles) {
+      bubbles.say(() => ({ x: ctrl().state.x, y: driving ? 2.3 : (o ? o.height : 1.85) + 0.15, z: ctrl().state.z }), helloFor(seed), { kind: 'ori', ms: 1500, key: 'ori', dx: -95 });
+      const pos = () => (tg.walker ? { x: tg.walker.x, y: 1.95, z: tg.walker.z } : { x: tg.x, y: 1.95, z: tg.z });
+      setTimeout(() => {
+        bubbles.say(pos, replyFor(tg.id, { hour: hour(), seed: seed * 3 + 1, first }), { name: sp.name, kind: tg.id === 'shilo' ? 'boss' : 'them', ms: 2800, key: `them:${tg.id}`, dx: 95 });
+        if (first) bubbles.heart(pos);
+      }, 520);
+    } else hud.toast(`${sp.name}: ${replyFor(tg.id, { hour: hour(), seed, first })}`, 2200);
+    sfx.pop();
+    const love = loveFor(tg.id, first);
+    if (onHello) onHello({ id: tg.id, name: sp.name, first, love, stranger: tg.id.startsWith('stranger') });
+    return true;
+  }
   function trigger() {
     if (talk.isOpen) return false;
-    if (!target) { hud.toast('Nobody to talk to here. Walk up to a door or a neighbour!', 1800); return false; }
-    return start(target.id, { x: target.x, z: target.z, from: 'key' });
+    if (!target) { hud.toast('Nobody here to say hi to. Walk up to someone!', 1800); return false; }
+    return hello(target);
   }
   hint.addEventListener('click', trigger);
 
@@ -121,8 +158,8 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
     const sp = speaker(id);
     const rel = w.id % 5 === 0 ? 'friends' : w.id % 7 === 0 ? 'family' : null;
     const text = barkFor({ rel, hour: hour(), seed: w.id * 977 + Math.floor(hour() * 60) });
-    bark.innerHTML = `<b>${sp.name}</b>${text.replace(/[<>&]/g, '')}`;
-    bark.classList.add('on');
+    if (bubbles) bubbles.say(() => ({ x: w.x, y: 1.95, z: w.z }), text.replace(/[<>&]/g, ''), { name: sp.name, kind: 'them', ms: 3000, key: `bark:${w.id}` });
+    else { bark.innerHTML = `<b>${sp.name}</b>${text.replace(/[<>&]/g, '')}`; bark.classList.add('on'); }
     barkTimer = 3.2;
     // three blips in their voice
     const v = sp.voice;
@@ -139,27 +176,31 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
     flags,
     start,
     trigger,
+    hello,
     closeTalk() { talk.close(); },
+    /** The people of the room Ori walked into (null when he is back outside). */
+    setInside(list) { inside = list; target = null; hint.classList.remove('on'); bark.classList.remove('on'); barkTimer = 0; },
     state() { return { open: talk.isOpen, who: talk.speaker, line: talk.line, target: target ? { id: target.id, name: target.name } : null, flags: [...flags], gifts: gifts.slice() }; },
     /** The talk panel's keys; returns true when it used the key. */
     key(e) {
       if (talk.isOpen) return talk.key(e);
-      if (e.code === 'KeyT') { trigger(); return true; }
+      if (e.code === 'KeyH' || e.code === 'KeyT') { trigger(); return true; }
       return false;
     },
-    update(dt, { blocked = false } = {}) {
+    update(dt, { blocked = false, driving: drv = false } = {}) {
+      driving = !!drv;
       talk.update(dt);
       if (talk.isOpen) { barkTimer = 0; bark.classList.remove('on'); hint.classList.remove('on'); return; }
       target = blocked ? null : findTarget();
       if (target) {
-        const label = `<kbd>T</kbd> Talk to ${target.name.replace(/[<>&]/g, '')}`;
+        const label = `<kbd>H</kbd> Say hi to ${target.name.replace(/[<>&]/g, '')}`;
         if (hint.dataset.l !== label) { hint.dataset.l = label; hint.innerHTML = label; }
         hint.classList.add('on');
       } else hint.classList.remove('on');
       if (barkTimer > 0) { barkTimer -= dt; if (barkTimer <= 0) bark.classList.remove('on'); }
       // barks: somebody calls out as he walks by
       barkIn -= dt;
-      if (barkIn <= 0 && !blocked) {
+      if (barkIn <= 0 && !blocked && !inside && !driving) {
         barkIn = BARK_EVERY * (0.8 + 0.5 * ((barkOff++ * 0.37) % 1));
         const c = ctrl().state;
         let pick = null;

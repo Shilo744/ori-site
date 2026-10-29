@@ -97,8 +97,9 @@ export function createOri({ shadows = true, tier = 'high' } = {}) {
     head: person.bones.head,
     get height() { return topY; },
     setEmote,
-    play: (g) => person.play(g),
+    play: (g, speed) => person.play(g, speed),
     hold: (h) => { heldFor = 0; person.hold(h); },
+    setMirror: (on) => person.setMirror(on),
     /** Holds a pose (phone / carry) for a few seconds, then lets it go. */
     holdFor(h, seconds) { person.hold(h); heldFor = seconds; },
     /** Wears an expression for a moment (a happy surprise when a task buzzes). */
@@ -119,7 +120,7 @@ export function createOri({ shadows = true, tier = 'high' } = {}) {
       if (flashFor > 0) flashFor -= dt;
       person.setMood(locked || (flashFor > 0 && flashMood) || (stress > 0.78 ? 'flustered' : stress > 0.5 ? 'grin' : 'smile'));
       const m = forced || s;
-      person.update(dt, { speed: m.speed, sprinting: !!m.sprinting, winded: !!m.winded, stress, acc, hold: s.hold || undefined, talking: !!s.talking });
+      person.update(dt, { speed: m.speed, sprinting: !!m.sprinting, winded: !!m.winded, stress, acc, hold: s.hold || undefined, talking: !!s.talking, fw: s.fw || null });
       setEmote((forced || s).winded ? 'zzz' : s.emote || null);
       if (emoteName) emote.position.set(0.3, topY + 0.28 + Math.sin(t * 5) * 0.025, 0);
       blob.visible = !shadows;

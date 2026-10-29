@@ -78,6 +78,7 @@ export function createMaterials({ tier = 'high' } = {}) {
     mouth: std({ roughness: 0.45 }),
     sweat: new THREE.MeshPhysicalMaterial({ color: 0x9fd8ff, roughness: 0.05, transparent: true, opacity: 0.85, emissive: 0x2f6fb0, emissiveIntensity: 0.25 }),
   };
+  M.lid = M.skin; // (the eyelids of a light-eyed person: the same skin, but no cartoon outline)
   M.skin.userData.flush = true;
   return M;
 }

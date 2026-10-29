@@ -112,7 +112,7 @@ test('the same job never comes twice within four hours, and the follow-ups only 
 test('variety: across 200 days almost every template appears (the follow-ups through their chains)', () => {
   const seen = new Set();
   for (const seed of SEEDS) for (const x of planDay(seed, dist)) seen.add(x.tplId);
-  const missing = TEMPLATES.filter((t) => !seen.has(t.id) && t.id !== 'auntie-verdict' && t.id !== 'city-stamp').map((t) => t.id);
+  const missing = TEMPLATES.filter((t) => !seen.has(t.id) && !t.setpiece && t.id !== 'auntie-verdict' && t.id !== 'city-stamp').map((t) => t.id);
   assert.ok(missing.length <= 3, `never planned: ${missing.join(', ')}`);
 });
 

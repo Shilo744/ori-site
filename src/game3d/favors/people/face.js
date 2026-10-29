@@ -33,15 +33,21 @@ export function surfaceLUTFromTable({ x0, y0, step, nx, ny, z }) {
 
 // ── eyes ──
 /** The painted eyeball: pupil, iris with a lighter ring and radial streaks, a dark limbal ring, a warm white that dims towards the back. */
-export function eyeballColor(irisHex = '#4a2c1a') {
-  const iris = linear(irisHex);
-  const light = mix(iris, [0.6, 0.4, 0.2], 0.7);
+export function eyeballColor(irisHex = '#4a2c1a', { irisR, pupilR, ring } = {}) {
+  const IR = irisR ?? 0.64; // the iris and the pupil as angles (radians) round the eyeball's front pole
+  const PR = pupilR ?? 0.2;
+  const SPAN = irisR === undefined && pupilR === undefined ? 0.44 : IR - PR;
+  const iris0 = linear(irisHex);
+  const lum = 0.2126 * iris0[0] + 0.7152 * iris0[1] + 0.0722 * iris0[2];
+  const pale = Math.min(1, Math.max(0, (lum - 0.03) / 0.22)); // 0 = a dark brown eye, 1 = a light (blue / grey / green) one
+  const iris = pale > 0 ? mix(iris0, [Math.min(1, iris0[0] * 1.5), Math.min(1, iris0[1] * 1.5), Math.min(1, iris0[2] * 1.5)], 0.6 * pale) : iris0; // light eyes catch the light: a touch brighter
+  const light = ring ? mix(iris, linear(ring), 0.8) : mix(iris, pale > 0.5 ? [0.62, 0.7, 0.78] : [0.6, 0.4, 0.2], pale > 0.5 ? 0.35 : 0.7); // the ring round the pupil: warm in a brown eye, pale in a light one (a spec can paint its own)
   const sclera = linear('#f4efe8');
   const rim = linear('#cdb7ae');
   return (dx, dy, dz, th, ph) => {
-    if (th < 0.2) return [0.006, 0.004, 0.004];
-    if (th < 0.64) {
-      const t = (th - 0.2) / 0.44;
+    if (th < PR) return [0.006, 0.004, 0.004];
+    if (th < IR) {
+      const t = (th - PR) / SPAN;
       const streak = 0.5 + 0.5 * Math.sin(ph * 17 + th * 5);
       let c = mix(light, iris, sstep(0.0, 0.85, t) * 0.8 + 0.1 * streak);
       c = mix(c, [0.004, 0.003, 0.003], sstep(0.82, 1, t) * 0.9); // limbal ring
@@ -52,10 +58,10 @@ export function eyeballColor(irisHex = '#4a2c1a') {
   };
 }
 
-export function buildEyes(B, A, f, ids, irisHex) {
-  const col = eyeballColor(irisHex);
+export function buildEyes(B, A, f, ids, irisHex, look = {}) {
+  const col = eyeballColor(irisHex, look);
   for (const [sx, bone] of [[1, ids.eyeL], [-1, ids.eyeR]]) {
-    uvSphere(B, sx * A.eye.x, A.eye.y, A.eye.z, A.eye.r, col, { nu: 56, nv: 40, bone });
+    uvSphere(B, sx * A.eye.x, A.eye.y, A.eye.z, A.eye.r, col, { nu: 56, nv: 40, bone, squash: look.squash || [1, 1, 1] });
   }
 }
 
@@ -91,16 +97,22 @@ export function buildBrows(B, A, f, ids, hairHex = '#1a1210', style = {}) {
   const dark = scale3(linear(hairHex), 0.55);
   const lift = style.lift ?? 0.004;
   const thick = style.thick ?? 1;
+  const arch = style.arch ?? 1; // (a person spec can shape its own brows: how high they arch, how far the tail drops, how blunt the ends are, how tall they stand, where they start and end)
+  const tail = style.tail ?? 1;
+  const taper = style.taper ?? 0.45;
+  const tall = style.height ?? 1;
+  const x0 = style.inner ?? 0.5;
+  const x1 = style.reach ?? 1.5;
   for (const [sx, bIn, bOut] of [[1, ids.browInL, ids.browOutL], [-1, ids.browInR, ids.browOutR]]) {
     const pts = [];
     const N = 9;
     for (let i = 0; i < N; i++) {
       const u = i / (N - 1); // 0 = inner end, 1 = outer end
-      const x = A.eye.x * 0.5 + u * (A.eye.x * 1.5 + 0.004);
-      const y = A.brow.y + 0.005 - 0.006 * u + 0.0075 * Math.sin(u * Math.PI) + lift + 0.002 * (1 - u);
+      const x = A.eye.x * x0 + u * (A.eye.x * x1 + 0.004);
+      const y = A.brow.y + 0.005 - 0.006 * tail * u + 0.0075 * arch * Math.sin(u * Math.PI) + lift + 0.002 * (1 - u);
       pts.push([sx * x, y, A.surface(x, y) + 0.0035 * thick]);
     }
-    sweepTube(B, pts, (t) => { const env = Math.sin(Math.min(1, t * 0.97 + 0.03) * Math.PI) ** 0.45; return [(0.0098 * (1 - 0.3 * t)) * env * thick + 0.001, 0.0062 * env * thick + 0.001]; }, {
+    sweepTube(B, pts, (t) => { const env = Math.sin(Math.min(1, t * 0.97 + 0.03) * Math.PI) ** taper; return [(0.0098 * (1 - 0.3 * t)) * env * thick * tall + 0.001, 0.0062 * env * thick + 0.001]; }, {
       sides: 8, color: (t, ph) => scale3(dark, 0.85 + 0.35 * Math.max(0, Math.cos(ph))), up: [0, 0.35, 1],
       bones: (t) => [bIn, 1 - t, bOut, t],
     });
@@ -201,7 +213,8 @@ export const MOUTH_REST = { w: 1, smile: 0.2, open: 0, round: 0, asym: 0, teeth:
  * teeth, tongue }: width scale, corner lift (0..1.4), jaw opening (0..1), pucker (0..1), one corner higher (-1..1), how much of the teeth / tongue show.
  * `S(x, y)` = the skin's z (a surfaceLUT). The mesh lies ON the face, so opening shows a dark decal with teeth — no hole in the head.
  */
-export function buildMouth(B, A, m, S, lipHex = '#b8665a', ids = {}) {
+export function buildMouth(B, A, m, S, lipHex = '#b8665a', ids = {}, look = {}) {
+  const thin = look.thick ?? 1; // (a person spec can have thinner or fuller lips: face.lipThick)
   const bone = ids.jaw ?? ids.head ?? 0;
   const lip = linear(lipHex);
   const lipDark = scale3(lip, 0.55);
@@ -228,7 +241,7 @@ export function buildMouth(B, A, m, S, lipHex = '#b8665a', ids = {}) {
     lo.push([x, yL]);
   }
   const zl = (x, y, e) => S(x, y) + e;
-  const lipR = (u, full) => (0.0058 * full) * (0.35 + 0.65 * Math.sqrt(Math.max(0, 1 - u * u))) + 0.0007;
+  const lipR = (u, full) => (0.0058 * full * thin) * (0.35 + 0.65 * Math.sqrt(Math.max(0, 1 - u * u))) + 0.0007;
   // inside, teeth, tongue
   const colsN = N;
   const faceN = (x, y) => { const e = 0.0015; const dx = (S(x + e, y) - S(x - e, y)) / (2 * e); const dy = (S(x, y + e) - S(x, y - e)) / (2 * e); const l = Math.hypot(dx, dy, 1); return [-dx / l, -dy / l, 1 / l]; };

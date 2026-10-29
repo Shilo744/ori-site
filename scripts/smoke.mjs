@@ -16,7 +16,7 @@ import { runLife } from './lib/life-test.mjs';
 import { runInteract } from './lib/interact-test.mjs';
 import { runCursors } from './lib/cursor-test.mjs';
 import { runFavors3d } from './lib/favors3d-test.mjs';
-import { runFavorsPhone } from './lib/favors-phone-test.mjs';
+import { runFavorsLife } from './lib/favors-life-test.mjs';
 import { runLauncher, runIphoneLaunch } from './lib/launcher-test.mjs';
 import { runSettings, runSettingsReload } from './lib/settings-test.mjs';
 import { runNotify, runNotifyOnboarding } from './lib/notify-test.mjs';
@@ -151,7 +151,9 @@ try {
 
     // Ori, Can You...? (src/game3d/favors): the neighbourhood, Ori on foot, the day clock, pause, clean quit
     await runFavors3d(s, { ok, fail });
-    await runFavorsPhone(s, { ok, fail });
+    // ...and his whole life without a phone: hello + bubbles + love, the goals, the office computer, the ring, the hidden boss, the day rollover, a clean quit (starts from a fresh save)
+    await s.page.evaluate(() => { try { localStorage.removeItem('ori-favors-week-v1'); } catch { /* storage may be blocked */ } });
+    await runFavorsLife(s, { ok, fail });
 
     // settings persistence + first-run onboarding (both reload the page)
     await runSettingsReload(s, { ok, fail });

@@ -23,6 +23,23 @@ export const ORI_SPEC = (() => {
   };
 })();
 
+/**
+ * Shilo (the owner of the game, Ori's teammate and the hidden last boss): values only, no photo anywhere. Short brown hair brushed up at the front, light blue-grey eyes,
+ * strong brows, a straight nose, a few days of stubble, fair skin, a black button shirt with a watch, dark jeans. Built by the same pipeline as everybody else.
+ */
+export const SHILO_SPEC = {
+  // Shilo in the regular game style (same head / hair / body pipeline as Ori and the neighbours): fair skin, short brown hair brushed up at the front, light blue-grey eyes,
+  // strong straight brows, a straight nose, a few days of stubble, a black button shirt with a watch, dark jeans
+  id: 'shilo', seed: 3131, gender: 'm', age: 'adult', scale: 1.0,
+  face: { skin: '#f0c4a0', width: 1.0, height: 1.0, jaw: 0.98, chinW: 1.12, chinLen: 0.94, cheek: 0.85, brow: 1.0, nose: { len: 1.0, width: 0.85, tip: 0.9, bridge: 1.0 }, lips: { upper: 0.95, lower: 1.05, width: 1.0 }, eyeSep: 1.0, eyeSize: 0.9, eyeY: 0, ear: 1.0, earOut: 1.0, blush: 0.2, lipColor: '#b8665a', stubble: 0.5, beardTone: '#6b4a35' },
+  eyes: { iris: '#7d9bb0' },
+  brows: { color: '#4a2f22', thick: 1.25 },
+  hair: { style: 'short', color: '#5a3b28', highlight: '#6e4a33', volume: 1.12 },
+  facialHair: null, glasses: null, hoop: null, chain: null,
+  body: { build: 1.0, shoulders: 1.0, belly: 0, hands: 1.15, arms: 1.05 },
+  outfit: { top: 'tee', collar: true, watch: true, sleeve: 1, topColor: '#1d1d20', bottom: 'jeans', bottomColor: '#2f4261', shoes: 'sneakers', shoeColor: '#18181b', soleColor: '#d9d9d4', accent: '#18181b', skin: '#f0c4a0' },
+};
+
 // ── the parametric generator: any number of different neighbours from a seed ──
 const SKINS = ['#f1cba5', '#e3b58c', '#cf9770', '#b57a53', '#8b5a3c', '#5e3a28'];
 const HAIR_COLORS = ['#17100c', '#2b1a11', '#4a2f1d', '#6b4a2a', '#a8742f', '#c9a25b', '#8a3a22', '#b3b3b8', '#dcdcdf'];

@@ -25,7 +25,9 @@
     "test:driftrace": "node scripts/e2e-block.mjs drift-race",
     "test:intro": "node scripts/e2e-intro.mjs",
     "test:cursors": "node scripts/test-cursors.mjs && node scripts/e2e-block.mjs cursors",
-    "test:favors": "node scripts/test-favors.mjs && node scripts/test-favors-quests.mjs && node scripts/test-favors-persona.mjs && node scripts/test-favors-sdf.mjs && node scripts/test-favors-people.mjs && node scripts/test-favors-art.mjs && node scripts/test-favors-dialogue.mjs && node scripts/e2e-block.mjs favors3d",
+    "test:favors": "node scripts/test-favors.mjs && node scripts/test-favors-quests.mjs && node scripts/test-favors-persona.mjs && node scripts/test-favors-sdf.mjs && node scripts/test-favors-people.mjs && node scripts/test-favors-art.mjs && node scripts/test-favors-dialogue.mjs && node scripts/test-favors-interiors.mjs && node scripts/test-favors-missions.mjs && node scripts/test-favors-economy.mjs && node scripts/test-favors-boxing.mjs && node scripts/test-favors-sound.mjs && node scripts/test-favors-life.mjs && node scripts/e2e-block.mjs favors3d && node scripts/e2e-block.mjs favors-life && node scripts/e2e-block.mjs favors-play",
+    "test:sound": "node scripts/test-favors-sound.mjs && node scripts/sound-render.mjs",
+    "soundlab": "node scripts/build-soundlab.mjs",
     "test:people": "node scripts/test-favors-sdf.mjs && node scripts/test-favors-people.mjs",
     "test:launcher": "node scripts/e2e-block.mjs launcher"
   },

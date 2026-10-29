@@ -147,8 +147,9 @@ export function createPerson(spec, { shadows = true, quality = 1, tier = 'high',
     group, data, bones, skeleton, meshes, animator, face, stats: personStats(data),
     get headHeight() { return data.headPos[1] + 0.34; },
     setMood(name, k = 1) { mood = name; moodK = k; },
-    play(g) { animator.play(g); },
+    play(g, speed) { animator.play(g, speed); },
     hold(name) { animator.hold(name); },
+    setMirror(on) { animator.setMirror(on); },
     setOutline(on) { outlines.forEach((o) => { o.visible = on; }); },
     /** s = { speed, sprinting, winded, stress, hold, talking, acc }; returns nothing, moves the bones */
     update(dt, s = {}) {

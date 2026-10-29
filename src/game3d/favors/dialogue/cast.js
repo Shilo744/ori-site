@@ -1,7 +1,7 @@
 // "Ori, Can You...?" — who can speak: every character in content.js CAST plus Ori and the passers-by. Each speaker has a spec (people/specs.js),
 // a voice (voices.js), a colour and a portrait pose. Specs are plain data, so a stranger the crowd produced can be rebuilt any time.
 import { CAST } from '../content.js';
-import { randomSpec, ORI_SPEC } from '../people/specs.js';
+import { randomSpec, ORI_SPEC, SHILO_SPEC } from '../people/specs.js';
 import { voiceFor } from '../voices.js';
 
 const strHash = (s) => { let h = 7; for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) >>> 0; return h % 90000 + 100; };
@@ -34,7 +34,7 @@ export function speaker(id) {
     const c = CAST[id];
     if (!c) throw new Error(`unknown speaker "${id}"`);
     const look = LOOKS[id] || { seed: strHash(id), opts: {} };
-    const spec = randomSpec(look.seed, look.opts);
+    const spec = id === 'shilo' ? JSON.parse(JSON.stringify(SHILO_SPEC)) : randomSpec(look.seed, look.opts); // (Shilo is hand-made from his own photos)
     spec.id = `cast-${id}`;
     if (look.patch) Object.assign(spec, look.patch);
     rec = { id, name: c.name, role: c.role || '', color: c.color, spec, voice: voiceFor(id, spec), rel: c.rel, home: c.home };

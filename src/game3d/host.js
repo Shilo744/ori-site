@@ -287,6 +287,10 @@ export const game3dDebug = {
   clock() { return current?.api?.game?.clockInfo?.() ?? null; },
   /** Ori, Can You...?: conversations (dev / tests). */
   talk(id) { return current?.api?.game?.talk?.(id) ?? false; },
+  enter(pid, o) { return current?.api?.game?.enter?.(pid, o) ?? false; },
+  leave(o) { return current?.api?.game?.leave?.(o) ?? false; },
+  insideId() { return current?.api?.game?.insideId?.() ?? null; },
+  insideInfo() { return current?.api?.game?.insideInfo?.() ?? null; },
   talkState() { return current?.api?.game?.talkState?.() ?? null; },
   talkKey(code) { return current?.api?.game?.talkKey?.(code) ?? false; },
   setHour(h) { current?.api?.game?.setHour?.(h); current?.api?.game?.render?.(1 / 60); },

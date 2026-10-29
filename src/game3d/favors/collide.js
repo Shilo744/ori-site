@@ -116,6 +116,7 @@ export function createCollisionWorld(colliders, cell = 8) {
     const dz = bz - az;
     const len = Math.hypot(dx, dz) || 1;
     near((ax + bx) / 2, (az + bz) / 2, len / 2 + pad + 1, (c) => {
+      if (c.noCam) return; // (a room's walls and furniture: the camera looks down into the room from above them)
       if (c.t === 0) {
         let t0 = 0;
         let t1 = 1;

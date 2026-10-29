@@ -103,31 +103,102 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     }
   }
 
-  // ── the engine: a soft electric hum that rises with the speed (a low saw through a low-pass + a whine), only while driving ──
+  // ── the engine: a proper sporty voice. A stack of detuned saws and a sub through a soft clipper and a resonant low-pass (the growl), an intake hiss, a turbo whistle and a rush of
+  // air while boosting, a gearbox whine in reverse and tyre noise when the car slides. Five "gears" make the revs climb and drop as the speed grows, like a real car. ──
   let eng = null;
-  function engine(k, pedal = 0) {
-    if (k < 0) { if (eng) { eng.g.gain.setTargetAtTime(0, ctx.currentTime, 0.1); const e = eng; eng = null; setTimeout(() => { try { e.o1.stop(); e.o2.stop(); } catch { /* done */ } }, 400); } return; }
+  let noiseBuf = null;
+  const getNoise = (c) => { if (!noiseBuf) { noiseBuf = c.createBuffer(1, c.sampleRate * 2, c.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return noiseBuf; };
+  const clipCurve = (() => { const n = 256; const c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; c[i] = Math.tanh(x * 2.6); } return c; })();
+  function engine(k, pedal = 0, o = {}) {
+    if (k < 0) {
+      if (eng) { const e = eng; eng = null; e.out.gain.setTargetAtTime(0, ctx.currentTime, 0.12); setTimeout(() => { try { e.srcs.forEach((n) => n.stop()); } catch { /* done */ } }, 600); }
+      return;
+    }
     const c = ready();
     if (!c) return;
     if (!eng) {
-      const g = c.createGain(); g.gain.value = 0;
-      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 500;
-      const o1 = c.createOscillator(); o1.type = 'sawtooth';
-      const o2 = c.createOscillator(); o2.type = 'sine';
-      const g2 = c.createGain(); g2.gain.value = 0.35;
-      o1.connect(lp); lp.connect(g); o2.connect(g2); g2.connect(g); g.connect(master);
-      o1.start(); o2.start();
-      eng = { g, lp, o1, o2 };
+      getNoise(c);
+      const out = c.createGain(); out.gain.value = 0;
+      const clip = c.createWaveShaper(); clip.curve = clipCurve; clip.oversample = '2x';
+      const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 5; lp.frequency.value = 600;
+      const core = c.createGain(); core.gain.value = 0.5;
+      const saws = [['sawtooth', 1, 0.5], ['sawtooth', 1.006, 0.45], ['sawtooth', 0.994, 0.35], ['square', 0.5, 0.4], ['triangle', 2, 0.18]].map(([type, mult, g]) => {
+        const osc = c.createOscillator(); osc.type = type; const og = c.createGain(); og.gain.value = g; osc.connect(og); og.connect(core); osc.start(); return { osc, mult };
+      });
+      core.connect(clip); clip.connect(lp); lp.connect(out);
+      const noise = (freq, q, type = 'bandpass') => { const src = c.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q; const g = c.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(out); src.start(); return { src, f, g }; };
+      const intake = noise(900, 1.2);
+      const rush = noise(2600, 0.7);
+      const screech = noise(1700, 7);
+      const whine = c.createOscillator(); whine.type = 'sine'; const wg = c.createGain(); wg.gain.value = 0; whine.connect(wg); wg.connect(out); whine.start();
+      const turbo = c.createOscillator(); turbo.type = 'sine'; const tg = c.createGain(); tg.gain.value = 0; turbo.connect(tg); tg.connect(out); turbo.start();
+      out.connect(master);
+      eng = { out, lp, saws, intake, rush, screech, whine, wg, turbo, tg, rpm: 0.2, srcs: [...saws.map((s2) => s2.osc), intake.src, rush.src, screech.src, whine, turbo] };
     }
     const t = c.currentTime;
-    eng.o1.frequency.setTargetAtTime(48 + k * 70, t, 0.08);
-    eng.o2.frequency.setTargetAtTime(180 + k * 520, t, 0.08);
-    eng.lp.frequency.setTargetAtTime(380 + k * 900 + Math.max(0, pedal) * 250, t, 0.1);
-    eng.g.gain.setTargetAtTime(0.025 + k * 0.05 + Math.max(0, pedal) * 0.01, t, 0.1);
+    const boost = o.boost || 0;
+    // gears: the revs rise through a gear and drop at the shift (a little pause of lift between)
+    const gears = o.mine ? 5 : 4;
+    const kk = Math.min(0.999, k);
+    const g = Math.floor(kk * gears);
+    const within = kk * gears - g;
+    const want = Math.min(1, 0.24 + 0.62 * within + 0.06 * g / gears + 0.12 * Math.max(0, pedal) + 0.1 * boost);
+    eng.rpm += (want - eng.rpm) * (want < eng.rpm ? 0.35 : 0.18); // a quick fall at a shift, a quicker climb under power
+    const rpm = eng.rpm;
+    const f0 = (o.mine ? 34 : 40) + rpm * (o.mine ? 118 : 96);
+    for (const s2 of eng.saws) s2.osc.frequency.setTargetAtTime(f0 * s2.mult, t, 0.03);
+    eng.lp.frequency.setTargetAtTime(260 + rpm * 1700 + Math.max(0, pedal) * 700 + boost * 500, t, 0.05);
+    eng.out.gain.setTargetAtTime(0.13 + 0.08 * rpm + 0.05 * Math.max(0, pedal) + 0.05 * boost, t, 0.06);
+    eng.intake.f.frequency.setTargetAtTime(700 + rpm * 1400, t, 0.06);
+    eng.intake.g.gain.setTargetAtTime(0.05 + 0.2 * Math.max(0, pedal) * rpm, t, 0.08);
+    eng.rush.g.gain.setTargetAtTime(boost * 0.35 + k * 0.05, t, 0.1);
+    eng.turbo.frequency.setTargetAtTime(1500 + rpm * 2200, t, 0.06);
+    eng.tg.gain.setTargetAtTime(boost * 0.05 + (o.mine ? Math.max(0, pedal) * rpm * 0.012 : 0), t, 0.08);
+    eng.whine.frequency.setTargetAtTime(220 + k * 700, t, 0.06);
+    eng.wg.gain.setTargetAtTime(o.reverse ? 0.035 + k * 0.03 : 0, t, 0.1);
+    eng.screech.g.gain.setTargetAtTime(Math.max(0, (o.slide || 0) - 0.45) * 0.5, t, 0.05);
+  }
+
+  // ── the sound of a room Ori walks into (rebuilt: a soft bed per kind of room) ──
+  let roomNodes = null;
+  let roomKind = null;
+  function roomStop() {
+    if (!roomNodes) return;
+    const r = roomNodes;
+    roomNodes = null; roomKind = null;
+    if (ctx) r.out.gain.setTargetAtTime(0, ctx.currentTime, 0.25);
+    setTimeout(() => { try { r.srcs.forEach((n) => n.stop()); } catch { /* done */ } }, 1200);
+  }
+  function room(kind) {
+    if (!kind) { roomStop(); return; }
+    if (kind === roomKind) return;
+    roomStop();
+    const c = ready();
+    if (!c) return;
+    roomKind = kind;
+    const out = c.createGain(); out.gain.value = 0; out.connect(master);
+    const srcs = [];
+    const noise = (type, freq, q, gain, lfoHz = 0) => {
+      const src = c.createBufferSource(); src.buffer = getNoise(c); src.loop = true;
+      const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
+      const g = c.createGain(); g.gain.value = gain;
+      src.connect(f); f.connect(g); g.connect(out); src.start(); srcs.push(src);
+      if (lfoHz) { const l = c.createOscillator(); l.frequency.value = lfoHz; const lg = c.createGain(); lg.gain.value = gain * 0.7; l.connect(lg); lg.connect(g.gain); l.start(); srcs.push(l); }
+    };
+    const hum = (hz, gain) => { const o = c.createOscillator(); o.type = 'sine'; o.frequency.value = hz; const g = c.createGain(); g.gain.value = gain; o.connect(g); g.connect(out); o.start(); srcs.push(o); };
+    if (kind === 'hall') { noise('lowpass', 380, 0.5, 0.09); noise('bandpass', 900, 0.8, 0.02, 0.17); } // a big quiet space
+    else if (kind === 'office') { hum(100, 0.012); noise('lowpass', 500, 0.6, 0.05); noise('bandpass', 2600, 1.5, 0.008, 0.6); } // lights, air and far-off keys
+    else if (kind === 'hum') { hum(50, 0.02); hum(100, 0.012); noise('lowpass', 300, 0.6, 0.05); } // a fridge in the corner
+    else if (kind === 'chatter') { noise('bandpass', 520, 0.9, 0.1, 0.7); noise('bandpass', 1100, 1.2, 0.06, 1.3); noise('lowpass', 420, 0.5, 0.04); } // people murmuring
+    else noise('lowpass', 420, 0.5, 0.045); // 'quiet': just the air
+    out.gain.setTargetAtTime(0.5, c.currentTime, 0.6);
+    roomNodes = { out, srcs };
   }
 
   return {
     engine,
+    /** The sound of the room Ori is in ('quiet' | 'hall' | 'office' | 'hum' | 'chatter'); null = outdoors. */
+    room,
     /** Starts / stops the loop (kept quiet under the sound effects). */
     music(on) {
       if (on === musicOn) return;
@@ -154,7 +225,9 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     /** One letter of a character's voice (voices.js): a short blip of their timbre at the given pitch. */
     blip(voice, hz) { if (hz > 0) tone(voice.wave, hz, hz * (1 + (voice.wobble - 0.3) * 0.2), 0.07, 0.035 + 0.02 * voice.bright); },
     pop() { tone('sine', 520, 980, 0.09, 0.09); },
+    /** A friendly double toot of the horn (a hello from the car). */
+    honk() { for (const d of [0, 0.17]) { tone('square', 392, 392, 0.12, 0.05, d); tone('square', 494, 494, 0.12, 0.045, d); } },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },
-    dispose() { engine(-1); musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
+    dispose() { roomStop(); engine(-1); musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
   };
 }

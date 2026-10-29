@@ -2,6 +2,7 @@
 // field again, see sdf.js), carved back where the face, the ears and the neck must show. Styles: curly (Ori), short, buzz, wavy, long, bun,
 // bald. PURE: gives a mesh in the head frame (vertex colours carry the shading: baked occlusion + a little tonal variation).
 import { smin, smax, sdEllipsoid, sdSphere, meshSDF, aoAt } from '../sdf.js';
+import { buildClumpHair } from './hair-clumps.js';
 import { mulberry32 } from '../../rng.js';
 import { linear } from './head.js';
 import { MeshBuilder, sweepTube } from './geo.js';
@@ -50,6 +51,7 @@ const STYLE = {
 export function buildHair(spec = {}, A, { cell = 0.0065, seed = 7, quality = 1 } = {}) {
   const style = spec.style || 'curly';
   if (style === 'bald') return null;
+  if (style === 'clumps') return buildClumpHair(spec, A, { cell: cell * 0.88 });
   const S = STYLE[style] || STYLE.short;
   const vol = spec.volume ?? 1;
   const rnd = mulberry32(seed + 31 * HAIR_STYLES.indexOf(style));

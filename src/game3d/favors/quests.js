@@ -11,6 +11,8 @@ export const DAY_END = DAY.endHour * 60;
 export const MIN_PER_SEC = (DAY_END - DAY_START) / (DAY.realMinutes * 60); // game minutes per real second
 export const TRAVEL_SPEED = 6; // m/s the feasibility guard assumes (a mix of walking and sprinting)
 export const VERB_SECS = { carry: 9, fix: 12, queue: 20, chat: 11, shop: 11, escort: 18, assemble: 16, handle: 8 };
+/** Extra seconds a mission's own mechanic takes on top of the verb (missions.js): searching, chasing, shopping round, a race, a gauntlet. */
+export const MECH_SECS = { find: 55, chase: 60, list: 40, race: 75, gauntlet: 75, taxi: 10, delivery: 6 };
 /** Defaults by tone: priority, extra minutes allowed (on top of the trip and the doing), score, relationship gain / loss, chaos on failure. */
 export const TONES = {
   trivial: { pri: 1, mins: 80, score: 30, rel: 4, penRel: 3, chaos: 3 },
@@ -36,19 +38,28 @@ const OPENING = [[375, 'mum-remote'], [405, 'h-coffee'], [440, 'mum-bread']];
 const FAMILY_W = (h) => ({ family: 1.2 + (h < 9 || h > 18 ? 0.4 : 0), work: h >= 8.5 && h <= 17 ? 1.6 : 0.2, perach: h >= 13 && h <= 19.5 ? 1.5 : 0.1, city: h < 12.5 ? 1.5 : 0, friends: 0.9 + (h > 17 ? 0.6 : 0), strangers: 0.8, hobbies: 0.5 + (h > 16 ? 0.7 : 0) });
 
 /** Game minutes from the arrival of a task until it is due, so that it can be done ALONE from anywhere in town. */
-export function windowFor(tpl, dist, difficulty = 'normal') {
+export function windowFor(tpl, dist, difficulty = 'normal', slack = 1) {
   const tone = TONES[tpl.tone];
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
-  const far = Math.max(...Object.values(dist[tpl.at] || { x: 0 }));
+  let far;
+  if (tpl.legs && tpl.legs.length) { // a favour that goes through some places first (the pick-up, the shops) and ends at `at`
+    const chain = [...tpl.legs, tpl.at];
+    far = Math.max(...Object.values(dist[chain[0]] || { x: 0 }));
+    for (let i = 0; i + 1 < chain.length; i++) far += dist[chain[i]][chain[i + 1]];
+  } else far = Math.max(...Object.values(dist[tpl.at] || { x: 0 }));
   const trip = (far / TRAVEL_SPEED) * MIN_PER_SEC;
-  const doing = VERB_SECS[tpl.verb] * MIN_PER_SEC;
-  return { trip, doing, total: trip + doing + (tpl.mins ?? tone.mins) * diff.slack };
+  const doing = (VERB_SECS[tpl.verb] + (MECH_SECS[tpl.mech] || 0)) * MIN_PER_SEC;
+  return { trip, doing, total: trip + doing + (tpl.mins ?? tone.mins) * diff.slack * slack };
 }
 
-/** The whole day in advance: [{ at, tplId, kind }] sorted by time — deterministic from the seed. */
-export function planDay(seed, dist, difficulty = 'normal') {
+/**
+ * The whole day in advance: [{ at, tplId, kind }] sorted by time — deterministic from the seed.
+ * `o` (the week, campaign.js): rate (x tasks per hour), slack (x time allowed), noEpic (the first days have no epic favours), setpieces [{ at: game minute, id }].
+ */
+export function planDay(seed, dist, difficulty = 'normal', o = {}) {
   const rnd = mulberry32(subSeed(seed, 1));
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
+  const slackMul = o.slack ?? 1;
   const plan = [];
   const last = {}; // template id → last arrival
   const pick = (t, preferFar) => {
@@ -57,9 +68,10 @@ export function planDay(seed, dist, difficulty = 'normal') {
     const cands = TEMPLATES.filter((tp) => {
       if (tp.win && (h < tp.win[0] || h > tp.win[1])) return false;
       if (tp.id === 'auntie-verdict' || tp.id === 'city-stamp') return false; // follow-ups only arrive through their chain
+      if (tp.setpiece || (o.noEpic && tp.tone === 'epic')) return false; // the set pieces are planned by the week, not drawn
       if (last[tp.id] != null && t - last[tp.id] < 240) return false;
       const cl = CLOSES[tp.at];
-      const win = windowFor(tp, dist, difficulty);
+      const win = windowFor(tp, dist, difficulty, slackMul);
       if (cl != null && t + win.trip + win.doing + 12 > cl) return false; // it could not be done before the doors shut
       return (w[tp.rel] || 0) > 0;
     });
@@ -87,7 +99,7 @@ export function planDay(seed, dist, difficulty = 'normal') {
       for (let k = 0; k < n; k++) { const tp = pick(bursts[bi] + k * (2 + rnd() * 3), prev); if (tp) { add(bursts[bi] + k * (2 + rnd() * 3), tp, 'burst'); prev = tp; } }
       bi++;
     }
-    const rate = rateAt(t / 60) * diff.rate;
+    const rate = rateAt(t / 60) * diff.rate * (o.rate ?? 1);
     t += clamp((-Math.log(1 - rnd()) / rate) * 60, 7, 95);
     if (t >= DAY_END - 100) break;
     const tp = pick(t, null);
@@ -96,6 +108,7 @@ export function planDay(seed, dist, difficulty = 'normal') {
     // a double booking: another one, somewhere else entirely, a few minutes later
     if (rnd() < 0.2) { const tp2 = pick(t + 3, tp); if (tp2) add(t + 3 + rnd() * 5, tp2, 'double'); }
   }
+  for (const sp of o.setpieces || []) plan.push({ at: sp.at, tplId: sp.id, kind: 'setpiece' });
   plan.sort((a, b) => a.at - b.at);
   return plan;
 }
@@ -104,9 +117,9 @@ const byId = new Map(TEMPLATES.map((t) => [t.id, t]));
 export const template = (id) => byId.get(id);
 
 /** One task instance from a template, created at game minute `at`. */
-export function makeTask(uid, tpl, at, dist, difficulty, planned = at) {
+export function makeTask(uid, tpl, at, dist, difficulty, planned = at, slack = 1) {
   const tone = TONES[tpl.tone];
-  const win = windowFor(tpl, dist, difficulty);
+  const win = windowFor(tpl, dist, difficulty, slack);
   let deadline = Math.round(planned + win.total);
   if (CLOSES[tpl.at] != null) deadline = Math.min(deadline, CLOSES[tpl.at]);
   const giver = CAST[tpl.giver];
@@ -117,7 +130,7 @@ export function makeTask(uid, tpl, at, dist, difficulty, planned = at) {
     pri: tpl.fake ? 3 : tpl.pri ?? tone.pri,
     createdAt: Math.round(at), deadline, window: deadline - Math.round(planned),
     score: Math.round(tone.score * boost), relGain: tone.rel, penRel: tone.penRel, chaos: tone.chaos,
-    delegable: tpl.delegable ?? tpl.tone === 'trivial', calm: !!tpl.calm, coffee: !!tpl.coffee, then: tpl.then || null,
+    mech: tpl.mech || null, setpiece: !!tpl.setpiece, delegable: (tpl.delegable ?? tpl.tone === 'trivial') && !tpl.mech, calm: !!tpl.calm, coffee: !!tpl.coffee, then: tpl.then || null,
     state: 'new', later: false, doneAt: null, resolveAt: null,
   };
 }
@@ -132,13 +145,13 @@ export function rankFor(score) {
  * The engine. `dist` = map.dist (walking metres between places). Drive it with tick(gameMinutes); read `state`; listen to `drain()` events.
  * Events: { type: 'new' | 'accepted' | 'later' | 'declined' | 'done' | 'failed' | 'delegated' | 'focus' | 'day-end' | 'coffee', ... }.
  */
-export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
+export function createQuests({ seed = 1, dist, difficulty = 'normal', rel = null, day = 1, rate = 1, slack = 1, noEpic = false, setpieces = [], mentors = 0, noTasks = false } = {}) {
   const diff = DIFFICULTY[difficulty] || DIFFICULTY.normal;
-  const plan = planDay(seed, dist, difficulty);
+  const plan = noTasks ? [] : planDay(seed, dist, difficulty, { rate, slack, noEpic, setpieces }); // (noTasks: the phone stays quiet - the day is for hellos, the ring and the street)
   const state = {
-    seed, difficulty, min: DAY_START, planIndex: 0, uid: 0,
-    tasks: [], extra: [], held: [], chaos: 0, chaosPeak: 0, rel: Object.fromEntries(Object.keys(REL).map((k) => [k, 60])),
-    score: 0, streak: 0, bestStreak: 0, focus: { on: false, since: 0, cooldownUntil: 0 }, mentors: { tokens: MENTORS.tokens, nextRegen: DAY_START + MENTORS.regen },
+    seed, difficulty, day, min: DAY_START, planIndex: 0, uid: 0,
+    tasks: [], extra: [], held: [], chaos: 0, chaosPeak: 0, rel: rel ? { ...Object.fromEntries(Object.keys(REL).map((k) => [k, 60])), ...rel } : Object.fromEntries(Object.keys(REL).map((k) => [k, 60])),
+    score: 0, streak: 0, bestStreak: 0, focus: { on: false, since: 0, cooldownUntil: 0 }, mentors: { tokens: MENTORS.tokens + mentors, max: MENTORS.tokens + mentors, nextRegen: DAY_START + MENTORS.regen },
     stats: { arrived: 0, done: 0, failed: 0, declined: 0, delegated: 0, early: 0, chains: 0 }, ended: false, report: null,
   };
   const events = [];
@@ -149,7 +162,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
 
   function deliver(planned, tplId, kind) {
     const tpl = byId.get(tplId);
-    const t = makeTask(++state.uid, tpl, state.min, dist, difficulty, planned);
+    const t = makeTask(++state.uid, tpl, state.min, dist, difficulty, planned, slack);
     t.kind = kind;
     state.tasks.push(t);
     state.stats.arrived++;
@@ -182,7 +195,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
     if (early > 0.5) state.stats.early++;
     adjRel(t.rel, t.relGain * share);
     state.chaos = clamp(state.chaos - (t.chaos * 1.2 + 2) - (t.calm ? 15 : 0), 0, 100);
-    emit({ type: 'done', uid: t.uid, points: pts, quality });
+    emit({ type: 'done', uid: t.uid, points: pts, quality, share });
     if (t.coffee) emit({ type: 'coffee', uid: t.uid });
     if (t.then) { state.extra.push({ at: state.min + t.then.delay, tplId: t.then.id }); state.stats.chains++; }
   }
@@ -208,6 +221,8 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
       return state.tasks.filter(isOpen).map((t) => ({ ...t, remaining: t.deadline - state.min, urgency: clamp(1 - (t.deadline - state.min) / Math.max(1, t.window), 0, 1), metres: Math.round(dist[from]?.[t.at] ?? 0) })).sort((a, b) => a.deadline - b.deadline || b.pri - a.pri);
     },
     drain() { return events.splice(0, events.length); },
+    /** Dev / tests: a task from a template arrives right now. */
+    inject(tplId) { return byId.has(tplId) ? deliver(state.min, tplId, 'test') : null; },
 
     /** Advances the clock by `dm` game minutes: arrivals, deadlines, delegations, chaos, the Do Not Disturb timer, the end of the day. */
     tick(dm) {
@@ -232,7 +247,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal' } = {}) {
             if (ok) finish(t, 0.8, 0.6); else { t.state = 'failed'; t.doneAt = m; state.stats.failed++; adjRel(t.rel, -t.penRel * 0.5); emit({ type: 'failed', uid: t.uid, mentor: true }); }
           }
         }
-        if (m >= state.mentors.nextRegen) { state.mentors.nextRegen += MENTORS.regen; state.mentors.tokens = Math.min(MENTORS.tokens, state.mentors.tokens + 1); }
+        if (m >= state.mentors.nextRegen) { state.mentors.nextRegen += MENTORS.regen; state.mentors.tokens = Math.min(state.mentors.max, state.mentors.tokens + 1); }
         const ct = chaosTarget();
         state.chaos += (ct - state.chaos) * (1 - Math.pow(0.94, step)); // eases towards the pressure of the open tasks (6% per game minute)
         state.chaosPeak = Math.max(state.chaosPeak, state.chaos);

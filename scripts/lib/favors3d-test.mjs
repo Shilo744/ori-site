@@ -147,12 +147,20 @@ export async function runFavors3d(session, { ok, fail }) {
   // ── talking (T61): the hint, the conversation with real faces, choices, a compliment, effects, Esc, no leaks ──
   await g(() => { const x = window.__ori.game3d; x.setHour(13); x.teleport('mum'); });
   await sleep(500);
-  check(await g(() => document.querySelector('.fv-talkhint.on') && /Mum/.test(document.querySelector('.fv-talkhint').textContent)), "standing at Mum's door the hint says 'T Talk to Mum'");
+  check(await g(() => document.querySelector('.fv-talkhint:not(.fv-gohint).on') && /Mum/.test(document.querySelector('.fv-talkhint:not(.fv-gohint)').textContent)), "standing at Mum's door the hint says 'T Talk to Mum'");
+  // (T63) H says hello: a wave, a bubble over Ori, the answer in a bubble over Mum, a heart, and the love of the neighbourhood goes up
+  const love0 = await g(() => window.__ori.game3d.game.state().love);
+  await page.keyboard.press('KeyH');
+  await sleep(1100);
+  check(await g(() => [...document.querySelectorAll('.fb')].some((b) => /Mum/i.test(b.textContent)) && document.querySelector('.fb-ori') !== null), 'H says hello: Ori and Mum both answer in speech bubbles (no conversation panel)');
+  check((await g(() => window.__ori.game3d.game.state().love)) > love0, 'and the love of the neighbourhood goes up a little');
+  await sleep(2600);
+  // (the long conversation of T61 still exists behind the dev API)
   const rel0 = await g(() => window.__ori.game3d.game.state().quests.rel);
-  await page.keyboard.press('KeyT');
+  await g(() => window.__ori.game3d.talk('ima'));
   await sleep(700);
   let ts = await g(() => window.__ori.game3d.talkState());
-  check(ts.open && ts.who === 'ima' && /Habibi/.test(ts.line.text), 'T starts the conversation with Mum, in her own words');
+  check(ts.open && ts.who === 'ima' && /Habibi/.test(ts.line.text), 'the conversation opens with Mum, in her own words');
   check(await g(() => { const c = [...document.querySelectorAll('.fv-talk canvas')]; return c.length === 2 && c.every((x) => x.width > 100 && x.getContext('2d').getImageData(120, 130, 1, 1).data[3] > 0); }), 'both faces are drawn (Ori and Mum, real 3D heads)');
   await page.keyboard.down('KeyW'); await sleep(500); await page.keyboard.up('KeyW');
   check((await st()).player.speed < 0.3, 'Ori stands and listens while they talk (W does nothing)');
@@ -177,6 +185,53 @@ export async function runFavors3d(session, { ok, fail }) {
   ts = await g(() => window.__ori.game3d.talkState());
   check(open2 && ts.who === 'stranger:4' && /Bus 5/.test(ts.line.text), 'a passer-by can be talked to');
   await page.keyboard.press('Escape'); await sleep(300);
+
+  // ── walkable interiors (T62): G at a door goes in (a fade), the street is hidden, he walks about, the doormat leads out; no leaks ──
+  await g(() => { const x = window.__ori.game3d; x.setHour(13); x.teleport('cafe'); });
+  await sleep(400);
+  check(await g(() => /Go inside/.test(document.querySelector('.fv-gohint')?.textContent || '')), "at a door the chip says 'G Go inside'");
+  const geo0 = await g(() => window.__ori.game3d.stats().geometries);
+  await page.keyboard.press('KeyG');
+  await page.waitForFunction(() => window.__ori.game3d.insideId() === 'cafe', null, { timeout: 4000 }).catch(() => {});
+  await sleep(500);
+  const in1 = await g(() => ({ id: window.__ori.game3d.insideId(), info: window.__ori.game3d.insideInfo(), p: window.__ori.game3d.state().player, vis: window.__ori.game3d.game.scene.children.filter((c) => c.visible && !c.isLight).length }));
+  check(in1.id === 'cafe' && in1.p.x > 800 && !in1.info.trans, `G walks Ori into the cafe (${in1.p.x.toFixed(0)}, ${in1.p.z.toFixed(0)})`);
+  check(in1.vis <= 6, `the street is hidden while he is inside (${in1.vis} visible scene objects)`);
+  const roomCalls = await g(() => window.__ori.game3d.stats().calls);
+  check(roomCalls < 400, `a room draws few calls (${roomCalls})`);
+  const px0 = (await st()).player;
+  await page.keyboard.down('KeyW'); await sleep(1400); await page.keyboard.up('KeyW');
+  const px1 = (await st()).player;
+  check(Math.hypot(px1.x - px0.x, px1.z - px0.z) > 2.5, 'he walks about inside');
+  await page.keyboard.down('KeyW'); await sleep(2500); await page.keyboard.up('KeyW');
+  const wall = (await st()).player;
+  const room = await g(() => window.__ori.game3d.insideInfo());
+  check(wall.z > room.exit.z - 9.5 && Math.abs(wall.x - room.exit.x) < 6.8, 'the walls and the furniture hold him in');
+  await page.keyboard.press('Space'); // something near? (nothing breaks)
+  await sleep(200);
+  if ((await g(() => window.__ori.game3d.talkState())).open) { await page.keyboard.press('Escape'); await sleep(350); } // (it may have been a person: a conversation opens)
+  await g(() => { const x = window.__ori.game3d; const i = x.insideInfo(); x.teleport({ x: i.exit.x + 0.3, z: i.exit.z - 1.4 }, (i.spawn && i.spawn.heading) ?? Math.PI); }); // (facing the room's way, so the camera - which follows his heading - is straight and S walks straight at the door, not slantwise past the jamb)
+  await sleep(300);
+  await page.keyboard.down('KeyS'); // onto the doormat (held until he is out: a slow machine walks slower and must not fail the check)
+  await page.waitForFunction(() => window.__ori.game3d.insideId() === null, null, { timeout: 9000 }).catch(() => {});
+  await page.keyboard.up('KeyS');
+  await sleep(500);
+  const out1 = await g(() => ({ id: window.__ori.game3d.insideId(), p: window.__ori.game3d.state().player, vis: window.__ori.game3d.game.scene.children.filter((c) => c.visible && !c.isLight).length }));
+  check(out1.id === null && out1.p.x < 300 && out1.vis > 8, 'walking onto the doormat leads back out into the street');
+  // six rooms in and out (twice: the people are built once and kept for the day), then the memory is the same
+  const ROOMS_TRIED = ['home', 'mum', 'cityhall', 'perach', 'studio', 'kiosk', 'cafe', 'mum'];
+  const pass = async () => {
+    for (const pid of ROOMS_TRIED) {
+      await g((p) => { const x = window.__ori.game3d; x.teleport(p); x.enter(p); x.game.render(1 / 60); x.game.render(1 / 60); }, pid);
+      if ((await g(() => window.__ori.game3d.insideId())) !== pid) check(false, `can enter ${pid}`);
+      await g(() => { window.__ori.game3d.leave(); window.__ori.game3d.game.render(1 / 60); });
+    }
+    return g(() => window.__ori.game3d.stats().geometries);
+  };
+  const geoA = await pass();
+  const geo1 = await pass();
+  check(geo1 === geoA, `entering and leaving 8 rooms again leaves no geometry behind (${geo0} → ${geoA} after the first round with all the people, ${geo1} after the second)`);
+  check(await g(() => window.__ori.game3d.insideId() === null), 'all six places and more can be entered and left');
 
   // ── pause: Esc opens the menu and the simulation stands still; Esc resumes ──
   await page.keyboard.press('Escape');

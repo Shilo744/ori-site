@@ -31,17 +31,40 @@ import { prewarmOri, prewarmCrowd } from './people/loader.js';
 import { createFavorsHud } from './hud.js';
 import { createPhone } from './phone.js';
 import { createSocial } from './social.js';
+import { speaker } from './dialogue/cast.js';
+import { createInteriors } from './interior3d.js';
+import { ROOMS, collidersOf } from './interiors.js';
 import { createSfx } from './sfx.js';
 import { createBeam } from './beam3d.js';
-import { createQuests, rankFor } from './quests.js';
+import { createQuests, rankFor, template } from './quests.js';
 import { TEXT, nextTimeFor } from './texts.js';
 import { disposeTree } from './gfx.js';
-import { CROWD, DAY, PLACES, RANKS } from './content.js';
+import { CROWD, DAY, PLACES, RANKS, CAST } from './content.js';
+import { subSeed, mulberry32 } from '../rng.js';
+import { createCampaign } from './campaign.js';
+import { payFor } from './economy.js';
+import { createMission, specFor, makeHail } from './missions.js';
+import { createMissionWorld } from './mission-world.js';
+import { createPlayUi } from './play-ui.js';
+import { ECON, WEEK } from './play-content.js';
+import { createBubbles } from './bubbles-ui.js';
+import { createJournal } from './journal-ui.js';
+import { createMapUi } from './map-ui.js';
+import { LANDMARKS, CAR, lineFor } from './places-guide.js';
+import { createArcade } from './arcade-ui.js';
+import { createFightMode } from './fight3d.js';
+import { currentGoal, checkGoals, goalList } from './goals.js';
+import { FIGHTERS, availability, fighter, nextFight } from './fight-content.js';
+import { MOVE_LIST, xpToNext, xpProgress } from './boxer.js';
+import { xpFor } from './training.js';
 
 const KEY_GAIN = 0.92; // sun / moon intensity
 const HEMI_GAIN = 1.08; // (soft shadows: a lot of sky light fills them)
 const NEAR_PLACE = 16; // metres: the label of a place shows when Ori is this close to its door
 const USE_RANGE = 3.8; // metres from a door where Space does the favour
+const SETPIECES = { 3: [{ at: 16 * 60, id: 'dov-race' }], 4: [{ at: 9 * 60 + 20, id: 'city-inspection' }], 5: [{ at: 12 * 60, id: 'party-list' }] }; // the big moments of the week (quests.js plans them)
+const KIND_LABEL = { chase: 'CATCH', find: 'SEARCH', race: 'RACE', taxi: 'FARE', list: 'SHOP', delivery: 'DELIVER' };
+const PING_VOICE = { wave: 'sine', wobble: 0.3, bright: 0.4 };
 
 const PARTS = ['Early morning', 'Morning', 'Midday', 'Afternoon', 'Golden hour', 'Evening', 'Night'];
 const partOfDay = (h) => (h < 7 ? PARTS[0] : h < 11 ? PARTS[1] : h < 14 ? PARTS[2] : h < 17.5 ? PARTS[3] : h < 19.8 ? PARTS[4] : h < 22 ? PARTS[5] : PARTS[6]);
@@ -83,7 +106,8 @@ export function createFavorsGame(o) {
   let camDist = 8.9;
   let bodies = null; // cars that were knocked about and now slide and spin on their own
   let fire = null; // the afterburner flames
-  let carTag = null; // the bobbing "ORI CAR" arrow over Ori's own car, until he first gets in
+  let carTag = null; // the bobbing "ORI CAR" tag over Ori's own car whenever he has stepped out of it (and from the start, until he first gets in)
+  let ownCar = null; // the prop of his car
   let beach = null;
   let life = null;
   let furniture = null;
@@ -98,7 +122,35 @@ export function createFavorsGame(o) {
   let quests = null;
   let phone = null;
   let social = null;
+  let interiors = null;
+  let inside = null; // { id, info, colliders, hidden, saved, t } while Ori is in a building
+  let trans = null; // the door: { t, dur, phase, fn } (a quick fade to black and back)
+  let fadeEl = null;
+  let goHint = null;
   let beam = null;
+  let bubbles = null; // speech bubbles over heads (bubbles-ui.js)
+  let journal = null; // the Tab card (journal-ui.js)
+  let mapUi = null; // the big map (M)
+  let tracked = null; // the place he follows (from the big map): the beam and the arrow lead there
+  let arcade = null; // the office computer (arcade-ui.js)
+  let fight = null; // the ring and the bouts (fight3d.js)
+  let fightCam = null; // the camera of a fight (null = the chase camera)
+  let afterLeave = null; // what to do once the ring has been left (the next fight, the menu)
+  let goalTimer = 0;
+  let saveTimer = 0;
+  let taskBeam = false; // the beam belongs to a followed task (not to a goal)
+  let campaign = null; // the week: money, upgrades, hearts, golden peaches (campaign.js)
+  let play = null; // the DOM around the favours (play-ui.js)
+  let mworld = null; // the street furniture of the missions (mission-world.js)
+  const missions = new Map(); // task uid -> its mission (missions.js)
+  let hail = null; // { m, ttl }: a taxi fare waving in the street
+  let hailIn = 80;
+  let hailRnd = null;
+  let frameBump = 0; // the hardest knock of this frame (the cargo feels it)
+  let boostFuel = 2.5;
+  let goldenNear = -1;
+  let dayStart = null; // the campaign at the start of this day (restarting the day goes back to it)
+  const daySeed = () => (o.questSeed != null ? o.questSeed + (campaign ? campaign.day - 1 : 0) : campaign.daySeed());
   const sfx = createSfx({ isMuted: o.isMuted || (() => false), volume: o.volume || (() => 1) });
   const clock = createClock({ startHour: o.startHour ?? DAY.startHour, realMinutes: o.dayMinutes ?? DAY.realMinutes });
   const input = { fwd: 0, strafe: 0, sprint: false, orbit: 0, pitch: 0, zoom: 1 };
@@ -116,7 +168,7 @@ export function createFavorsGame(o) {
   const hud = createFavorsHud(overlay, {
     onPause: () => api.onEscape(),
     onResume: () => api.resume(),
-    onRestart: () => restartDay(true),
+    onRestart: () => restartDay(),
     onQuit: quit,
   });
 
@@ -126,6 +178,9 @@ export function createFavorsGame(o) {
     opened = true;
     const t0 = performance.now();
     const lap = (k) => { timings[k] = Math.round(performance.now() - t0); };
+    campaign = createCampaign({ fresh: o.fresh ?? !!o.quick });
+    if (campaign.finale) campaign.reset();
+    questSeed = daySeed();
     map = buildMap(o.seed ?? 51);
     lap('map');
     scene = new THREE.Scene();
@@ -168,20 +223,8 @@ export function createFavorsGame(o) {
     traffic = createTraffic({ props, seed: questSeed });
     bodies = createBodies({ world: map.world });
     fire = createFire(scene, { height: renderer.domElement.height * 0.9 });
-    const mine = props.cars.find((p) => p.mine);
-    if (mine && !o.quick) {
-      const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
-      const x = cv.getContext('2d');
-      x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.roundRect(36, 30, 440, 120, 60); x.fill();
-      x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 4; x.stroke();
-      x.fillStyle = '#ffffff'; x.font = '800 62px Inter, system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('ORI CAR', 256, 92);
-      x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.moveTo(216, 150); x.lineTo(296, 150); x.lineTo(256, 214); x.closePath(); x.fill();
-      const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, fog: false }));
-      sp.scale.set(3.8, 1.9, 1); sp.renderOrder = 999;
-      scene.add(sp);
-      carTag = { sp, tex, car: mine };
-    }
+    ownCar = props.cars.find((p) => p.mine) || null;
+    if (ownCar && !o.quick) carTag = makeCarTag(ownCar);
     lap('props');
     beach = buildBeach(map, { lib, shadows, tier });
     life = createLife(map, { lib, shadows, tier });
@@ -206,8 +249,27 @@ export function createFavorsGame(o) {
     scene.add(beam.group);
     rain = createRain({ count: tier === 'high' ? 2600 : 1400 });
     scene.add(rain.mesh);
+    play = createPlayUi({ root: overlay, hud, sfx, map });
+    mworld = createMissionWorld({ scene, makeCar: props.makeCar, tier, shadows, groundAt: (x, z) => groundHeight(map, x, z) });
     startQuests();
-    social = createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl: () => ctrl, quests: () => quests, ori: () => ori, hour: () => clock.hour });
+    interiors = createInteriors({ scene, lib, tier, shadows });
+    fadeEl = document.createElement('div');
+    fadeEl.className = 'fv-fade';
+    goHint = document.createElement('button');
+    goHint.type = 'button';
+    goHint.className = 'fv-talkhint fv-gohint fv-glass';
+    goHint.addEventListener('click', () => api.onAction('interact'));
+    overlay.append(fadeEl, goHint);
+    bubbles = createBubbles({ root: overlay });
+    journal = createJournal({ root: overlay });
+    mapUi = createMapUi({ root: overlay, map, getView: mapView, onTrack: (id) => { const ti = trackInfo(id); tracked = ti ? id : null; if (ti) hud.toast(`Following: ${ti.name}`, 1800); } });
+    arcade = createArcade({ root: overlay, sfx });
+    social = createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl: () => ctrl, quests: () => quests, ori: () => ori, hour: () => clock.hour, bubbles, onHello });
+    fight = createFightMode({ scene, map, tier, shadows, overlay, getOri: () => ori, groundAt: (x, z) => groundHeight(map, x, z), setCamera: (c) => { fightCam = c; }, setFade, isMuted: o.isMuted, volume: o.volume, getLove: () => campaign.state.love });
+    fight.onResult(onFightResult);
+    fight.onLeave(afterFight);
+    fight.onTrain(onTrainResult);
+    phone.btn.style.display = 'none'; // (no phone: the messages were more annoying than fun)
     sfx.music(true);
 
     if (tier !== 'low') post = createFavorsPost(renderer, scene, camera, { tier, bloom: { strength: 0.32, radius: 0.55, threshold: 0.9 } });
@@ -245,11 +307,22 @@ export function createFavorsGame(o) {
 
   // ── the favours: the quest engine, the phone, the beam ──
   function startQuests() {
-    quests = createQuests({ seed: questSeed, dist: map.dist, difficulty: o.difficulty || 'normal' });
+    const ramp = campaign.ramp;
+    quests = createQuests({ seed: questSeed, dist: map.dist, difficulty: o.difficulty || 'normal', rel: campaign.state.rel, day: campaign.day, rate: ramp.rate, slack: ramp.slack, noEpic: !ramp.epic, setpieces: SETPIECES[campaign.day] || [], mentors: campaign.eco.perks().mentors, noTasks: true });
+    missions.clear();
+    if (mworld) mworld.clear();
+    hail = null;
+    hailRnd = mulberry32(subSeed(questSeed, 99));
+    hailIn = 70 + hailRnd() * 40;
+    boostFuel = campaign.eco.perks().tank;
+    goldenNear = -1;
+    dayStart = JSON.stringify({ eco: campaign.eco.snapshot(), rel: campaign.state.rel, golden: campaign.state.golden, wins: campaign.state.wins });
+    campaign.eco.newDay();
+    if (play) play.setPeaches(campaign.eco.peaches);
     if (phone) phone.dispose();
     phone = createPhone(hud.root, overlay, {
-      map, q: quests, sfx,
-      getPlayer: () => ({ x: ctrl.state.x, z: ctrl.state.z, heading: ctrl.state.heading, near: nearest ? nearest.id : null }),
+      map, q: quests, sfx, placeOf: (t) => { const m = missions.get(t.uid); const gl = m && m.goal(); return gl && gl.place ? gl.place : t.at; },
+      getPlayer: () => (inside ? { x: map.places[inside.id].door.x, z: map.places[inside.id].door.z, heading: ctrl.state.heading, near: inside.id, inside: inside.id } : { x: ctrl.state.x, z: ctrl.state.z, heading: ctrl.state.heading, near: nearest ? nearest.id : null }),
       onPin: (uid) => { following = uid; noFollow = uid == null; aimBeam(); },
     });
     following = null;
@@ -261,9 +334,25 @@ export function createFavorsGame(o) {
   /** Stands the beam over the followed task's door (or hides it). */
   function aimBeam() {
     const task = following != null ? quests.get(following) : null;
-    if (!task || (task.state !== 'new' && task.state !== 'accepted')) { following = null; beam.hide(); hud.goal(null); return; }
-    const d = map.places[task.at].door;
-    beam.set(d.x - d.nx * 0.8, d.z - d.nz * 0.8, groundHeight(map, d.x, d.z));
+    if (!task || (task.state !== 'new' && task.state !== 'accepted')) { following = null; if (taskBeam) { beam.hide(); hud.goal(null); } taskBeam = false; return; }
+    taskBeam = true;
+    const gl = goalOf(task);
+    beam.set(gl.x, gl.z, groundHeight(map, gl.x, gl.z));
+  }
+  /** Where the beam of a task points right now: the stage of its mission (the pickup, the shop, the runaway) or its door. */
+  function goalOf(task) {
+    const m = missions.get(task.uid);
+    const gl = m && m.goal();
+    if (gl && (!gl.place || gl.live)) return gl;
+    const d = map.places[gl && gl.place ? gl.place : task.at].door;
+    return { x: d.x - d.nx * 0.8, z: d.z - d.nz * 0.8, place: gl && gl.place ? gl.place : task.at };
+  }
+  const missionEnv = (uid) => ({ places: map.places, zones: map.zones, blocked: (x, z, r) => map.world.blocked(x, z, r), seed: subSeed(questSeed, uid * 7 + 1), day: campaign.day });
+  /** What a mission sees of the world this frame. Inside a building Ori stands at its door (the rooms hang far from the street). */
+  function missionCtx(dt) {
+    const pl = inside ? map.places[inside.id].door : null;
+    const car = drive && !inside ? { x: veh.state.x, z: veh.state.z, speed: veh.state.speed, heading: veh.state.heading, yawRate: veh.state.yawRate, boost: veh.state.boost } : null;
+    return { dt, p: pl ? { x: pl.x, z: pl.z, speed: 0, sprinting: false } : { x: ctrl.state.x, z: ctrl.state.z, speed: ctrl.state.speed, sprinting: ctrl.state.sprinting }, car, bump: frameBump, rain: weatherNow.rain, perks: campaign.eco.perks(), min: quests.state.min };
   }
   /** With nothing followed, the most urgent open task becomes the goal (unless the player said no). */
   function autoFollow() {
@@ -282,17 +371,28 @@ export function createFavorsGame(o) {
       if (e.type === 'new') {
         const urgent = task.pri >= 3;
         phone.notify(task, { urgent });
+        missions.set(task.uid, createMission(specFor(template(task.tplId)), missionEnv(task.uid)));
         sfx.buzz();
         if (ori && !intro && ctrl.state.speed < 1.2) { ori.holdFor('phone', 1.8); ori.flash(urgent ? 'surprised' : 'smile', 1.2); } // he looks at the phone when it buzzes
         if (urgent) { sfx.urgent(); if (!reduceMotion()) hud.shake(); }
         if (noFollow) noFollow = false; // a new task: the guide may speak again
       } else if (e.type === 'done') {
         sfx.ding();
-        hud.float(`+${e.points}`);
+        const m = missions.get(e.uid);
+        const res = m && m.result;
+        const pay = payFor({ ...task, doneAt: quests.state.min }, e.quality, { rel: quests.state.rel[task.rel], boost: (weatherNow.rain > 0.3 && m && (m.kind === 'delivery' || m.kind === 'taxi') ? 1.2 : 1) * (e.share ?? 1) });
+        campaign.eco.earn(pay.total, 'favour');
+        if (res && res.tip) campaign.eco.earn(Math.round(res.tip), res.special === 'race' ? 'race' : res.special ? 'set' : 'tip');
+        if (res && res.special) campaign.mark(res.special, res.place || 1);
+        const gained = pay.total + (res && res.tip ? Math.round(res.tip) : 0);
+        play.setPeaches(campaign.eco.peaches, gained);
+        hud.float(TEXT.peachesEarned(gained));
+        missions.delete(e.uid);
         if (ori && ctrl.state.speed < 2.5) ori.play('thumbsUp');
         if (following === e.uid) { following = null; phone.setActive(null); noFollow = false; }
       } else if (e.type === 'failed') {
         // the time ran out: never a failure, always a rain check
+        missions.delete(e.uid);
         sfx.soft();
         if (ori && ctrl.state.speed < 1.5) ori.play('shrug');
         hud.float(nextTimeFor(task.uid), true);
@@ -305,7 +405,7 @@ export function createFavorsGame(o) {
         hud.toast(TEXT.coffee);
       } else if (e.type === 'focus') {
         hud.toast(e.on ? TEXT.focusOn : TEXT.focusOff(e.released || 0));
-      } else if (e.type === 'declined' && following === e.uid) { following = null; phone.setActive(null); }
+      } else if (e.type === 'declined' || e.type === 'delegated') { missions.delete(e.uid); if (following === e.uid) { following = null; phone.setActive(null); } }
       else if (e.type === 'day-end') endDay(e.report);
     }
     autoFollow();
@@ -314,18 +414,31 @@ export function createFavorsGame(o) {
 
   function endDay(report) {
     if (over) return;
-    over = true;
+    over = true; // (time stands still while he sleeps)
     phone.close();
-    hud.showReport(report, { onAgain: () => restartDay(true), onQuit: quit });
-    sfx.ding();
+    play.cancelVerb();
+    if (play.shopOpen) play.closeShop();
+    for (const m of missions.values()) m.drain();
+    missions.clear();
+    mworld.clear();
+    hail = null;
+    campaign.summarize(report, { relNow: quests.state.rel });
+    startTrans(() => { over = false; campaign.advance(); campaign.save(); beginDay(); hud.toast(TEXT.goodMorning(campaign.day), 2800); }, 0.55);
   }
-
-  function restartDay(newSeed = false) {
-    if (newSeed) questSeed++;
+  /** The next morning (or, after the last day, the party). */
+  function nextDay() {
+    campaign.advance();
+    if (campaign.finale) { over = true; play.showDay({ ...campaign.summarize({ helped: 0, rank: '', score: 0, bestStreak: 0 }, { relNow: campaign.state.rel }), golden: campaign.state.golden.length, goldenTotal: 12 }, { eco: campaign.eco, party: campaign.party(), onAgain: () => { campaign.reset(); beginDay(); }, onQuit: quit }); return; }
+    beginDay();
+  }
+  function beginDay() {
+    if (fight && fight.phase !== 'off') { afterLeave = null; fight.abort(); }
+    questSeed = daySeed();
     clock.set(clock.startHour);
     ctrl.teleport(map.spawn.x, map.spawn.z, map.spawn.heading);
     ctrl.state.stamina = 1;
     rig.state.yaw = map.spawn.heading;
+    if (drive) exitCar();
     if (social) social.reset();
     plan = weatherPlan(questSeed);
     startQuests();
@@ -333,6 +446,13 @@ export function createFavorsGame(o) {
     applySky(true);
     placeCamera(true);
     api.render(0);
+  }
+
+  /** "Start the day again": this day from its morning, with the money and hearts it began with. */
+  function restartDay() {
+    if (dayStart) { const d = JSON.parse(dayStart); campaign.eco.restore(d.eco); campaign.state.rel = d.rel; campaign.state.golden = d.golden; campaign.state.wins = d.wins; }
+    play.hideDay();
+    beginDay();
   }
 
   // ── cars: get in (F / Space next to one), drive, get out ──
@@ -344,6 +464,20 @@ export function createFavorsGame(o) {
     for (const p of props.cars) { const d = Math.hypot(p.x - st.x, p.z - st.z); if (d < bd) { bd = d; best = p; } }
     nearCar = best;
   }
+  /** The floating "ORI CAR" tag over his car. */
+  function makeCarTag(car) {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 256;
+    const x = cv.getContext('2d');
+    x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.roundRect(36, 30, 440, 120, 60); x.fill();
+    x.strokeStyle = 'rgba(255,255,255,0.35)'; x.lineWidth = 4; x.stroke();
+    x.fillStyle = '#ffffff'; x.font = '800 62px Inter, system-ui, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('ORI CAR', 256, 92);
+    x.fillStyle = 'rgba(20,24,36,0.86)'; x.beginPath(); x.moveTo(216, 150); x.lineTo(296, 150); x.lineTo(256, 214); x.closePath(); x.fill();
+    const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false, depthWrite: false, fog: false }));
+    sp.scale.set(3.8, 1.9, 1); sp.renderOrder = 999;
+    scene.add(sp);
+    return { sp, tex, car };
+  }
   function enterCar(p) {
     if (drive || over) return;
     if (p.body) { bodies.remove(p.body); if (p.body.mesh) p.body.mesh.dispose(); p.body = null; } // (a car that was knocked about: it is driven from where it lies)
@@ -352,8 +486,11 @@ export function createFavorsGame(o) {
     props.setCarHidden(p, true);
     const mesh = props.makeCar(props.carKind(p), props.carColor(p));
     drive = { p, mesh };
-    if (carTag) { scene.remove(carTag.sp); carTag.sp.material.dispose(); carTag.tex.dispose(); carTag = null; } // he found it: the arrow's job is done
-    veh = createVehicle(map.world, { x: p.x, z: p.z, heading: p.rot + Math.PI / 2, ...(p.mine ? { accel: 21, top: 27 } : { accel: 9.5, top: 17 }) }); // Ori's own car is the quick one
+    if (carTag) carTag.sp.visible = false; // (the tag comes back every time he steps out)
+    if (tracked === 'car') tracked = null;
+    const pk = campaign.eco.perks();
+    veh = createVehicle(map.world, { x: p.x, z: p.z, heading: p.rot + Math.PI / 2, ...(p.mine ? { accel: 21 * pk.accel, top: 27 * pk.top, reverse: 17, maxSteer: 0.82, grip: 2.6 * pk.grip } : { accel: 9.5, top: 17 }) }); // Ori's own car is the quick one (the garage makes it quicker)
+    veh.baseGrip = p.mine ? 2.6 * pk.grip : 1;
     ori.group.visible = false;
     ctrl.teleport(p.x, p.z, veh.state.heading);
     camDist = rig.state.dist;
@@ -383,6 +520,7 @@ export function createFavorsGame(o) {
     ctrl.state.sprinting = false;
     drive = null; veh = null;
     ori.group.visible = true;
+    if (p.mine) { if (carTag) carTag.car = p; else carTag = makeCarTag(p); } // "ORI CAR" over it, every time he steps out
     rig.state.dist = camDist;
     sfx.engine(-1);
     sfx.tap();
@@ -414,11 +552,16 @@ export function createFavorsGame(o) {
   function stepDrive(dts) {
     const s = veh.state;
     const mineCar = !!drive.p.mine;
-    veh.update(dts, { throttle: input.fwd, steer: input.strafe, brake: !mineCar && input.sprint, boost: mineCar && input.sprint }); // Ori's car boosts on Shift, the others brake
+    const pk = campaign.eco.perks();
+    const wantBoost = mineCar && input.sprint && input.fwd > 0.05 && boostFuel > 0.04;
+    if (wantBoost) boostFuel = Math.max(0, boostFuel - dts); else boostFuel = Math.min(pk.tank, boostFuel + dts * 0.55);
+    veh.setGrip(veh.baseGrip * (1 - pk.rainGrip * weatherNow.wet)); // a wet road is slippery (the tyres in the garage help)
+    veh.update(dts, { throttle: input.fwd, steer: input.strafe, brake: !mineCar && input.sprint, boost: wantBoost }); // Ori's car boosts on Shift (while the tank lasts), the others brake
     knockThings(s);
+    frameBump = Math.max(frameBump, s.hit);
     const c = ctrl.state;
     c.x = s.x; c.z = s.z; c.heading = s.heading; c.vx = s.vx; c.vz = s.vz; c.speed = Math.abs(s.speed); c.sprinting = s.speed > (drive.p.mine ? 18 : 13);
-    sfx.engine(Math.min(1, Math.abs(s.speed) / (drive.p.mine ? 27 : 17)), input.fwd);
+    sfx.engine(Math.min(1, Math.abs(s.speed) / (drive.p.mine ? 27 : 17)), input.fwd, { boost: s.boost, reverse: s.speed < -0.5, slide: Math.min(1, Math.abs(s.yawRate) * Math.abs(s.speed) / 18), mine: !!drive.p.mine });
     if (s.hit > 2.5) { sfx.pop(); s.hit = 0; if (!reduceMotion()) hud.shake(); }
     // the afterburner: flames out of the two tail pipes while the boost is on
     if (fire && s.boost > 0.15) {
@@ -434,12 +577,409 @@ export function createFavorsGame(o) {
     if (!nearest) return;
     const d = nearest.door;
     if (Math.hypot(d.x - ctrl.state.x, d.z - ctrl.state.z) > USE_RANGE) { hud.toast(TEXT.nothingHere); return; }
-    const here = quests.open().filter((tk) => tk.at === nearest.id);
+    const here = quests.open().filter((tk) => stagePlace(tk) === nearest.id);
     const pick = here.find((tk) => tk.uid === following) || here.sort((a, b) => a.deadline - b.deadline)[0];
-    if (!pick) { hud.toast(TEXT.nobodyAsked(nearest.name)); return; }
-    quests.complete(pick.uid, 0.85);
-    syncQuests();
+    if (!pick) { if (nearest.id === 'workshop') openGarage(); else if (ROOMS[nearest.id]) enterPlace(nearest.id); else hud.toast(TEXT.nobodyAsked(nearest.name)); return; }
+    startFavour(pick);
   }
+  /** The place where a task's mission wants Ori right now (the pickup, a shop, the door of the favour). */
+  function stagePlace(tk) { const m = missions.get(tk.uid); const gl = m && m.goal(); return gl && gl.place ? gl.place : tk.at; }
+  /** Space at the place a favour is waiting for: its mission starts (a little action, the hand-over) - and becomes the one Ori follows. */
+  function startFavour(task) {
+    const m = missions.get(task.uid);
+    if (!m) { quests.complete(task.uid, 0.85); syncQuests(); return; }
+    if (following !== task.uid) { following = task.uid; noFollow = false; phone.setActive(task.uid); aimBeam(); }
+    const ctx = missionCtx(0);
+    let used = m.act(ctx);
+    if (!used) { const c0 = { ...ctx, p: { ...ctx.p, speed: 0 }, car: ctx.car ? { ...ctx.car, speed: 0 } : null }; m.update(c0); used = m.events.length > 0; }
+    if (used) handleMission(task.uid, m, task);
+    else hud.toast(TEXT.nothingHere);
+  }
+  /** What a mission says it did: open a little action, a toast, a ping, a count, the end. */
+  function handleMission(uid, m, task) {
+    for (const e of m.drain()) {
+      if (e.type === 'verb') {
+        play.openVerb(e, { done: (q) => { m.verbDone(q); handleMission(uid, m, task); }, cancel: () => m.verbCancelled() }, { title: task.title, who: task.giverName });
+      } else if (e.type === 'stage') {
+        hud.toast(e.say, 3200);
+        sfx.pop();
+        if (ori && !drive) { if (e.id === 'carry') ori.hold('box'); else if (e.id === 'drop' || e.id === 'found' || e.id === 'caught') ori.hold(null); }
+      } else if (e.type === 'hint') {
+        hud.toast(e.say === 'taxi-car' ? TEXT.carForFare : e.say === 'chase-again' ? TEXT.chaseAgain : e.say, 2600);
+      } else if (e.type === 'item') sfx.pop();
+      else if (e.type === 'ping') sfx.blip(PING_VOICE, 360 + 760 * e.v);
+      else if (e.type === 'count') { play.bigWord(e.n ? String(e.n) : TEXT.raceGo, 800); (e.n ? sfx.tap : sfx.ding)(); }
+      else if (e.type === 'checkpoint') { sfx.pop(); hud.toast(TEXT.raceCheck(e.n, e.of), 900); }
+      else if (e.type === 'done') {
+        if (ori) ori.hold(null);
+        if (uid === 'hail') { endHail(true, e); continue; }
+        quests.complete(uid, e.quality);
+        syncQuests();
+      }
+    }
+  }
+  // ── hello, goals, the journal ──
+  function onHello(h) {
+    if (h.love) { const got = campaign.addLove(h.love); if (got > 0) sfx.pop(); }
+    if (h.first) { campaign.bump('hellos'); if (h.id === 'shilo') campaign.bump('shiloHi'); }
+    goalTick();
+  }
+  function goalTick() {
+    if (!campaign) return;
+    // he has seen the ring (the goal 'Find The Ring'); and a place he followed from the big map is reached
+    if (fight && !inside && !drive && fight.near(ctrl.state.x, ctrl.state.z, 10) && !campaign.state.progress.ringSeen) campaign.bump('ringSeen');
+    if (tracked && !inside && !drive) { const ti = trackInfo(tracked); const pt = ti ? placePoint(tracked) : null; if (!ti) tracked = null; else if (Math.hypot(pt.x - ctrl.state.x, pt.z - ctrl.state.z) < (tracked === 'court' ? 9 : 7)) { hud.toast(`You are at ${ti.name}`, 2200); tracked = null; } }
+    for (const g of checkGoals(campaign)) {
+      const r = g.reward;
+      if (r.peaches) { campaign.eco.earn(r.peaches, 'goal'); play.setPeaches(campaign.eco.peaches, r.peaches); }
+      if (r.love) campaign.addLove(r.love);
+      const lv = r.xp ? campaign.addXp(r.xp) : null;
+      hud.toast(TEXT.goalDone(g.title), 3400);
+      sfx.ding();
+      if (lv && lv.gained.length) hud.toast(TEXT.levelUp(lv.level), 3000);
+      campaign.save();
+    }
+  }
+  const initialOf = (name) => name.replace(/^(The|A|Little)\s+/i, '').charAt(0).toUpperCase();
+  function ladderRows() {
+    const b = campaign.state.boxer;
+    const love = campaign.state.love;
+    const next = nextFight(b, love);
+    return FIGHTERS.filter((f) => !f.hidden || b.reveal || b.beaten.includes(f.id)).map((f) => {
+      const av = availability(f, b, love);
+      const secret = f.hidden && !b.beaten.includes(f.id);
+      return { id: f.id, name: secret ? '???' : f.name, title: secret ? 'Somebody is waiting in the ring...' : f.title, color: CAST[f.cast].color, initial: secret ? '?' : initialOf(f.name), open: av.open, beaten: b.beaten.includes(f.id), next: !!next && next.id === f.id, why: av.why, hidden: !!f.hidden };
+    });
+  }
+  // ── the map: the stars (ring, office, garage, cafe), the names, the place he follows ──
+  /** Where a place is on the map: the ring's middle for the court, the park's middle for the park, the door for the rest. */
+  function placePoint(id) {
+    if (id === 'car') return ownCar ? { x: ownCar.x, z: ownCar.z } : ctrl.state;
+    if (id === 'court' && fight) return fight.center;
+    if (id === 'park' && map.zones.park) { const z = map.zones.park; return { x: (z.x0 + z.x1) / 2, z: (z.z0 + z.z1) / 2 }; }
+    return map.places[id].door;
+  }
+  /** What the map says is where: the stars, and his car while it is parked. */
+  function landmarkList(big) {
+    const out = LANDMARKS.map((l) => { const p = placePoint(l.place); return { place: l.place, x: p.x, z: p.z, icon: l.icon, color: l.color, short: l.short, big: big || l.place === 'court', pulse: l.place === 'court' }; });
+    if (ownCar && !drive) out.push({ place: 'car', x: ownCar.x, z: ownCar.z, icon: CAR.icon, color: CAR.color, short: CAR.short, big: false });
+    return out;
+  }
+  /** A place he can follow: a place of the map, or his car. */
+  function trackInfo(id) {
+    if (!id) return null;
+    if (id === 'car') return ownCar ? { name: CAR.name, sign: 'ORI CAR', door: { x: ownCar.x, z: ownCar.z, nx: 0, nz: 0 } } : null;
+    return map.places[id] || null;
+  }
+  function mapView() {
+    const st = ctrl.state;
+    const me = inside ? map.places[inside.id].door : st;
+    const cg = currentGoal(campaign);
+    const gid = tracked || (cg && cg.place) || null;
+    const stars = new Set(LANDMARKS.map((l) => l.place));
+    const labels = Object.keys(PLACES).filter((id) => !stars.has(id)).map((id) => { const p = placePoint(id); return { id, x: p.x, z: p.z, text: PLACES[id].name, size: 10, dy: -12 }; });
+    return { player: { x: me.x, z: me.z, heading: st.heading }, goal: gid ? placePoint(gid) : null, tracked, landmarks: landmarkList(true), labels, time: t };
+  }
+  function journalData() {
+    const b = campaign.state.boxer;
+    const cur = currentGoal(campaign);
+    return {
+      day: campaign.day, clock: clock.label(), love: campaign.state.love, boxer: { level: b.level, xp: b.xp, need: xpToNext(b.level), wins: b.wins },
+      moves: MOVE_LIST.map((m) => ({ ...m, open: m.lv <= b.level })), ladder: ladderRows(), goals: goalList(campaign).map((x) => ({ ...x, current: !!cur && cur.id === x.id })),
+      peaches: campaign.eco.peaches, golden: campaign.state.golden.length,
+    };
+  }
+  function openFightMenu() {
+    if (!fight || fight.active || fight.ui.menuOpen || drive || inside || trans || over) return false;
+    const b = campaign.state.boxer;
+    fight.ui.showMenu({ rows: ladderRows(), level: b.level, xp: b.xp, xpNeed: xpToNext(b.level), love: campaign.state.love, onPick: (r) => startFight(r.id), onClose: () => {}, onTrain: () => startTraining() });
+    sfx.tap();
+    return true;
+  }
+  function startFight(id) {
+    const def = fighter(id);
+    if (!def || !fight || fight.active) return false;
+    if (social) social.closeTalk();
+    if (bubbles) bubbles.clear();
+    if (journal.isOpen) journal.close();
+    if (mapUi && mapUi.isOpen) mapUi.close();
+    const started = fight.start(def, { level: campaign.state.boxer.level, seed: campaign.day * 31 + campaign.state.boxer.fights + 1, tips: (campaign.state.progress.tips ||= {}) });
+    if (started) sfx.music(false); // (the ring has its own music; the street's loop comes back in afterFight)
+    return started;
+  }
+  /** The speed bag in the corner of the ring (a 20-second drill, fight3d.js / training.js). */
+  function startTraining() {
+    if (!fight || fight.active) return false;
+    if (social) social.closeTalk();
+    if (bubbles) bubbles.clear();
+    if (journal.isOpen) journal.close();
+    if (mapUi && mapUi.isOpen) mapUi.close();
+    const started = fight.startTraining({ tips: (campaign.state.progress.tips ||= {}) });
+    if (started) sfx.music(false);
+    return started;
+  }
+  /** The drill is over: a little XP (less each time on the same day), the card, and a warm word from Coach. */
+  function onTrainResult(res) {
+    const b = campaign.state.boxer;
+    const p = campaign.state.progress;
+    const tr = p.train && p.train.day === campaign.day ? p.train : (p.train = { day: campaign.day, n: 0 });
+    const xp = xpFor(res, { today: tr.n });
+    tr.n++;
+    const xp0 = b.xp; const lv0 = b.level;
+    const gain = campaign.addXp(xp);
+    campaign.save();
+    fight.ui.showResult({
+      won: true, how: TEXT.bagCaption, title: `${'★'.repeat(res.stars)}${'☆'.repeat(3 - res.stars)} ${TEXT.bagStars(res.stars)}`, line: `${TEXT.bagLine(res.stars)}${res.maxCombo > 1 ? ` · ${TEXT.bagBest(res.maxCombo)}` : ''}`,
+      xpGain: xp, level: b.level, levelFrom: lv0, xp: b.xp, xpFrom: xp0, peaches: 0, love: 0, moves: gain.moves, next: TEXT.bagLadder, retry: TEXT.bagAgain,
+    }, {
+      onLeave: () => { afterLeave = null; fight.leave(); },
+      onAgain: () => { afterLeave = () => openFightMenu(); fight.leave(); },
+      onRetry: () => { afterLeave = () => startTraining(); fight.leave(); },
+    });
+    if (gain.gained.length) sfx.ding();
+  }
+  /** The bout is over (the card after the fight): the XP, the peaches, the love, the new moves; the champion falls and somebody else steps up. */
+  function onFightResult(res, opp) {
+    const b = campaign.state.boxer;
+    const won = res.winner === 'player';
+    const first = won && !b.beaten.includes(opp.id);
+    b.fights++;
+    let xp; let peaches; let love;
+    if (won) {
+      b.wins++;
+      xp = Math.round(opp.reward.xp * (first ? 1 : 0.35) * (res.how === 'ko' ? 1 : 0.8));
+      peaches = Math.round(opp.reward.peaches * (first ? 1 : 0.4));
+      love = first ? opp.reward.love : 1;
+      if (first) b.beaten.push(opp.id);
+      if (first && opp.id === 'coach') b.reveal = true;
+    } else { xp = 14; peaches = 0; love = 0; }
+    xp += res.stats.perfect * 3 + res.stats.parry * 2;
+    const xp0 = b.xp; const lv0 = b.level;
+    const gain = campaign.addXp(xp);
+    if (peaches) { campaign.eco.earn(peaches, 'fight'); play.setPeaches(campaign.eco.peaches, peaches); }
+    if (love) campaign.addLove(love);
+    campaign.save();
+    fight.setCrowd(campaign.state.love);
+    goalTick();
+    const bossNext = won && first && opp.id === 'coach';
+    const draw = res.winner === 'draw';
+    fight.ui.showResult({
+      won, how: res.how === 'ko' ? 'KNOCK-OUT' : 'ON POINTS', title: won ? (res.how === 'ko' ? 'K.O.! You win!' : 'You win!') : draw ? 'A draw!' : 'Good fight!',
+      line: `${opp.name}: ${won ? opp.win : opp.lose}`, xpGain: xp, level: b.level, levelFrom: lv0, xp: b.xp, xpFrom: xp0, peaches, love: Math.round(love * 10) / 10, moves: gain.moves,
+      next: bossNext ? 'The lights go out...' : won ? 'Back to the ladder' : 'Try again',
+    }, {
+      onLeave: () => { afterLeave = null; fight.leave(); },
+      onAgain: () => { afterLeave = bossNext ? () => startFight('shilo') : won ? () => openFightMenu() : () => startFight(opp.id); fight.leave(); },
+    });
+    if (gain.gained.length) sfx.ding();
+  }
+  /** Back on the street, at the foot of the steps of the ring. */
+  function afterFight() {
+    if (!paused) sfx.music(true); // (back on the street: its loop again)
+    const a = fight.apron();
+    ctrl.teleport(a.x, a.z, a.heading);
+    rig.state.yaw = a.heading;
+    groundY = groundHeight(map, a.x, a.z);
+    placeCamera(true);
+    findPlaces();
+    const f = afterLeave;
+    afterLeave = null;
+    if (f) setTimeout(f, 160);
+  }
+
+  /** The computer in the office: games inside the game. A run pays peaches by its score; the first one is a goal. */
+  function openArcade() {
+    if (!arcade || arcade.isOpen || play.shopOpen || play.verbOpen) return;
+    const best = campaign.state.progress.best || {};
+    arcade.open({
+      done: (r) => {
+        const p = campaign.state.progress;
+        p.best = { ...(p.best || {}), [r.game]: Math.max((p.best && p.best[r.game]) || 0, r.score) };
+        campaign.bump('arcade');
+        campaign.eco.earn(r.peaches, 'arcade');
+        play.setPeaches(campaign.eco.peaches, r.peaches);
+        hud.toast(`${r.score} points: +${r.peaches} peaches`, 3000);
+        sfx.ding();
+        campaign.save();
+        goalTick();
+      },
+      close: () => {},
+    }, best);
+  }
+  function openGarage() { if (play.shopOpen || play.verbOpen) return; play.openShop(campaign.eco, () => { campaign.save(); play.setPeaches(campaign.eco.peaches); }); }
+  /** Every frame: the followed mission (and any with something in hand) sees the world. */
+  function runMissions(dt) {
+    if (over || !quests) return;
+    const ctx = missionCtx(dt);
+    frameBump = 0;
+    for (const [uid, m] of missions) {
+      const task = quests.get(uid);
+      if (!task || (task.state !== 'new' && task.state !== 'accepted')) { missions.delete(uid); continue; }
+      if ((uid !== following && !m.committed) || play.verbOpen) continue;
+      if (inside && m.kind !== 'verb' && m.kind !== 'gauntlet') continue; // (a delivery cannot be handed over from inside a flat)
+      m.update(ctx);
+      handleMission(uid, m, task);
+    }
+    if (hail) {
+      hail.m.update(ctx);
+      handleMission('hail', hail.m, { title: 'A fare', giverName: 'A passenger' });
+      if (hail && !hail.m.committed) { hail.ttl -= dt; if (hail.ttl <= 0) endHail(false); }
+    } else if (drive && !inside && drive.p.mine && !play.verbOpen && ![...missions.values()].some((m) => m.committed)) {
+      hailIn -= dt;
+      if (hailIn <= 0) { hailIn = 100 + hailRnd() * 90; startHail(); }
+    }
+  }
+  function startHail() {
+    const spec = makeHail(hailRnd, { places: map.places }, { x: veh.state.x, z: veh.state.z });
+    hail = { m: createMission(spec, missionEnv(900 + Math.floor(hailRnd() * 99))), ttl: 90 };
+    hud.toast(TEXT.hailSeen, 3600);
+    sfx.buzz();
+  }
+  function endHail(done, e) {
+    if (done && e) {
+      const tip = Math.round(ECON.hailTip * (0.6 + 0.4 * e.quality) + (e.tip || 0));
+      campaign.eco.earn(tip, 'tip');
+      play.setPeaches(campaign.eco.peaches, tip);
+      hud.float(TEXT.peachesEarned(tip));
+      sfx.ding();
+    } else hud.toast(TEXT.hailLost, 2200);
+    hail = null;
+  }
+  /** The golden peaches: they hum when near, and are picked up by walking (or driving) through them. */
+  function stepGolden(dt) {
+    void dt;
+    if (!mworld || inside) return;
+    const pl = drive ? { x: veh.state.x, z: veh.state.z } : { x: ctrl.state.x, z: ctrl.state.z };
+    const r = mworld.goldens(campaign.state.golden, t, pl);
+    if (r.index < 0) return;
+    if (r.dist < (drive ? 3.6 : 2.4)) {
+      if (campaign.pickGolden(r.index)) {
+        campaign.eco.earn(ECON.golden, 'golden');
+        campaign.save();
+        play.setPeaches(campaign.eco.peaches, ECON.golden);
+        hud.toast(TEXT.goldenFound(campaign.state.golden.length), 2600);
+        hud.float(TEXT.peachesEarned(ECON.golden));
+        sfx.ding();
+        sfx.pop();
+        goldenNear = -1;
+      }
+    } else if (r.dist < 16 && goldenNear !== r.index) { goldenNear = r.index; hud.toast(TEXT.goldenNear, 2200); sfx.blip(PING_VOICE, 1200); } else if (r.dist > 34) goldenNear = -1;
+  }
+
+  // ── inside the buildings (T62): a quick fade at the door, the street is hidden, the room is built, the camera looks down into it ──
+  const SKY_GLASS = new THREE.Color();
+  function setFade(a) { if (fadeEl) fadeEl.style.opacity = String(a); }
+  function startTrans(fn, dur = 0.26) { trans = { t: 0, dur, phase: 'out', fn }; }
+  function enterPlace(pid, { instant = false } = {}) {
+    if (inside || trans || drive || over || !ROOMS[pid] || !interiors) return false;
+    if (instant) { doEnter(pid); return true; }
+    startTrans(() => doEnter(pid));
+    sfx.tap();
+    return true;
+  }
+  function leavePlace({ instant = false } = {}) {
+    if (!inside || trans) return false;
+    if (instant) { doLeave(); return true; }
+    startTrans(() => doLeave());
+    sfx.tap();
+    return true;
+  }
+  function doEnter(pid) {
+    if (social) social.closeTalk();
+    const hidden = [];
+    for (const c of scene.children) { if (c.isLight || c === sky.mesh || c === ori.group || !c.visible) continue; c.visible = false; hidden.push(c); }
+    const info = interiors.enter(pid);
+    const colliders = collidersOf(pid);
+    for (const c of colliders) map.world.addDynamic(c);
+    inside = { id: pid, info, colliders, hidden, saved: { dist: rig.state.dist, pitch: rig.state.pitch, yaw: rig.state.yaw }, t: 0, spot: null };
+    ctrl.teleport(info.spawn.x, info.spawn.z, info.spawn.heading);
+    ctrl.state.vx = 0; ctrl.state.vz = 0;
+    rig.state.yaw = info.spawn.heading;
+    rig.state.pitch = 0.9;
+    rig.state.dist = 5 + 0.26 * Math.max(ROOMS[pid].w, ROOMS[pid].d);
+    rig.state.fovAdd = 14;
+    groundY = 0;
+    if (social) social.setInside(info.npcs.map((n) => ({ id: n.id, name: n.name, x: n.x, z: n.z })));
+    sfx.room(info.hum);
+    applySky(true);
+    placeCamera(true);
+  }
+  function doLeave() {
+    const rec = inside;
+    inside = null;
+    if (social) { social.closeTalk(); social.setInside(null); }
+    for (const c of rec.colliders) map.world.removeDynamic(c);
+    interiors.leave();
+    for (const c of rec.hidden) c.visible = true;
+    const d = map.places[rec.id].door;
+    ctrl.teleport(d.x + d.nx * 1.3, d.z + d.nz * 1.3, Math.atan2(d.nx, d.nz));
+    rig.state.yaw = Math.atan2(d.nx, d.nz);
+    rig.state.pitch = rec.saved.pitch;
+    rig.state.dist = rec.saved.dist;
+    rig.state.fovAdd = 0;
+    groundY = groundHeight(map, ctrl.state.x, ctrl.state.z);
+    sfx.room(null);
+    fill.distance = 13;
+    fill.color.setHex(0xffd2a0);
+    applySky(true);
+    findPlaces();
+    placeCamera(true);
+  }
+  const EXIT_NEAR = 1.7;
+  /** What Space would do inside right now: the nearest prop / person in reach, or the door. */
+  function insideSpot() {
+    if (!inside) return null;
+    const st = ctrl.state;
+    let best = null;
+    let bd = Infinity;
+    for (const sp of inside.info.spots) {
+      const d = Math.hypot(sp.x - st.x, sp.z - st.z);
+      if (d <= sp.reach && d < bd) { bd = d; best = sp; }
+    }
+    const ex = inside.info.exit;
+    const de = Math.hypot(ex.x - st.x, ex.z - st.z);
+    if (de < EXIT_NEAR && (!best || de < bd - 0.6)) return { kind: 'exit' };
+    return best;
+  }
+  function spotLabel(sp) {
+    const task = quests.open().some((t) => stagePlace(t) === inside.id);
+    if (sp.kind === 'exit') return ['G', 'Leave'];
+    if (inside.id === 'workshop' && sp.who === 'uzi' && !task) return ['Space', TEXT.garageTitle];
+    if (sp.use === 'arcade') return ['Space', 'Play on the computer'];
+    if (sp.kind === 'person') return ['Space', task && sp.work ? 'Do the favour' : 'Say hello'];
+    if (sp.use === 'coffee') return ['Space', 'Get a coffee'];
+    if (sp.use === 'number') return ['Space', 'Take a number'];
+    if (sp.use === 'sit') return ['Space', 'Sit down'];
+    if (sp.use === 'snack') return ['Space', 'Grab a snack'];
+    return ['Space', task && sp.work ? 'Do the favour' : 'Have a look'];
+  }
+  function useInside() {
+    const sp = insideSpot();
+    if (!sp) { hud.toast('Nothing to use here. The door is behind you (G to leave).', 1800); return; }
+    if (sp.kind === 'exit') { leavePlace(); return; }
+    const here = quests.open().filter((tk) => stagePlace(tk) === inside.id);
+    if (sp.work && here.length) {
+      const pick = here.find((tk) => tk.uid === following) || here.sort((a, b) => a.deadline - b.deadline)[0];
+      startFavour(pick);
+      return;
+    }
+    if (inside.id === 'workshop' && sp.kind === 'person' && sp.who === 'uzi') { openGarage(); return; }
+    if (sp.use === 'arcade') { openArcade(); return; }
+    if (sp.kind === 'person') { if (social) social.start(sp.who, { x: sp.x, z: sp.z, from: 'space' }); return; }
+    if (sp.use === 'coffee') { ctrl.coffee(8); sfx.sip(); if (ori) ori.play('cheer'); } else if (sp.use === 'number') sfx.ding(); else sfx.pop();
+    if (sp.say) hud.toast(sp.say, 3000);
+  }
+  /** The chip at the bottom: "G Go inside" at a door, or what Space does at the prop in reach. */
+  function updateGoHint() {
+    if (!goHint) return;
+    let label = '';
+    if (inside) {
+      if (!trans && !(social && social.isTalking)) { const sp = insideSpot(); if (sp) { const [k, v] = spotLabel(sp); label = `<kbd>${k}</kbd> ${v}`; } }
+    } else if (!trans && !drive && nearest && ROOMS[nearest.id] && !(social && social.isTalking) && Math.hypot(nearest.door.x - ctrl.state.x, nearest.door.z - ctrl.state.z) <= USE_RANGE) label = `<kbd>G</kbd> Go inside <small>${lineFor(nearest.id)}</small>`;
+    else if (!trans && !drive && fight && !fight.active && !fight.ui.menuOpen && fight.near(ctrl.state.x, ctrl.state.z)) label = `<kbd>Space</kbd> Step into The Ring`;
+    if (goHint.dataset.l !== label) { goHint.dataset.l = label; goHint.innerHTML = label; goHint.classList.toggle('on', !!label); }
+  }
+
 
   // the host owns the input object and passes it to update(); touch controls need it
   function applySky(force = false) {
@@ -481,17 +1021,31 @@ export function createFavorsGame(o) {
     furniture.setLight({ lamps: s.lamps });
     lib.setWeather({ wet: weatherNow.wet, lamps: s.lamps });
     fill.intensity = s.lamps * 9;
+    if (inside) roomLight(s);
     return s;
+  }
+
+  /** Inside: warm light from the room's lamp, brighter at night; the windows show the sky. */
+  function roomLight(s) {
+    const L = inside.info.light;
+    hemi.intensity = Math.max(hemi.intensity, 0.85 + 0.55 * s.night);
+    fill.position.set(L.x, L.y, L.z);
+    fill.color.setHex(L.color);
+    fill.distance = L.dist;
+    fill.intensity = 5 + 16 * s.night;
+    SKY_GLASS.setRGB(Math.min(1, s.hor[0] * 1.3 + 0.1), Math.min(1, s.hor[1] * 1.3 + 0.1), Math.min(1, s.hor[2] * 1.3 + 0.12), THREE.SRGBColorSpace);
+    interiors.setSky(SKY_GLASS, 1 - s.night);
   }
 
   const extras = []; // dev / tests: extra people standing about (spawnPeople)
   let debugCam = null; // dev / tests: { pos, look, fov } overrides the chase camera (portraits)
   function placeCamera(snap = false) {
     if (snap) rig.reset();
-    if (debugCam) {
-      camera.position.set(...debugCam.pos);
-      camera.lookAt(...debugCam.look);
-      if (debugCam.fov && Math.abs(camera.fov - debugCam.fov) > 0.05) { camera.fov = debugCam.fov; camera.updateProjectionMatrix(); }
+    const dc = fightCam || debugCam;
+    if (dc) {
+      camera.position.set(...dc.pos);
+      camera.lookAt(...dc.look);
+      if (dc.fov && Math.abs(camera.fov - dc.fov) > 0.05) { camera.fov = dc.fov; camera.updateProjectionMatrix(); }
       return;
     }
     const c = rig.state;
@@ -552,6 +1106,30 @@ export function createFavorsGame(o) {
     get clock() { return clock; },
     get quests() { return quests; },
     get phone() { return phone; },
+    get campaign() { return campaign; },
+    get play() { return play; },
+    get missions() { return missions; },
+    get mworld() { return mworld; },
+    get hail() { return hail; },
+    /** Dev / tests: space at the door of a task (starts its mission) / the garage / the next morning. */
+    startFavour(uid) { const tk = quests.get(uid); if (tk) startFavour(tk); },
+    openGarage,
+    get fight() { return fight; },
+    get journal() { return journal; },
+    get bubbles() { return bubbles; },
+    get arcade() { return arcade; },
+    get social() { return social; },
+    get mapUi() { return mapUi; },
+    openFightMenu, startFight, goalTick, journalData, openArcade,
+    /** Dev / tests: say hello to a cast member as if he stood next to Ori ('shilo', 'moti' ...). */
+    sayHello(id) { const h = ctrl.state.heading; return social.hello({ id, name: speaker(id).name, x: ctrl.state.x + Math.sin(h) * 1.3, z: ctrl.state.z + Math.cos(h) * 1.3 }); },
+    nextDay,
+    restartDay,
+    boostLeft() { return boostFuel; },
+    spawnHail(spec) { if (drive && !hail) { if (spec) { hail = { m: createMission(spec, missionEnv(901)), ttl: 90 }; } else startHail(); } return !!hail; },
+    /** Dev / tests: Ori gets into his own car at once, wherever he is; put the driven car somewhere (heading in radians). */
+    enterOwnCar() { if (drive) return true; const p = props.cars.find((c) => c.mine); if (!p) return false; ctrl.teleport(p.x + 1.8, p.z, ctrl.state.heading); findCar(); if (nearCar) enterCar(nearCar); return !!drive; },
+    placeCar(x, z, heading) { if (!veh) return false; veh.place(x, z, heading); ctrl.teleport(x, z, heading); return true; },
     get scene() { return scene; },
     get camera() { return camera; },
     get timings() { return timings; },
@@ -564,11 +1142,18 @@ export function createFavorsGame(o) {
       kb.read(input, dt);
       if (intro && (Math.abs(input.fwd) + Math.abs(input.strafe) > 0.3 || input.sprint)) endIntro(); // any movement skips it
       if (intro) stepIntro(dt);
-      const scale = over || intro ? 0 : 1; // the day never slows down: the phone is a panel on the side, not a menu
+      const fighting = !!(fight && fight.active);
+      if (fighting) { input.fwd = 0; input.strafe = 0; input.sprint = false; input.orbit = 0; input.pitch = 0; input.zoom = 1; ctrl.teleport(fight.center.x, fight.center.z, ctrl.state.heading); groundY = fight.floorY; }
+      const scale = over || intro || fighting ? 0 : 1; // the day does not slow down for a menu, but it waits while he fights
       const dts = dt * scale;
       t += dt;
       const yaw = rig.state.yaw;
-      if (social && social.isTalking) { input.fwd = 0; input.strafe = 0; input.sprint = false; } // (he stands and listens)
+      if ((social && social.isTalking) || trans || (journal && journal.isOpen) || (mapUi && mapUi.isOpen) || (arcade && arcade.isOpen) || (fight && (fight.ui.menuOpen || fight.ui.cardOpen)) || (play && (play.verbOpen || play.shopOpen))) { input.fwd = 0; input.strafe = 0; input.sprint = false; } // (he stands and listens / the door is swinging / a little action has his hands)
+      if (trans) {
+        trans.t += dt;
+        const u = Math.min(1, trans.t / trans.dur);
+        if (trans.phase === 'out') { setFade(u); if (u >= 1) { trans.fn(); trans.phase = 'in'; trans.t = 0; } } else { setFade(1 - u); if (u >= 1) { trans = null; setFade(0); } }
+      }
       const dir = moveDir(yaw, input.fwd, input.strafe);
       wish.mx = dir.mx;
       wish.mz = dir.mz;
@@ -583,12 +1168,27 @@ export function createFavorsGame(o) {
       }
       if (traffic) traffic.update(dts, [{ x: ctrl.state.x, z: ctrl.state.z, r: drive ? 1.1 : 0.45 }, ...(bodies ? bodies.bodies.map((b) => ({ x: b.x, z: b.z, r: 1.4 })) : [])]);
       clock.tick(dt, scale);
+      if (fight) { fight.update(dt); fight.tick(dt, t); }
       crowd.update(intro ? dt : dts, ctrl.state);
-      if (social) social.update(dt, { blocked: !!(drive || intro || over) });
-      rig.update(dt, { ...ctrl.state }, intro ? {} : { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
+      if (social) social.update(dt, { blocked: !!(intro || over || play.verbOpen || fighting), driving: !!drive });
+      rig.update(dt, { ...ctrl.state, drive: !!drive }, intro ? {} : { orbit: input.orbit, pitch: input.pitch, zoom: input.zoom });
       findPlaces();
-      if (!drive) findCar();
+      if (inside) {
+        nearest = map.places[inside.id]; nearPlace = nearest; nearCar = null;
+        inside.t += dt;
+        interiors.update(dt, ctrl.state);
+        const ex = inside.info.exit;
+        if (!trans && inside.t > 1.2 && ctrl.state.z > ex.z - 0.12 && Math.abs(ctrl.state.x - ex.x) < 0.9) leavePlace(); // he walked onto the doormat
+      } else if (!drive) findCar();
+      updateGoHint();
+      play.update(dt);
+      runMissions(dts);
+      stepGolden(dts);
       syncQuests();
+      goalTimer += dt;
+      if (goalTimer > 0.6) { goalTimer = 0; goalTick(); }
+      saveTimer += dt;
+      if (saveTimer > 15) { saveTimer = 0; campaign.save(); } // (love and hellos are not lost if the tab is closed)
     },
     /** Draws one frame (also used by the tests with dt = 0). */
     render(dt) {
@@ -596,11 +1196,11 @@ export function createFavorsGame(o) {
       const s = applySky();
       const st = ctrl.state;
       groundY += (groundHeight(map, st.x, st.z) - groundY) * Math.min(1, dt > 0 ? dt * 14 : 1);
-      ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
+      if (!(fight && fight.render(dt, t, s.night))) ori.update(dt, st, groundY, Math.max(st.winded ? 0.6 : 0, quests.state.chaos / 100));
       for (const p of extras) p.update(dt, { speed: 0 });
-      fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
+      if (!inside) fill.position.set(st.x + Math.sin(st.heading) * 1.2, groundY + 2.6, st.z + Math.cos(st.heading) * 1.2);
       if (fire) fire.update(dt);
-      if (carTag) carTag.sp.position.set(carTag.car.x, 3.0 + Math.sin(t * 3) * 0.25, carTag.car.z);
+      if (carTag) { carTag.sp.position.set(carTag.car.x, 3.0 + Math.sin(t * 3) * 0.25, carTag.car.z); carTag.sp.visible = !drive && !inside && !(fight && fight.active); }
       crowd3d.update(t, camera);
       lib.update(t);
       buildings.update(camera.position.x, camera.position.z);
@@ -634,21 +1234,62 @@ export function createFavorsGame(o) {
       const q = quests.state;
       const rankIdx = RANKS.reduce((a, r, i) => (q.score >= r.min ? i : a), 0);
       const next = RANKS[rankIdx + 1];
-      hud.update({ time: clock.label(), label: partOfDay(clock.hour), day: clock.progress, place: drive ? { name: 'F · get out', kind: 'Driving' } : nearCar ? { name: 'F · get in', kind: 'Car' } : nearPlace ? { name: nearPlace.name, kind: nearPlace.kind === 'building' ? 'Here' : 'Near' } : null, stamina: st.stamina, winded: st.winded });
-      hud.meters({ chaos: q.chaos, score: q.score, rankProgress: next ? (q.score - RANKS[rankIdx].min) / (next.min - RANKS[rankIdx].min) : 1 });
+      hud.update({ time: clock.label(), label: partOfDay(clock.hour), day: clock.progress, place: inside ? { name: map.places[inside.id].name, kind: 'Inside' } : drive ? { name: 'F · get out', kind: 'Driving' } : nearCar ? { name: 'F · get in', kind: 'Car' } : nearPlace ? { name: nearPlace.name, kind: nearPlace.kind === 'building' ? 'Here' : 'Near' } : null, stamina: st.stamina, winded: st.winded });
+      void next; void rankIdx;
+      hud.meters({ chaos: campaign.state.love, score: `Lv ${campaign.state.boxer.level}`, rankProgress: xpProgress(campaign.state.boxer) });
       const task = following != null ? quests.get(following) : null;
+      let mview = null;
       if (task && (task.state === 'new' || task.state === 'accepted')) {
-        const place = map.places[task.at];
-        const m = Math.round(walkDistance(map, st.x, st.z, place.door.x, place.door.z));
+        const gl = goalOf(task);
+        const mm = missions.get(task.uid);
+        const from = inside ? map.places[inside.id].door : st;
+        const m = Math.round(walkDistance(map, from.x, from.z, gl.x, gl.z));
         hud.goal({ title: `${task.giverName}: ${task.title}`, meta: `${m} m · ${left(task.deadline - q.min)}` });
-        hud.arrow(arrowFor(place));
+        hud.arrow(inside ? null : arrowFor({ door: { x: gl.x, z: gl.z }, sign: gl.place ? map.places[gl.place].sign : (mm && KIND_LABEL[mm.kind]) || 'GO' }));
+        mview = mm && mm.kind !== 'verb' ? mm.view() : null;
+      } else if (fight && fight.active) {
+        hud.goal(null); hud.arrow(null); beam.hide();
+        if (carTag) carTag.sp.visible = false;
       } else {
-        hud.goal(null);
-        // no task to follow: the edge arrow points at Ori's car instead (the floating tag shows once the car is on screen)
-        const ca = carTag ? arrowFor({ door: { x: carTag.car.x, z: carTag.car.z }, sign: 'ORI CAR' }) : null;
-        hud.arrow(ca);
-        if (carTag) carTag.sp.visible = !ca;
+        // no task: the goal of the moment (a chip, the beam and the arrow); with none, the arrow points at Ori's car until he first gets in
+        const cg = currentGoal(campaign);
+        const tp = trackInfo(tracked); // a place he follows from the map beats the goal of the moment
+        const gp = tp || (cg && cg.place ? map.places[cg.place] : null);
+        if (tp) { const from2 = inside ? map.places[inside.id].door : st; hud.goal({ title: `Heading to ${tp.name}`, meta: `${Math.round(walkDistance(map, from2.x, from2.z, tp.door.x, tp.door.z))} m · M for the map` }); } else if (cg) hud.goal({ title: cg.title, meta: cg.need > 1 ? `${cg.have} / ${cg.need}` : cg.hint }); else hud.goal(null);
+        if (gp && !inside) { const d = gp.door; beam.set(d.x - d.nx * 0.8, d.z - d.nz * 0.8, groundHeight(map, d.x, d.z)); } else beam.hide();
+        const ca = carTag && !gp && !drive && !inside ? arrowFor({ door: { x: carTag.car.x, z: carTag.car.z }, sign: 'ORI CAR' }) : null;
+        hud.arrow(gp && !inside ? arrowFor(gp) : ca);
       }
+      play.setMission(mview);
+      const tg = [];
+      const fm = task ? missions.get(task.uid) : null;
+      if (fm && !inside) tg.push(...fm.targets());
+      if (hail) tg.push(...hail.m.targets());
+      mworld.sync(tg, t, dt, drive ? veh.state : st);
+      play.setPeaches(campaign.eco.peaches);
+      play.setBoost(boostFuel / campaign.eco.perks().tank, !!drive && !!drive.p.mine);
+      {
+        const pins = [];
+        const seen = new Set();
+        for (const tk of quests.open()) {
+          const id = stagePlace(tk);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          pins.push({ id, color: CAST[tk.giver].color, label: PLACES[id].sign.charAt(0), active: following === tk.uid });
+        }
+        const points = [];
+        const gl = task && (task.state === 'new' || task.state === 'accepted') ? goalOf(task) : null;
+        if (gl && (!gl.place || gl.live)) points.push({ x: gl.x, z: gl.z, color: '#ff9f43', ring: true });
+        if (hail) { const hg = hail.m.goal(); if (hg) points.push({ x: hg.x, z: hg.z, color: '#ff6b9d', label: '?' }); }
+        for (const x of fm && fm.targets ? fm.targets() : []) if (x.kind === 'rival') points.push({ x: x.x, z: x.z, color: '#e94f3d' });
+        const me = inside ? map.places[inside.id].door : st;
+        const cgm = currentGoal(campaign);
+        const gid = tracked || (cgm && cgm.place) || null;
+        play.setMinimap(t, { player: { x: me.x, z: me.z, heading: st.heading }, pins, points, landmarks: landmarkList(false), goal: !task && gid ? placePoint(gid) : null });
+      }
+      camera.updateMatrixWorld(true);
+      if (bubbles) bubbles.update(dt, camera);
+      if (fight) fight.follow(dt, camera);
       phone.update(t, dt, ctrl.state.speed);
     },
     resize(w, h) {
@@ -659,15 +1300,19 @@ export function createFavorsGame(o) {
       if (post) post.setSize(w, h);
     },
     pause() { if (paused || !opened || over) return false; paused = true; sfx.music(false); hud.showPause(true); lastKb && lastKb.clear && lastKb.clear(); return true; },
-    resume() { if (!paused) return; paused = false; sfx.music(true); hud.showPause(false); },
-    onEscape() { if (over) return; if (phone && phone.isOpen) { phone.close(); return; } if (paused) api.resume(); else api.pause(); },
+    resume() { if (!paused) return; paused = false; if (!(fight && fight.active)) sfx.music(true); hud.showPause(false); }, // (in the ring the fight's own music plays: the street loop stays off)
+    onEscape() { if (over) return; if (arcade && arcade.isOpen) return; if (mapUi && mapUi.isOpen) { mapUi.close(); return; } if (journal && journal.isOpen) { journal.close(); return; } if (fight && fight.ui.menuOpen) { fight.ui.closeMenu(true); return; } if (phone && phone.isOpen) { phone.close(); return; } if (paused) api.resume(); else api.pause(); },
     onReset() { /* R: nothing to reset yet */ },
     onCamera() { if (rig) { rig.state.yaw = ctrl.state.heading; rig.state.pitch = 0.42; } },
     onAction(name) {
       if (paused || !opened || over) return;
-      if (name === 'phone') { phone.toggle(); sfx.tap(); } else if (name === 'interact') { if (drive) exitCar(); else if (nearCar) enterCar(nearCar); else useDoor(); }
+      if (play.verbOpen) { const v = play.verb; if (v) { v.press('act'); setTimeout(() => v.release('act'), 90); } return; }
+      if (play.shopOpen) return;
+      if (fight && (fight.active || fight.ui.menuOpen || fight.ui.cardOpen)) return;
+      if (name === 'phone') { journal.toggle(journalData); sfx.tap(); } else if (name === 'interact') { if (journal.isOpen) { journal.close(); return; } if (trans) return; if (drive) exitCar(); else if (inside) useInside(); else if (nearCar) enterCar(nearCar); else if (fight && fight.near(ctrl.state.x, ctrl.state.z)) openFightMenu(); else useDoor(); }
     },
     onKey(e) {
+      if (play && play.shopOpen && play.key(e)) return true; // (the garage can be opened from the day card)
       if (over) { if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native'; return true; }
       if (paused) {
         if (e.code === 'Escape' || e.code === 'KeyP') { api.resume(); return true; }
@@ -680,8 +1325,15 @@ export function createFavorsGame(o) {
         if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native';
         return true;
       }
+      if (fight && (fight.active || fight.ui.menuOpen || fight.ui.cardOpen) && fight.key(e)) return true;
+      if (arcade && arcade.isOpen && arcade.key(e)) return true;
+      if (journal && journal.key(e)) return true;
+      if (mapUi && mapUi.isOpen) { const r = mapUi.key(e); if (r) return r; }
+      if (e.code === 'KeyM' && mapUi && !(social && social.isTalking) && !trans) { mapUi.toggle(); sfx.tap(); return true; }
       // the phone is a panel on the side: its keys (1-9, F, Y / L / N, [ ]) are used, everything else still walks Ori
-      if (social && !drive && social.key(e)) return true;
+      if (play && (play.verbOpen || play.shopOpen) && play.key(e)) return true;
+      if (e.code === 'KeyG' && !(social && social.isTalking)) { if (!trans) { if (inside) leavePlace(); else if (nearest && !drive && ROOMS[nearest.id] && Math.hypot(nearest.door.x - ctrl.state.x, nearest.door.z - ctrl.state.z) <= USE_RANGE) enterPlace(nearest.id); } return true; }
+      if (social && social.key(e)) return true;
       if (phone && phone.isOpen && phone.key(e)) return true;
       return undefined;
     },
@@ -689,7 +1341,7 @@ export function createFavorsGame(o) {
     /** Runs n fixed steps of 1/120 s with the last input (or the given one); the quests follow the clock. */
     step(n = 1, inp = null) {
       for (let i = 0; i < n; i++) { ctrl.step(inp || wish); clock.tick(1 / 120); }
-      rig.update(n / 120, { ...ctrl.state }, {});
+      rig.update(n / 120, { ...ctrl.state, drive: !!drive }, {});
       findPlaces();
       syncQuests();
     },
@@ -713,6 +1365,8 @@ export function createFavorsGame(o) {
     setCamera(c = {}) { if (c.yaw != null) rig.state.yaw = c.yaw; if (c.pitch != null) rig.state.pitch = c.pitch; if (c.dist != null) rig.state.dist = c.dist; rig.reset(); placeCamera(true); },
     /** Dev / tests: put the camera anywhere (null gives the chase camera back). */
     setDebugCamera(cfg) { debugCam = cfg || null; if (!debugCam) rig.reset(); placeCamera(true); },
+    /** Dev / tests: stand cast members ('shilo', 'moti' ...) in a row in front of Ori. */
+    spawnCast(ids, o) { return api.spawnPeople(ids.map((id) => speaker(id).spec), o); },
     /** Dev / tests: stand some people (person specs) in a row in front of Ori. Returns how many were made. */
     spawnPeople(specs, { spacing = 1.15, ahead = 3.2, quality = 0.5 } = {}) {
       const st = ctrl.state;
@@ -734,6 +1388,11 @@ export function createFavorsGame(o) {
     weather() { return { ...weatherNow, plan: { ...plan } }; },
     /** Dev / tests: start a conversation ('ima', 'clerk', 'stranger:3', 'roee' ...), read its state, close it. */
     talk(id) { return social ? social.start(id, { from: 'dev' }) : false; },
+    /** Dev / tests: walk into a building (instant = no fade) / out again; where Ori is. */
+    enter(pid, o) { return enterPlace(pid, o || { instant: true }); },
+    leave(o) { return leavePlace(o || { instant: true }); },
+    insideId() { return inside ? inside.id : null; },
+    insideInfo() { return inside ? { id: inside.id, spots: inside.info.spots, npcs: inside.info.npcs.map((n) => ({ id: n.id, x: n.x, z: n.z })), exit: inside.info.exit, spot: (insideSpot() || {}).kind || null, trans: !!trans } : null; },
     talkState() { return social ? social.state() : null; },
     talkKey(code) { return social ? social.key({ code }) : false; },
     clockInfo() { return { hour: clock.hour, label: clock.label(), progress: clock.progress, done: clock.done }; },
@@ -744,7 +1403,7 @@ export function createFavorsGame(o) {
       const s = ctrl.state;
       const q = quests.state;
       return {
-        phase: over ? 'over' : 'play', paused, tier, driving: !!drive, car: drive ? { x: veh.state.x, z: veh.state.z, speed: veh.state.speed, heading: veh.state.heading } : null, nearCar: nearCar ? { x: nearCar.x, z: nearCar.z, mine: !!nearCar.mine } : null, traffic: traffic ? traffic.cars.length : 0,
+        phase: over ? 'over' : 'play', paused, tier, driving: !!drive, tracked, mapOpen: !!(mapUi && mapUi.isOpen), carTag: carTag ? { visible: carTag.sp.visible, x: carTag.car.x, z: carTag.car.z } : null, car: drive ? { x: veh.state.x, z: veh.state.z, speed: veh.state.speed, heading: veh.state.heading } : null, nearCar: nearCar ? { x: nearCar.x, z: nearCar.z, mine: !!nearCar.mine } : null, traffic: traffic ? traffic.cars.length : 0,
         clock: { hour: clock.hour, label: clock.label(), progress: clock.progress },
         player: { x: s.x, z: s.z, heading: s.heading, speed: s.speed, stamina: s.stamina, sprinting: s.sprinting, winded: s.winded, blocked: s.blocked, hash: ctrl.hash() },
         near: nearPlace ? nearPlace.id : null,
@@ -752,6 +1411,9 @@ export function createFavorsGame(o) {
         crowd: crowd ? crowd.walkers.length : 0,
         quests: { min: q.min, open: quests.open().length, arrived: q.stats.arrived, done: q.stats.done, failed: q.stats.failed, score: q.score, chaos: q.chaos, rel: { ...q.rel }, rank: rankFor(q.score), following, phoneOpen: phone.isOpen, focus: q.focus.on },
         radius: PLAYER_R, walk: WALK_SPEED,
+        love: campaign.state.love, boxer: { ...campaign.state.boxer, beaten: [...campaign.state.boxer.beaten] }, progress: { ...campaign.state.progress }, fight: fight ? fight.snapshot() : null, goal: (currentGoal(campaign) || {}).id || null,
+        peaches: campaign.eco.peaches, day: campaign.day, golden: campaign.state.golden.length, perks: campaign.eco.perks(), verb: play.verbOpen, shop: play.shopOpen, boost: boostFuel,
+        mission: following != null && missions.get(following) ? { kind: missions.get(following).kind, goal: missions.get(following).goal(), view: missions.get(following).view() } : null,
       };
     },
     setTier() { /* the tier is chosen at launch; relaunch to change it */ },
@@ -763,6 +1425,18 @@ export function createFavorsGame(o) {
       sfx.dispose();
       if (!opened) return;
       phone.dispose();
+      play.dispose();
+      mworld.dispose();
+      if (campaign) campaign.save();
+      if (fight) { fight.dispose(); fight = null; }
+      if (bubbles) { bubbles.dispose(); bubbles = null; }
+      if (journal) { journal.dispose(); journal = null; }
+      if (mapUi) { mapUi.dispose(); mapUi = null; }
+      if (arcade) { arcade.dispose(); arcade = null; }
+      if (inside) { for (const c of inside.colliders) map.world.removeDynamic(c); inside = null; }
+      if (interiors) { interiors.dispose(); interiors = null; }
+      if (fadeEl) { fadeEl.remove(); fadeEl = null; }
+      if (goHint) { goHint.remove(); goHint = null; }
       if (social) { social.dispose(); social = null; }
       beam.dispose();
       ori.dispose();

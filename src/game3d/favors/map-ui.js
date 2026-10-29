@@ -1,0 +1,74 @@
+// "Ori, Can You...?" — the big map (M): the whole neighbourhood with every place named, the stars of the game (the ring, the office computer, the garage, the cafe) as badges with
+// what they offer, Ori's arrow and the goal of the moment. Click a place (on the map or in the list) to follow it: the beam and the arrow lead there. M or Esc closes it.
+// Opening it stops the walking (the day itself goes on).
+import './map.css';
+import { createMap2d, paintBadge } from './map2d.js';
+import { LANDMARKS, PLACE_LINES, CAR } from './places-guide.js';
+import { PLACES } from './content.js';
+
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+/**
+ * @param {{ root: HTMLElement, map: object, getView: () => { player: object, goal: object|null, tracked: string|null, landmarks: object[], labels: object[], time: number }, onTrack: (placeId: string|null) => void }} o
+ */
+export function createMapUi({ root, map, getView, onTrack }) {
+  const el = document.createElement('div');
+  el.className = 'fi-overlay mp';
+  el.hidden = true;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-label', 'Map');
+  const star = (id, l) => `<li data-p="${id}" role="button" tabindex="0"><canvas class="mp-badge" data-icon="${l.icon}" data-color="${l.color}"></canvas><div><b>${esc(l.name)}</b><small>${esc(l.what)}</small></div><em></em></li>`;
+  const stars = LANDMARKS.map((l) => star(l.place, l)).join('') + star('car', CAR);
+  const starIds = new Set(LANDMARKS.map((l) => l.place));
+  const others = Object.keys(PLACES).filter((id) => !starIds.has(id)).map((id) => `<li data-p="${id}" role="button" tabindex="0"><i class="mp-dot" style="--c:${PLACES[id].tone}"></i><div><b>${esc(PLACES[id].name)}</b><small>${esc(PLACE_LINES[id] || '')}</small></div><em></em></li>`).join('');
+  const card = `<div class="fi-card fv-glass mp-card"><header><div class="g3d-kicker">THE NEIGHBOURHOOD</div><h2>Map</h2></header>
+    <div class="mp-body"><canvas class="mp-canvas" width="540" height="560" aria-label="Map of the neighbourhood"></canvas>
+      <div class="mp-side"><h3>Where things happen</h3><ul class="mp-list">${stars}</ul><h3>Other places</h3><ul class="mp-list mp-others">${others}</ul></div></div>
+    <footer><small>Click a place to follow it: the beam and the arrow lead you there.</small><button type="button" class="fi-btn" data-close="1">Close <kbd>M</kbd></button></footer></div>`;
+  root.append(el);
+  let canvas = null;
+  let map2d = null;
+  let isOpen = false;
+  let timer = 0;
+  let lastTracked = undefined;
+
+  function paint() {
+    if (!map2d) return;
+    const v = getView();
+    map2d.draw({ player: v.player, pins: [], points: [], goal: v.goal, landmarks: v.landmarks, labels: v.labels, time: v.time });
+    if (v.tracked !== lastTracked) {
+      lastTracked = v.tracked;
+      for (const li of el.querySelectorAll('.mp-list li')) { const on = li.dataset.p === v.tracked; li.classList.toggle('follow', on); li.querySelector('em').textContent = on ? 'Following' : ''; }
+    }
+  }
+  function pick(id) { if (!id) return; const v = getView(); const next = v.tracked === id ? null : id; onTrack(next); lastTracked = undefined; paint(); }
+  el.addEventListener('click', (e) => {
+    if (e.target.closest('[data-close]') || e.target === el) { api.close(); return; }
+    const li = e.target.closest('.mp-list li');
+    if (li) { pick(li.dataset.p); return; }
+    if (e.target === canvas) { const r = canvas.getBoundingClientRect(); pick(map2d.hit(((e.clientX - r.left) / r.width) * canvas.width, ((e.clientY - r.top) / r.height) * canvas.height)); }
+  });
+  el.addEventListener('keydown', (e) => { if ((e.code === 'Enter' || e.code === 'Space') && e.target.closest && e.target.closest('.mp-list li')) { e.preventDefault(); pick(e.target.closest('.mp-list li').dataset.p); } });
+
+  const api = {
+    get isOpen() { return isOpen; },
+    open() {
+      isOpen = true;
+      el.innerHTML = card;
+      for (const c of el.querySelectorAll('.mp-badge')) paintBadge(c, c.dataset.icon, c.dataset.color);
+      canvas = el.querySelector('.mp-canvas');
+      map2d = createMap2d(canvas, map);
+      el.hidden = false; lastTracked = undefined; paint(); clearInterval(timer); timer = setInterval(() => { if (isOpen) paint(); }, 120);
+    },
+    close() { isOpen = false; el.hidden = true; el.innerHTML = ''; canvas = null; map2d = null; clearInterval(timer); },
+    toggle() { if (isOpen) api.close(); else api.open(); },
+    key(e) {
+      if (!isOpen) return false;
+      if (e.code === 'KeyM' || e.code === 'Escape') { api.close(); return true; }
+      if (e.code === 'Tab' || e.code === 'Enter' || e.code === 'Space') return 'native'; // (the list is a row of buttons: focus and press)
+      return true;
+    },
+    dispose() { clearInterval(timer); el.remove(); },
+  };
+  return api;
+}

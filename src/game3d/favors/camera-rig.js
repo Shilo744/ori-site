@@ -12,7 +12,7 @@ export function createCameraRig(world, { yaw = Math.PI, pitch = 0.42, dist = 7.6
     state: c,
     /**
      * @param {number} dt seconds
-     * @param {{x:number,z:number,vx:number,vz:number,speed:number,sprinting:boolean}} t Ori
+     * @param {{x:number,z:number,vx:number,vz:number,speed:number,sprinting:boolean,heading?:number,drive?:boolean}} t Ori (drive: he is in a car, heading = where its nose points)
      * @param {{orbit?:number, pitch?:number, zoom?:number}} [inp] manual camera: radians per second / zoom factor
      */
     update(dt, t, inp = {}) {
@@ -20,8 +20,16 @@ export function createCameraRig(world, { yaw = Math.PI, pitch = 0.42, dist = 7.6
       c.yaw = wrapPi(c.yaw + orbit * dt);
       c.pitch = Math.min(0.9, Math.max(0.12, c.pitch + (inp.pitch || 0) * dt));
       if (inp.zoom && inp.zoom !== 1) c.dist = Math.min(13, Math.max(4.5, c.dist * inp.zoom));
-      // behind him: when he walks, the camera slowly swings round to look the way he goes (not while he walks straight at it)
-      if (t.speed > 1.2 && !orbit) {
+      if (t.drive) {
+        // a car: the camera stays behind where the NOSE points - also while he reverses (it does not flip) and after a turn-around that left it in front of
+        // the car (it comes round behind it, never faster than 2.8 rad/s so it does not whip)
+        if (t.speed > 1 && !orbit) {
+          const d = wrapPi(t.heading - c.yaw);
+          const rate = Math.min(3, 1.2 + t.speed * 0.08);
+          c.yaw = wrapPi(c.yaw + Math.max(-2.8 * dt, Math.min(2.8 * dt, d * rate * dt)));
+        }
+      } else if (t.speed > 1.2 && !orbit) {
+        // behind him: when he walks, the camera slowly swings round to look the way he goes (not while he walks straight at it)
         const want = Math.atan2(t.vx, t.vz);
         const d = wrapPi(want - c.yaw);
         const side = Math.abs(Math.sin(d)); // 0 = straight ahead or straight back, 1 = sideways
@@ -55,7 +63,7 @@ export function createCameraRig(world, { yaw = Math.PI, pitch = 0.42, dist = 7.6
       // a very small bob in step with his stride (none when standing still)
       c.bobT += dt * (t.speed * 1.35 + 0.01);
       c.by = damp(c.by, Math.sin(c.bobT * 2) * 0.022 * Math.min(1, t.speed / 4.4), 14, dt);
-      c.fovT = 58 + (t.sprinting ? 7 : 0) + Math.min(3, t.speed * 0.25);
+      c.fovT = 58 + (c.fovAdd || 0) + (t.sprinting ? 7 : 0) + Math.min(3, t.speed * 0.25);
       c.fov = damp(c.fov, c.fovT, 4, dt);
       return c;
     },

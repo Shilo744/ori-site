@@ -8,7 +8,7 @@ import { createCameraRig } from '../src/game3d/favors/camera-rig.js';
 import { skyAt, sunVector, createClock } from '../src/game3d/favors/daycycle.js';
 import { createCrowd } from '../src/game3d/favors/crowd.js';
 import { PLACES, CROWD, DAY, ORI } from '../src/game3d/favors/content.js';
-import { mulberry32, hashNumbers } from '../src/game3d/rng.js';
+import { mulberry32, hashNumbers, wrapPi } from '../src/game3d/rng.js';
 
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log(`  ✓ ${name}`); };
@@ -196,6 +196,26 @@ test('the camera swings round to look where Ori walks, and does not spin when he
   const rig2 = createCameraRig(null, { yaw: 0 });
   for (let i = 0; i < 300; i++) rig2.update(1 / 60, { x: 0, z: 0, vx: 0, vz: -4, speed: 4, sprinting: false }, {});
   near(rig2.state.yaw, 0, 1e-6, 'walking at the camera leaves it alone');
+});
+
+test('in a car the camera stays behind the nose: it does not flip while he reverses, and it comes round after a turn-around (it used to be left in front of the car)', () => {
+  const car = (heading, speed) => ({ x: 0, z: 0, heading, vx: Math.sin(heading) * speed, vz: Math.cos(heading) * speed, speed: Math.abs(speed), sprinting: false, drive: true });
+  const rig = createCameraRig(null, { yaw: 0 }); // looks south; the car's nose points south too
+  for (let i = 0; i < 180; i++) rig.update(1 / 60, car(0, -8), {}); // reversing: moving north, nose south
+  near(rig.state.yaw, 0, 0.05, 'reversing leaves the camera behind the nose');
+  for (let i = 0; i < 120; i++) rig.update(1 / 60, car(Math.PI, 12), {}); // turned round: nose north, driving off towards the camera
+  near(Math.abs(wrapPi(rig.state.yaw - Math.PI)), 0, 0.15, 'after 2 s it is behind the car again and looks where it goes');
+  let worst = 0;
+  const r2 = createCameraRig(null, { yaw: 0 });
+  let prev = r2.state.yaw;
+  for (let i = 0; i < 120; i++) { r2.update(1 / 60, car(Math.PI, 10), {}); worst = Math.max(worst, Math.abs(wrapPi(r2.state.yaw - prev)) * 60); prev = r2.state.yaw; }
+  assert.ok(worst <= 2.85, `it never whips faster than 2.8 rad/s (${worst.toFixed(2)})`);
+  const slow = createCameraRig(null, { yaw: 0 });
+  for (let i = 0; i < 120; i++) slow.update(1 / 60, car(Math.PI, 0.4), {});
+  near(slow.state.yaw, 0, 1e-9, 'a parked / creeping car does not swing the camera');
+  const foot = createCameraRig(null, { yaw: 0 });
+  for (let i = 0; i < 300; i++) foot.update(1 / 60, { x: 0, z: 0, vx: 0, vz: -4, speed: 4, sprinting: false, heading: Math.PI }, {});
+  near(foot.state.yaw, 0, 1e-6, 'on foot, walking at the camera still leaves it alone');
 });
 
 // ── the day ──

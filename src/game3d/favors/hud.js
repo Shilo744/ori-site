@@ -16,13 +16,13 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
   hud.className = 'fv-hud';
   hud.innerHTML = `
     <div class="fv-clock fv-glass"><b data-k="time">06:00</b><span data-k="label">Morning</span><div class="fv-day"><i data-k="day"></i></div></div>
-    <div class="fv-meters fv-glass"><div class="fv-meter"><span>CHAOS</span><div><i data-k="chaos"></i></div><b data-k="chaosn">0</b></div><div class="fv-meter"><span>FAVOURS</span><div><i data-k="fav"></i></div><b data-k="score">0</b></div></div>
+    <div class="fv-meters fv-glass"><div class="fv-meter love"><span>LOVE</span><div><i data-k="chaos"></i></div><b data-k="chaosn">0</b></div><div class="fv-meter boxer"><span>BOXER</span><div><i data-k="fav"></i></div><b data-k="score">Lv 1</b></div></div>
     <div class="fv-place fv-glass" data-k="place" aria-live="polite"><small data-k="kind"></small><span data-k="name"></span></div>
     <div class="fv-goal fv-glass" data-k="goal" aria-live="polite"><span data-k="goalt"></span><small data-k="goalm"></small></div>
     <div class="fv-arrow" data-k="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 16-8-4-8 4z"/></svg><span data-k="arrowl"></span></div>
     <div class="fv-tr"><button class="fv-btn fv-glass" type="button" data-k="pause" aria-label="Pause (Esc)">${SVG_PAUSE}</button></div>
     <div class="fv-stam" data-k="stam" aria-hidden="true"><i data-k="stamfill"></i></div>
-    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>Space</kbd> use</span><span><kbd>Tab</kbd> phone</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
+    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>H</kbd> say hi</span><span><kbd>Space</kbd> use</span><span><kbd>M</kbd> map</span><span><kbd>Tab</kbd> journal</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
     <div class="fv-toasts" data-k="toasts" aria-live="polite"></div>
     <div class="fv-touch" data-k="touch"><div class="fv-pad" data-k="pad"><i data-k="knob"></i></div><button type="button" class="fv-act sprint" data-k="sprint">Run</button><button type="button" class="fv-act do" data-k="do">Use</button></div>`;
   const menu = document.createElement('div');
