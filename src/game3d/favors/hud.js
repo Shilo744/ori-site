@@ -4,14 +4,23 @@ import '../game3d.css';
 import './favors.css';
 import { GAME } from './content.js';
 import { TEXT } from './texts.js';
+import { HINTS, RESOLUTIONS } from './settings.js';
+import { modalFocus } from './a11y.js';
+import './a11y-ui.css';
+import { createCaptioner } from './captions.js';
+import { createKeyPad } from './key-pad.js';
+import { isTouchDevice } from './touch.js';
 
 const SVG_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>';
 
 /**
  * @param {HTMLElement} root the overlay
- * @param {{ onPause: () => void, onResume: () => void, onRestart: () => void, onQuit: () => void }} cb
+ * @param {{ onPause: () => void, onResume: () => void, onRestart: () => void, onQuit: () => void, settings?: ReturnType<import('./settings.js').createSettings> | null,
+ *   sys?: { volume(): number, setVolume(v: number): void, reduceMotion(): boolean, setReduceMotion(b: boolean): void } | null,
+ *   onExport?: (() => string) | null, onImport?: ((text: string) => { ok: boolean, message?: string }) | null }} cb
+ *   `settings` = this game's own comfort settings, `sys` = the room's System Settings (sound level, reduce motion), `onExport` / `onImport` = the save code
  */
-export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) {
+export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit, settings = null, sys = null, onExport = null, onImport = null, onHelp = null, onTips = null, onStory = null }) {
   const hud = document.createElement('div');
   hud.className = 'fv-hud';
   hud.innerHTML = `
@@ -19,11 +28,13 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
     <div class="fv-meters fv-glass"><div class="fv-meter love"><span>LOVE</span><div><i data-k="chaos"></i></div><b data-k="chaosn">0</b></div><div class="fv-meter boxer"><span>BOXER</span><div><i data-k="fav"></i></div><b data-k="score">Lv 1</b></div></div>
     <div class="fv-place fv-glass" data-k="place" aria-live="polite"><small data-k="kind"></small><span data-k="name"></span></div>
     <div class="fv-goal fv-glass" data-k="goal" aria-live="polite"><span data-k="goalt"></span><small data-k="goalm"></small></div>
+    <div class="fv-story fv-glass" data-k="story" role="button" tabindex="0" aria-live="polite" aria-label="Story"><b>Story</b><span data-k="storyt"></span></div>
     <div class="fv-arrow" data-k="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3l8 16-8-4-8 4z"/></svg><span data-k="arrowl"></span></div>
-    <div class="fv-tr"><button class="fv-btn fv-glass" type="button" data-k="pause" aria-label="Pause (Esc)">${SVG_PAUSE}</button></div>
+    <div class="fv-tr"><button class="fv-btn fv-glass" type="button" data-k="help" aria-label="What now? (?)"><span aria-hidden="true">?</span></button><button class="fv-btn fv-glass" type="button" data-k="pause" aria-label="Pause (Esc)">${SVG_PAUSE}</button></div>
     <div class="fv-stam" data-k="stam" aria-hidden="true"><i data-k="stamfill"></i></div>
-    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>H</kbd> say hi</span><span><kbd>Space</kbd> use</span><span><kbd>M</kbd> map</span><span><kbd>Tab</kbd> journal</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
+    <div class="fv-keys fv-glass" data-k="keys"><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> move</span><span><kbd>Shift</kbd> sprint</span><span><kbd>H</kbd> say hi</span><span><kbd>Space</kbd> use</span><span><kbd>M</kbd> map</span><span><kbd>R</kbd> races</span><span><kbd>Tab</kbd> journal</span><span><kbd>V</kbd> photo</span><span><kbd>?</kbd> help</span><span><kbd>Q</kbd><kbd>E</kbd> camera</span><span><kbd>Esc</kbd> pause</span></div>
     <div class="fv-toasts" data-k="toasts" aria-live="polite"></div>
+    <div class="fv-cap" data-k="cap" aria-hidden="true"></div>
     <div class="fv-touch" data-k="touch"><div class="fv-pad" data-k="pad"><i data-k="knob"></i></div><button type="button" class="fv-act sprint" data-k="sprint">Run</button><button type="button" class="fv-act do" data-k="do">Use</button></div>`;
   const menu = document.createElement('div');
   menu.className = 'g3d-menu';
@@ -37,8 +48,22 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       <button type="button" class="g3d-btn primary" data-a="resume">Resume</button>
       <button type="button" class="g3d-btn" data-a="restart">Start the day again</button>
       <button type="button" class="g3d-btn quit" data-a="quit">Back to the desktop</button>
+      <div class="fv-set" role="group" aria-label="Settings">
+        <label class="fv-vol"><span>Sound</span><input type="range" min="0" max="100" step="5" data-s="volume" aria-label="Sound volume"><b data-s="volv">70</b></label>
+        <button type="button" class="g3d-btn fv-opt" role="switch" aria-checked="false" data-s="motion"><span>Reduce motion</span><i></i></button>
+        <button type="button" class="g3d-btn fv-opt" role="switch" aria-checked="false" data-s="contrast"><span>High-contrast HUD</span><i></i></button>
+        <button type="button" class="g3d-btn fv-opt" role="switch" aria-checked="false" data-s="captions"><span>Sound captions</span><i></i></button>
+        <button type="button" class="g3d-btn fv-opt" data-s="hints"><span>Key hints</span><b data-s="hintv">Automatic</b></button>
+        <button type="button" class="g3d-btn fv-opt" data-s="resolution"><span>Resolution</span><b data-s="resv">Automatic</b></button>
+      </div>
+      <div class="fv-code" role="group" aria-label="Save code">
+        <div class="fv-codebtns"><button type="button" class="g3d-btn fv-mini" data-s="export">Copy my save code</button><button type="button" class="g3d-btn fv-mini" data-s="import">Load a save code</button></div>
+        <button type="button" class="g3d-btn fv-mini" data-s="tips">Show the first steps again</button>
+        <div class="fv-codebox" hidden><textarea rows="3" spellcheck="false" autocomplete="off" aria-label="Save code" data-s="code" placeholder="Paste your save code here"></textarea><button type="button" class="g3d-btn primary" data-s="load">Load this save</button><p class="g3d-small" role="status" aria-live="polite" data-s="codemsg"></p></div>
+      </div>
       <p class="g3d-small">${TEXT.pausedHint}</p>
     </div>`;
+  const menuFocus = modalFocus(menu, '.g3d-btn.primary');
   const msg = document.createElement('div');
   msg.className = 'g3d-msg';
   msg.hidden = true;
@@ -46,26 +71,109 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
   root.append(hud, menu, msg);
 
   const q = (k) => hud.querySelector(`[data-k="${k}"]`);
-  const el = Object.fromEntries(['time', 'label', 'day', 'place', 'kind', 'name', 'stam', 'stamfill', 'keys', 'toasts', 'touch', 'pad', 'knob', 'sprint', 'do', 'chaos', 'chaosn', 'fav', 'score', 'goal', 'goalt', 'goalm', 'arrow', 'arrowl'].map((k) => [k, q(k)]));
+  const el = Object.fromEntries(['time', 'label', 'day', 'place', 'kind', 'name', 'stam', 'stamfill', 'keys', 'toasts', 'cap', 'touch', 'pad', 'knob', 'sprint', 'do', 'chaos', 'chaosn', 'fav', 'score', 'goal', 'goalt', 'goalm', 'arrow', 'arrowl'].map((k) => [k, q(k)]));
   const last = {};
   const setText = (k, v) => { if (last[k] !== v) { last[k] = v; el[k].textContent = v; } };
   const act = { resume: onResume, restart: onRestart, quit: onQuit };
   menu.addEventListener('click', (e) => { const b = e.target.closest('[data-a]'); if (b && act[b.dataset.a]) act[b.dataset.a](); });
   q('pause').addEventListener('click', () => onPause());
-  const keyTimer = setTimeout(() => el.keys.classList.add('off'), 14000);
+  q('help').addEventListener('click', () => { if (onHelp) onHelp(); });
+  q('goal').addEventListener('click', () => { if (onHelp) onHelp(); }); // (the goal chip is a button too, for the mouse)
+  q('story').addEventListener('click', () => { if (onStory) onStory(); });
+  let keyTimer = 0;
+
+  // ── settings (the pause menu). The sound level and reduce-motion belong to the room's System Settings (`sys`: one truth), the rest to this game (`settings`). Both apply at once. ──
+  const sw = (k) => menu.querySelector(`[data-s="${k}"]`);
+  const HINT_NAME = { auto: 'Automatic', on: 'Always', off: 'Hidden' };
+  const RES_NAME = { auto: 'Automatic', full: 'Full' };
+  const setSwitch = (b, on) => { b.setAttribute('aria-checked', String(on)); b.classList.toggle('on', on); };
+  function applyHints(mode) { // auto = shown for the first seconds, on = always, off = never
+    clearTimeout(keyTimer);
+    el.keys.classList.remove('off');
+    el.keys.classList.toggle('gone', mode === 'off');
+    if (mode === 'auto') keyTimer = setTimeout(() => el.keys.classList.add('off'), 14000);
+  }
+  function syncSettings() { // the menu shows what is really set
+    if (sys) {
+      const v = Math.round(sys.volume() * 100);
+      sw('volume').value = String(v);
+      sw('volv').textContent = v ? String(v) : 'off';
+      setSwitch(sw('motion'), !!sys.reduceMotion());
+    }
+    if (settings) {
+      const s = settings.get();
+      setSwitch(sw('contrast'), s.contrast);
+      setSwitch(sw('captions'), s.captions);
+      sw('hintv').textContent = HINT_NAME[s.hints];
+      sw('resv').textContent = RES_NAME[s.resolution];
+    }
+    hud.classList.toggle('calm', !!(sys && sys.reduceMotion()));
+  }
+  if (!sys) { sw('volume').closest('.fv-vol').hidden = true; sw('motion').hidden = true; }
+  if (!settings) { sw('contrast').hidden = true; sw('captions').hidden = true; sw('hints').hidden = true; sw('resolution').hidden = true; }
+  menu.addEventListener('input', (e) => { if (sys && e.target.dataset.s === 'volume') { sys.setVolume(+e.target.value / 100); syncSettings(); } });
+  menu.addEventListener('click', (e) => {
+    const b = e.target.closest('.fv-opt');
+    if (!b) return;
+    const k = b.dataset.s;
+    if (k === 'motion' && sys) sys.setReduceMotion(!sys.reduceMotion());
+    else if (k === 'contrast' && settings) settings.set({ contrast: !settings.get().contrast });
+    else if (k === 'captions' && settings) settings.set({ captions: !settings.get().captions });
+    else if (k === 'hints' && settings) settings.set({ hints: HINTS[(HINTS.indexOf(settings.get().hints) + 1) % HINTS.length] });
+    else if (k === 'resolution' && settings) settings.set({ resolution: RESOLUTIONS[(RESOLUTIONS.indexOf(settings.get().resolution) + 1) % RESOLUTIONS.length] });
+    syncSettings();
+  });
+  // ── the save code: the box shows the code to copy, or takes a pasted one to load ──
+  const box = menu.querySelector('.fv-codebox');
+  const area = sw('code');
+  const say = (text, bad = false) => { const p = sw('codemsg'); p.textContent = text; p.classList.toggle('bad', bad); };
+  const closeBox = () => { box.hidden = true; area.value = ''; say(''); };
+  const copyText = async (t) => { try { await navigator.clipboard.writeText(t); return true; } catch { return false; } };
+  if (!onExport || !onImport) { sw('export').hidden = true; sw('import').hidden = true; }
+  if (!onTips) sw('tips').hidden = true;
+  if ((!onExport || !onImport) && !onTips) menu.querySelector('.fv-code').hidden = true;
+  menu.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-s]');
+    const k = b && b.dataset.s;
+    if (k === 'export' && onExport) {
+      const code = onExport();
+      box.hidden = false; sw('load').hidden = true; area.value = code; say('Copying...');
+      area.focus({ preventScroll: true }); area.select();
+      copyText(code).then((ok) => say(ok ? 'Copied! Keep this code somewhere safe.' : 'Press Ctrl+C to copy it.'));
+    } else if (k === 'import' && onImport) {
+      box.hidden = false; sw('load').hidden = false; area.value = ''; say('');
+      area.focus({ preventScroll: true });
+    } else if (k === 'tips' && onTips) {
+      onTips();
+    } else if (k === 'load' && onImport) {
+      const r = onImport(area.value);
+      if (!r.ok) say(r.message || 'That did not work.', true); // (on success the game starts from the save and the menu closes)
+    }
+  });
+  const offSettings = settings ? settings.on((s) => { hud.classList.toggle('hc', s.contrast); root.classList.toggle('fv-hc', s.contrast); if (!s.captions) el.cap.replaceChildren(); applyHints(s.hints); }) : () => {};
+  hud.classList.toggle('hc', !!(settings && settings.get().contrast));
+  root.classList.toggle('fv-hc', !!(settings && settings.get().contrast));
+  applyHints(settings ? settings.get().hints : 'auto');
+  syncSettings();
   let stamTimer = 0;
   let msgButtons = [];
 
   // touch controls: shown on coarse pointers; the joystick feeds input.stick, the buttons feed sprint / use
   let input = null;
   let onUse = () => {};
-  const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const coarse = isTouchDevice({ coarse: !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches), search: location.search }); // (a coarse pointer, or ?touch=1)
+  let walkPad = null; // hello, map, journal and the camera, over the stick and Run / Use
   function bindTouch(inp, use) {
     input = inp;
     onUse = use;
     if (!coarse) return;
     el.touch.classList.add('on');
     el.keys.hidden = true;
+    hud.classList.add('touch');
+    root.classList.add('fv-tui'); // (the whole overlay: every card gets thumb-sized controls, see touch.css)
+    walkPad = createKeyPad({ root: el.touch, className: 'walk', label: 'Touch controls' });
+    walkPad.force(true);
+    walkPad.set('walk');
     let id = null;
     const move = (e) => {
       const r = el.pad.getBoundingClientRect();
@@ -89,8 +197,21 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
     el.do.addEventListener('click', () => onUse());
   }
 
+  // ── sound captions [experimental]: a short line of words for the sounds that tell you something; only while the setting is on ──
+  const captioner = createCaptioner();
+  function caption(text) {
+    if (!settings || !settings.get().captions) return;
+    if (!captioner.say(text, performance.now() / 1000)) return;
+    const line = document.createElement('div');
+    line.className = 'fv-cap-line';
+    line.textContent = text;
+    el.cap.append(line);
+    while (el.cap.children.length > captioner.max) el.cap.firstElementChild.remove();
+    setTimeout(() => line.remove(), captioner.life * 1000);
+  }
   const api = {
     root: hud,
+    caption,
     menu,
     bindTouch,
     /** s = { time: '07:42', label: 'Morning', day: 0..1, place: {name, kind}|null, stamina: 0..1, winded } */
@@ -121,6 +242,13 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       if (last.score !== score) { last.score = score; el.score.textContent = String(score); }
       const r = Math.round(rankProgress * 100) / 100;
       if (last.rp !== r) { last.rp = r; el.fav.style.transform = `scaleX(${r})`; }
+    },
+    /** The line of the story under the goal chip ('' = no story now). */
+    story(text) {
+      if (last.story === text) return;
+      last.story = text;
+      q('storyt').textContent = text;
+      q('story').classList.toggle('on', !!text);
     },
     /** The task Ori is following (null = none): the chip under the clock. */
     goal(g) {
@@ -173,7 +301,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
     showPause(on) {
       menu.hidden = !on;
       hud.classList.toggle('paused', on);
-      if (on) menu.querySelector('.g3d-btn.primary').focus({ preventScroll: true });
+      if (on) { syncSettings(); closeBox(); menuFocus.enter(); } else menuFocus.leave();
     },
     /** A card with buttons (the host uses it for graphics problems): [{ label, primary?, run }]. */
     message(title, body, buttons = []) {
@@ -197,7 +325,7 @@ export function createFavorsHud(root, { onPause, onResume, onRestart, onQuit }) 
       if (msgButtons[0]) msgButtons[0].focus({ preventScroll: true });
     },
     clearMessage() { msg.hidden = true; msg.innerHTML = ''; msgButtons = []; },
-    dispose() { clearTimeout(keyTimer); clearTimeout(stamTimer); hud.remove(); menu.remove(); msg.remove(); },
+    dispose() { clearTimeout(keyTimer); clearTimeout(stamTimer); offSettings(); if (walkPad) walkPad.dispose(); hud.remove(); menu.remove(); msg.remove(); },
   };
   return api;
 }

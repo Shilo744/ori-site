@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { createPerson } from './people/person.js';
 import { randomSpec } from './people/specs.js';
 import { RACE, GOLDEN } from './play-content.js';
+import { EXIT } from './tracks.js';
 
 const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.7, metalness: 0, ...o });
 const cache = {};
@@ -83,6 +84,37 @@ function goldenMesh() {
   return g;
 }
 
+/** The start of the Sababa Cup: a banner across the avenue, a chequered line on the asphalt and a pole at each kerb. It is always there (the flag on the map is this place). */
+function startGate(groundAt) {
+  const g = new THREE.Group();
+  g.name = 'start-gate';
+  const x = EXIT.x; // (the east end of the main avenue: the edge of town)
+  const cz = EXIT.z;
+  const y0 = groundAt(x, cz);
+  const half = 5.7; // (the asphalt is 10 wide; the poles stand on the kerbs)
+  const own = [];
+  const tex = (w, h, draw) => { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; own.push(t); return t; };
+  const banner = tex(1024, 256, (c, w, h) => {
+    c.fillStyle = '#10141c'; c.fillRect(0, 0, w, h);
+    const s = 32;
+    for (let i = 0; i < w / s; i++) { c.fillStyle = i % 2 ? '#ffffff' : '#10141c'; c.fillRect(i * s, 0, s, s); c.fillStyle = i % 2 ? '#10141c' : '#ffffff'; c.fillRect(i * s, h - s, s, s); }
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.fillStyle = '#ffffff'; c.font = '900 112px Inter, system-ui, sans-serif'; c.fillText('THE SABABA CUP', w / 2, h / 2 - 10);
+    c.fillStyle = '#ffb25b'; c.font = '800 38px Inter, system-ui, sans-serif'; c.fillText('CAR RACES  -  PRESS R', w / 2, h - 64);
+  });
+  const bm = new THREE.Mesh(new THREE.PlaneGeometry(half * 2 - 0.4, 2.0), new THREE.MeshBasicMaterial({ map: banner, side: THREE.DoubleSide, toneMapped: false }));
+  bm.rotation.y = Math.PI / 2; bm.position.set(x, y0 + 5.6, cz);
+  const poleGeo = new THREE.CylinderGeometry(0.16, 0.2, 6.6, 10);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0xe7e9ee, roughness: 0.55 });
+  for (const s of [-1, 1]) { const p = new THREE.Mesh(poleGeo, poleMat); p.position.set(x, y0 + 3.3, cz + s * half); g.add(p); }
+  const line = tex(64, 512, (c, w, h) => { const s = 32; for (let i = 0; i < h / s; i++) for (let j = 0; j < w / s; j++) { c.fillStyle = (i + j) % 2 ? '#ffffff' : '#161a22'; c.fillRect(j * s, i * s, s, s); } });
+  const lm = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 10), new THREE.MeshBasicMaterial({ map: line, transparent: true, opacity: 0.92, toneMapped: false }));
+  lm.rotation.x = -Math.PI / 2; lm.position.set(x, y0 + 0.04, cz);
+  g.add(bm, lm);
+  g.userData.disposables = [...own, poleGeo, poleMat, bm.geometry, bm.material, lm.geometry, lm.material];
+  return g;
+}
+
 export function createMissionWorld({ scene, makeCar, tier = 'high', shadows = true, groundAt = () => 0 }) {
   const live = new Map(); // key -> { kind, obj, person?, car? }
   const goldens = [];
@@ -90,6 +122,8 @@ export function createMissionWorld({ scene, makeCar, tier = 'high', shadows = tr
   group.name = 'mission-world';
   scene.add(group);
 
+  const gate = startGate(groundAt);
+  group.add(gate);
   const gold = new THREE.Group();
   gold.name = 'golden-peaches';
   group.add(gold);
@@ -105,7 +139,7 @@ export function createMissionWorld({ scene, makeCar, tier = 'high', shadows = tr
     else if (t.kind === 'hat') obj = hatMesh();
     else if (t.kind === 'homework') obj = homeworkMesh();
     else if (t.kind === 'itay') { person = createPerson(randomSpec(4242), { shadows, tier, quality: 0.5 }); obj = person.group; obj.scale.setScalar(0.82); }
-    else if (t.kind === 'rival') { car = makeCar('hatch', 0xe94f3d); obj = car.group; }
+    else if (t.kind === 'rival') { car = makeCar((t.car && t.car.kind) || 'hatch', t.car && t.car.color != null ? t.car.color : 0xe94f3d); obj = car.group; } // (the Sababa Cup rivals bring their own cars)
     else if (t.kind === 'checkpoint') obj = ringMesh(t.r || RACE.radius);
     else return null;
     group.add(obj);
@@ -186,6 +220,7 @@ export function createMissionWorld({ scene, makeCar, tier = 'high', shadows = tr
     dispose() {
       this.clear();
       scene.remove(group);
+      for (const d of gate.userData.disposables) if (d && d.dispose) d.dispose();
       for (const k of Object.keys(cache)) { if (cache[k] && cache[k].dispose) cache[k].dispose(); delete cache[k]; } // (the shared little geometries and materials)
     },
   };

@@ -6,7 +6,7 @@ import { HELLOS, AGAIN, BY_CAST, replyFor, helloFor, loveFor } from '../src/game
 import { createCampaign, safeStorage } from '../src/game3d/favors/campaign.js';
 import { CAST, PLACES } from '../src/game3d/favors/content.js';
 import { createTetrisRun, createRun2048, peachesFor, GAMES } from '../src/game3d/favors/arcade.js';
-import { LANDMARKS, CAR, PLACE_LINES, lineFor } from '../src/game3d/favors/places-guide.js';
+import { LANDMARKS, CAR, CUP, PLACE_LINES, lineFor } from '../src/game3d/favors/places-guide.js';
 import { ICON_NAMES } from '../src/game3d/favors/map2d.js';
 import { BANNED } from './test-favors-persona.mjs';
 
@@ -82,13 +82,15 @@ test('the games on the office computer: blocks fall and lock, lines clear, the r
   let moved = 0;
   for (let i = 0; i < 200 && !q.state.over; i++) if (q.move(['left', 'down', 'right', 'up'][i % 4])) moved++;
   assert.ok(moved > 20 && q.state.score > 0, `${moved} moves, ${q.state.score} points`);
-  assert.equal(GAMES.length, 2);
+  assert.ok(GAMES.length >= 2 && GAMES[0].id === 'tetris' && GAMES[1].id === '2048'); // (v3 has SNAKE as a third: test-favors-snake.mjs)
   assert.ok(peachesFor('tetris', 0) >= 2 && peachesFor('tetris', 5000) > peachesFor('tetris', 500) && peachesFor('2048', 1e9) <= 60);
 });
 
 test('the guide: the stars of the map are real places with a known icon, his car too, every place has one short warm line, and the ring is one of the stars', () => {
   for (const l of LANDMARKS) { assert.ok(PLACES[l.place], l.place); assert.ok(ICON_NAMES.includes(l.icon), l.icon); assert.ok(l.what.length <= 64 && l.short.length <= 7 && /^#[0-9a-f]{6}$/i.test(l.color), l.place); assert.ok(!BANNED.test(l.what), l.what); }
   assert.ok(ICON_NAMES.includes(CAR.icon) && CAR.short.length <= 7 && !BANNED.test(CAR.what));
+  assert.ok(ICON_NAMES.includes(CUP.icon) && CUP.short.length <= 7 && CUP.what.length <= 64 && !BANNED.test(CUP.what) && /^#[0-9a-f]{6}$/i.test(CUP.color), 'the races are on the map: a flag, a short label, a line');
+  assert.ok(/Sababa Cup/.test(PLACE_LINES.workshop) && /Sababa Cup/.test(LANDMARKS.find((l) => l.place === 'workshop').what), 'the garage says that the races are there');
   assert.deepEqual(Object.keys(PLACE_LINES).sort(), Object.keys(PLACES).sort(), 'a line for every place, and none for a place that is not there');
   for (const [id, line] of Object.entries(PLACE_LINES)) { assert.ok(line.length > 8 && line.length <= 64, id); assert.ok(!BANNED.test(line), line); }
   assert.equal(lineFor('court'), PLACE_LINES.court);

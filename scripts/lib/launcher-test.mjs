@@ -1,4 +1,4 @@
-// "Ori, Can You...?" is EASY TO FIND (T59): a Dock icon in the 2nd slot, a hero widget on the desktop, Spotlight, the Welcome window, the
+// "Ori's Life" is EASY TO FIND (T59): a Dock icon in the 2nd slot, a hero widget on the desktop, Spotlight, the Welcome window, the
 // terminal (`play favors`) and the iPhone on the desk in the 3D room all start the game; quitting brings you back where you were.
 import { join } from 'node:path';
 import { SHOTS, sleep, settle, backToRoom } from './harness.mjs';
@@ -18,13 +18,13 @@ export async function runLauncher(session, { ok, fail }) {
 
   // ── the Dock: 2nd slot, label, bounce on launch ──
   const dock = await g(() => { const items = [...document.querySelectorAll('.mac .dk[data-app]')]; return { ids: items.map((b) => b.dataset.app), label: (items[1] && items[1].querySelector('em') && items[1].querySelector('em').textContent) || '', icon: !!(items[1] && items[1].querySelector('svg')) }; });
-  check(dock.ids[1] === 'favors' && dock.ids[0] === 'finder', `the Dock's 2nd icon is "Ori, Can You...?" (${dock.ids.join(', ')})`);
-  check(dock.label === 'Ori, Can You...?' && dock.icon && dock.ids.includes('arcade'), 'it has its label and its art, and the Arcade is still in the Dock (after it)');
+  check(dock.ids[1] === 'favors' && dock.ids[0] === 'finder', `the Dock's 2nd icon is "Ori's Life" (${dock.ids.join(', ')})`);
+  check(dock.label === "Ori's Life" && dock.icon && dock.ids.includes('arcade'), 'it has its label and its art, and the Arcade is still in the Dock (after it)');
 
   // ── the hero widget ──
   if (!flat) {
     const w = await g(() => { const e = document.querySelector('.mac .wg-hero'); if (!e) return null; const r = e.getBoundingClientRect(); const s = document.querySelector('.mac .scr').getBoundingClientRect(); return { inside: r.left >= s.left && r.right <= s.right && r.top >= s.top && r.bottom <= s.bottom, w: r.width, h: r.height, cards: e.querySelectorAll('.oh-stack li').length, play: e.querySelector('.oh-play').textContent, svg: !!e.querySelector('svg.oh-ori'), title: e.querySelector('.oh-t b').textContent }; });
-    check(!!w && w.inside && w.cards === 3 && /play/i.test(w.play) && w.svg && w.title === 'Ori, Can You...?', `the hero widget is on the desktop: Ori's portrait, three parody notifications and PLAY (${w && Math.round(w.w)}x${w && Math.round(w.h)})`);
+    check(!!w && w.inside && w.cards === 3 && /play/i.test(w.play) && w.svg && w.title === "Ori's Life", `the hero widget is on the desktop: Ori's portrait, three parody notifications and PLAY (${w && Math.round(w.w)}x${w && Math.round(w.h)})`);
     const anim = await g(() => { const li = document.querySelector('.mac .oh-stack li'); return { running: getComputedStyle(li).animationPlayState, locked: document.querySelector('.mac').classList.contains('locked') }; });
     check(anim.running === 'running' || anim.locked, 'the notifications cycle (and pause when the screen is not in front of the camera)');
   } else check(await g(() => getComputedStyle(document.querySelector('.mac .wg-hero')).display === 'none'), 'on a phone the widget is out of the way');
@@ -52,10 +52,10 @@ export async function runLauncher(session, { ok, fail }) {
   // Spotlight
   await g(() => window.__ori.desktop.openSpotlight());
   await sleep(250);
-  await page.type('.mac .spot input', 'ori, can');
+  await page.type('.mac .spot input', "ori's life");
   await sleep(250);
   const top = await g(() => { const r = document.querySelector('.mac .spot-res .sr.on'); return r ? r.textContent : ''; });
-  check(/Play: Ori, Can You\.\.\.\?/.test(top), `Spotlight offers "Play: Ori, Can You...?" first (${top.trim().slice(0, 40)})`);
+  check(/Play: Ori's Life/.test(top), `Spotlight offers "Play: Ori's Life" first (${top.trim().slice(0, 40)})`);
   await page.keyboard.press('Enter');
   check(await waitRunning(), 'Enter on that result starts the game');
   await quit();

@@ -4,10 +4,12 @@
 // The sim turns inputs into fighter states + a list of events (hit, block, parry, dodge, blink, ko ...) that the 3D side shows and plays.
 //   input   = { mx, mz (world axes, <= 1), jab, cross, fury, dash (one-frame pulses), block (held) }
 //   fighter = { x, z, face, hp, st, state: 'idle' | 'attack' | 'dash' | 'hit' | 'guardbreak' | 'down' | 'ko' | 'win', move, phase: 'wind' | 'active' | 'rec', t, blocking, ... }
-// The first time a fighter's health runs out he goes DOWN (a count of five, he gets up on his own - the player gets up quicker by mashing the punch keys - with a little
-// health back); the second time is the knock-out. Events: knockdown { who, n }, count { who, n }, getup { who }.
+// The first time Ori's health runs out he goes DOWN (a count of five, he gets up on his own - quicker by mashing the punch keys - with a little health back); the second time is the knock-out.
+// The OPPONENT can go down up to five times, and each time it is a throw of the dice whether he gets up (RISE: 60 %, 30 %, 15 %, 7.5 %, 3 %), with half the health of the time before;
+// if he does not, the count runs out and it is a knock-out, so nobody can count on the man on the canvas. Events: knockdown { who, n }, count { who, n }, getup { who }, ko { who, fromDown }.
 import { mulberry32, subSeed, wrapPi } from '../rng.js';
 import { statsFor } from './boxer.js';
+import { applyBuff } from './buffs.js';
 
 export const RING = { half: 3.3, rope: 0.4 };
 const LIM = RING.half - RING.rope;
@@ -23,6 +25,10 @@ export const MOVES = {
 };
 const DASH = { dist: 2.1, time: 0.2, iframes: 0.15, cd: 0.42, st: 11, perfect: 0.26 };
 const BLINK = { dist: 3.4, time: 0.07, iframes: 0.2, cd: 1.1 };
+/** The odds that the OPPONENT gets up after his 1st, 2nd ... 5th knock-down of a bout (Shilo's rule: nobody can count on it, so the man on the canvas is never certain to rise); a sixth time he stays down. He gets up with RISE_HP of his health the first time, and half of the time before after that. Ori always gets up (once). */
+export const RISE = [0.6, 0.3, 0.15, 0.075, 0.03];
+export const RISE_HP = 0.22;
+const COUNT_OUT = 5.6; // (a man who is not getting up is counted out here: the five, then the referee waves it off)
 const BLOCK = { chip: 0.14, stCost: 1.5, parry: 0.14, parryStun: 0.6, breakStun: 0.8, walk: 0.6 }; // (walk: how fast he still moves with the guard up)
 
 const mkFighter = (id, s, x, z, face) => ({
@@ -37,16 +43,18 @@ const mkFighter = (id, s, x, z, face) => ({
  * One bout.
  * @param {{ level?: number, opp: object, seed?: number, round?: number }} o `opp` = an entry of fight-content.js OPPONENTS (hp, dmg, speed, atk, ai...)
  */
-export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 } = {}) {
+export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6, buff = null, hpFrac = 1 } = {}) {
   const rnd = mulberry32(subSeed(seed, 5));
-  const ps = statsFor(level);
+  const ps = applyBuff(statsFor(level), buff); // (a bite of food [experimental]: a little help for this one fight)
   const os = { maxHp: opp.hp, maxSt: opp.st ?? 100, dmg: opp.dmg ?? 1, speed: opp.speed ?? 1, atk: opp.atk ?? 1, regen: opp.regen ?? 1, unlocks: { combo: true } };
   const P = mkFighter('player', ps, 0, 1.45, Math.PI);
+  P.hp = P.maxHp * clamp(hpFrac, 0.1, 1); // (the 2nd and 3rd fight of the Sababa Open start with what was left, and some of it back)
   const O = mkFighter('opp', os, 0, -1.45, 0);
   const events = [];
   const emit = (e) => events.push(e);
   const b = {
     P, O, opp, level, time: 0, timeLeft: round, round, intro, over: false, result: null, over_t: 0, slow: 0, slowK: 0.35, stats: { maxCombo: 0, perfect: 0, parry: 0, taken: 0, dealt: 0, hits: 0, thrown: 0, downs: 0 },
+    rise: RISE, // (the odds of getting up after each knock-down of the opponent; tests put their own)
     drain() { return events.splice(0, events.length); },
   };
 
@@ -106,10 +114,13 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
   const dur = (f, m) => ({ wind: (MOVES[m].wind * (f.id === 'opp' ? (opp.ai && opp.ai.tell) || 1 : 1)) / f.atk, act: MOVES[m].act / f.atk, rec: MOVES[m].rec / f.atk });
   function startAttack(f, m, o) {
     const mv = MOVES[m];
-    if (f.st < mv.st * 0.5) { f.tired = 0.4; if (f.id === 'player') emit({ type: 'tired', who: f.id }); return false; }
+    const spent = f.st < mv.st * 0.5; // (out of breath: the punch still comes, slower and softer - nobody stands about waiting for air)
+    if (spent) { f.tired = 0.4; if (f.id === 'player') emit({ type: 'tired', who: f.id }); else return false; } // (the others still wait for air: the ladder's difficulty is what it was)
+    f.weak = spent;
     f.st = Math.max(0, f.st - mv.st);
     f.state = 'attack'; f.move = m; f.phase = 'wind'; f.t = 0; f.hitDone = false; f.queued = null; f.blocking = false; f.feint = false;
     f.d = dur(f, m);
+    if (spent) { f.d.wind *= 1.8; f.d.rec *= 1.8; }
     b.stats.thrown += f.id === 'player' ? 1 : 0;
     if (f.id === 'player') { if (m === 'jab') f.chain = f.chainT > 0 && f.chainMove === 'jab' ? f.chain + 1 : 1; else f.chain = 0; f.chainMove = m; f.chainT = 1.0; }
     emit({ type: 'swing', who: f.id, move: m, wind: f.d.wind });
@@ -157,18 +168,21 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
     f.downs++; b.stats.downs += f.id === 'player' ? 1 : 0;
     f.state = 'down'; f.t = 0; f.hp = 0.01; f.move = null; f.phase = null; f.blocking = false; f.queued = null; f.stun = 0; f.downT = 0; f.counted = 0; f.mashT = 0;
     f.getupAt = f.id === 'player' ? 3.4 : (A.blink ? 2.2 : 2.9) + rnd() * 1.0;
+    f.downBy = by; // (the opponent may not get up: then the count runs out and it is a knock-out)
+    f.willRise = f.id === 'player' || rnd() < (b.rise[f.downs - 1] ?? 0);
+    if (!f.willRise) f.getupAt = 1e9;
     by.meter = Math.min(100, by.meter + 25);
     emit({ type: 'knockdown', who: f.id, n: f.downs });
   }
   function getUp(f) {
     f.state = 'idle'; f.t = 0; f.downT = 0; f.counted = 0;
-    f.hp = f.maxHp * (f.id === 'player' ? 0.3 : 0.22); f.st = Math.max(f.st, f.maxSt * 0.6); f.iframes = 1.2;
+    f.hp = f.maxHp * (f.id === 'player' ? 0.3 : RISE_HP * 0.5 ** Math.max(0, f.downs - 1)); f.st = Math.max(f.st, f.maxSt * 0.6); f.iframes = 1.2;
     emit({ type: 'getup', who: f.id });
   }
-  function ko(f, by) {
+  function ko(f, by, fromDown = false) {
     f.state = 'ko'; f.t = 0; f.hp = 0; f.move = null; f.phase = null; f.blocking = false;
     by.state = 'win'; by.t = 0;
-    emit({ type: 'ko', who: f.id });
+    emit({ type: 'ko', who: f.id, fromDown });
   }
 
   function resolve(att, tgt, m, scale = 1) {
@@ -180,16 +194,16 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
     if (tgt.iframes > 0) { // missed him: he was already gone
       emit({ type: 'dodged', who: tgt.id, by: att.id, move: m });
       if (tgt.state === 'dash' && tgt.dashT <= DASH.perfect) {
-        tgt.counter = 1.2; tgt.meter = Math.min(100, tgt.meter + 22);
+        tgt.counter = 1.2; tgt.meter = Math.min(100, tgt.meter + 22); if (tgt.id === 'player') tgt.st = Math.min(tgt.maxSt, tgt.st + 14);
         if (tgt.id === 'player') { b.stats.perfect++; b.slow = 0.5; emit({ type: 'perfect', who: tgt.id }); }
       }
       return;
     }
-    const base = mv.dmg * att.dmg * scale;
+    const base = mv.dmg * att.dmg * scale * (att.weak ? 0.25 : 1);
     const guarded = tgt.blocking && (tgt.state === 'idle');
     if (guarded && tgt.blockT <= BLOCK.parry) { // PARRY: the punch is thrown back at him
       att.state = 'hit'; att.stun = BLOCK.parryStun; att.t = 0; att.move = null; att.phase = null; att.queued = null;
-      tgt.counter = 1.0; tgt.meter = Math.min(100, tgt.meter + 16);
+      tgt.counter = 1.0; tgt.meter = Math.min(100, tgt.meter + 16); if (tgt.id === 'player') tgt.st = Math.min(tgt.maxSt, tgt.st + 10);
       if (tgt.id === 'player') b.stats.parry++;
       emit({ type: 'parry', who: tgt.id, by: att.id, x: tgt.x, z: tgt.z });
       return;
@@ -213,7 +227,7 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
     tgt.hurt = 0.25;
     b.stats[att.id === 'player' ? 'dealt' : 'taken'] += dmg;
     if (att.id === 'player') { b.stats.hits++; b.stats.maxCombo = Math.max(b.stats.maxCombo, att.combo); att.meter = Math.min(100, att.meter + 7 + (counter ? 8 : 0)); }
-    att.st = Math.min(att.maxSt, att.st + 3);
+    att.st = Math.min(att.maxSt, att.st + (att.id === 'player' ? 1 + mv.st * 0.25 * (counter ? 1.6 : 1) : 3)); // (a punch of Ori that lands gives breath back: the accurate go on, the wild run dry)
     tgt.blocking = false;
     if (tgt.armor > 0) { knock(tgt, fx, fz, mv.push * 0.2); } else {
       tgt.state = 'hit'; tgt.stun = mv.stun * (guarded ? 0.7 : 1); tgt.t = 0; tgt.move = null; tgt.phase = null; tgt.queued = null;
@@ -222,7 +236,7 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
       knock(tgt, fx, fz, mv.push);
     }
     emit({ type: 'hit', who: att.id, target: tgt.id, move: m, dmg, combo: att.combo, counter, heavy: mv.dmg >= 13, x: tgt.x, z: tgt.z, hp: Math.max(0, tgt.hp) });
-    if (tgt.hp <= 0) { if (tgt.downs < 1 && !b.noKnockdowns) knockdown(tgt, att); else ko(tgt, att); }
+    if (tgt.hp <= 0) { if (tgt.downs < (tgt.id === 'player' ? 1 : b.rise.length) && !b.noKnockdowns) knockdown(tgt, att); else ko(tgt, att); }
   }
   function knock(f, fx, fz, amount) { f.x += fx * amount; f.z += fz * amount; }
 
@@ -246,6 +260,7 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
       if (f.id === 'player' && f.mashT <= 0 && (inp.jab || inp.cross || inp.dash)) { f.getupAt = Math.max(1.4, f.getupAt - 0.2); f.mashT = 0.09; }
       const n = Math.min(5, Math.floor(f.downT));
       if (n > f.counted) { f.counted = n; emit({ type: 'count', who: f.id, n }); }
+      if (!f.willRise && f.downT >= COUNT_OUT) { ko(f, f.downBy, true); return; }
       if (f.downT >= f.getupAt) getUp(f);
       return;
     }
@@ -317,6 +332,7 @@ export function createBout({ level = 1, opp, seed = 1, round = 75, intro = 1.6 }
   // ── Peach Fury: a flurry of six blows while he cannot be touched ──
   function startFury(f) {
     if (f.meter < 100 || !f.unlocks.fury) return;
+    f.weak = false;
     f.meter = 0; f.state = 'fury'; f.t = 0; f.furyHits = 0; f.iframes = 1.5; f.blocking = false; f.queued = null;
     emit({ type: 'fury', who: f.id });
   }

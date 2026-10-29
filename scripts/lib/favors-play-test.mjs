@@ -190,15 +190,28 @@ export async function runFavorsPlay(session, { ok, fail }) {
 
   // ── 6. the car: the afterburner tank, a taxi with a mood, the race ──
   {
+    await g(() => window.__ori.game3d.game.setStamina(0.5));
+    await sleep(300);
+    const barOnFoot = await g(() => document.querySelector('.fv-stam').classList.contains('on'));
     check(await g(() => window.__ori.game3d.game.enterOwnCar()), 'Ori gets into his own car');
+    await sleep(1500);
+    const barInCar = await g(() => document.querySelector('.fv-stam').classList.contains('on'));
+    const breath = (await S()).player.stamina;
+    check(barOnFoot && !barInCar && breath > 0.6, `the run bar is for the legs: shown on foot (${barOnFoot}), gone in the car (${!barInCar}), and he gets his breath back sitting there (0.5 -> ${breath.toFixed(2)})`);
     const drv = async (waypoints, { limit = 15, tol = 9, maxMs = 120000, stopAt = null } = {}) => {
       const held = new Set();
       const hold = async (k, on) => { if (on && !held.has(k)) { held.add(k); await page.keyboard.down(k); } else if (!on && held.has(k)) { held.delete(k); await page.keyboard.up(k); } };
       let i = 0;
       const t0 = Date.now();
+      let still = 0; let backUntil = 0; let tPrev = t0; // (stuck against a kerb or a wall for two seconds: back out for a moment, then steer on)
       while (i < waypoints.length && Date.now() - t0 < maxMs) {
         const r = await g(() => { const c = window.__ori.game3d.state().car; const done = window.__ori.game3d.state().quests; return c ? { x: c.x, z: c.z, h: c.heading, v: c.speed } : null; });
         if (!r) break;
+        const now = Date.now();
+        still = Math.abs(r.v) < 0.6 ? still + (now - tPrev) : 0;
+        tPrev = now;
+        if (now < backUntil) { await hold('KeyW', false); await hold('KeyA', false); await hold('KeyD', false); await hold('KeyS', true); await sleep(35); continue; }
+        if (still > 2000) { still = 0; backUntil = now + 800; continue; }
         const [wx, wz] = waypoints[i];
         const d = Math.hypot(wx - r.x, wz - r.z);
         const last = i === waypoints.length - 1;

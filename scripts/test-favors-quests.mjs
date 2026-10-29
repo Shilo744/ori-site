@@ -433,4 +433,28 @@ test('200 bot days: a slower human (60% of the speed, lazier jobs) gets a lower 
   assert.ok(stat(human, (q) => q.state.score) > 700, 'a human still has a good day');
 });
 
+// ── optional favours (the Sababa Cup race he chose) ──
+test('an optional favour costs nothing to leave: no missed favour, no penalty, no stress, the streak stays; declining is free; finishing counts', () => {
+  const q = createQuests({ seed: 5, dist, noTasks: true });
+  const rel0 = JSON.stringify(q.state.rel);
+  const a = q.inject('league-moti');
+  assert.equal(a.optional, true);
+  q.state.streak = 3;
+  run(q, 700);
+  assert.ok(q.state.chaos < 1, 'an optional race is no pressure');
+  run(q, DAY_END);
+  assert.equal(a.state, 'dropped');
+  assert.deepEqual([q.state.stats.failed, q.state.streak, q.report().missed], [0, 3, 0]);
+  assert.equal(JSON.stringify(q.state.rel), rel0);
+  const q2 = createQuests({ seed: 5, dist, noTasks: true });
+  const b = q2.inject('league-albert');
+  const c = q2.inject('league-roee');
+  assert.equal(q2.reply(b.uid, 'no'), true);
+  assert.deepEqual([b.state, q2.state.stats.declined, q2.state.streak], ['dropped', 0, 0]);
+  assert.equal(q2.open().length, 1);
+  assert.ok(q2.complete(c.uid, 1) && c.state === 'done' && q2.state.stats.done === 1);
+  const plain = q2.inject('mum-bread');
+  assert.equal(plain.optional, false, 'an ordinary favour is not optional');
+});
+
 console.log(`${n} quest tests passed`);

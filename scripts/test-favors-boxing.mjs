@@ -1,10 +1,11 @@
 // "Ori, Can You...?" — the boxing ring (pure): the rules (a hit, a guard, a parry, a perfect dodge, the knock-out), the levels, and the ladder: a sensible
 // scripted boxer can beat every neighbour and the hidden boss; a button-masher cannot beat the strong ones.      node scripts/test-favors-boxing.mjs
 import assert from 'node:assert/strict';
-import { createBout, botInput, MOVES, RING } from '../src/game3d/favors/boxing.js';
+import { createBout, botInput, MOVES, RING, RISE, RISE_HP } from '../src/game3d/favors/boxing.js';
 import { statsFor, gainXp, xpToNext, MAX_LEVEL, MOVE_LIST, xpProgress } from '../src/game3d/favors/boxer.js';
 import { LADDER, BOSS, FIGHTERS, availability, nextFight } from '../src/game3d/favors/fight-content.js';
 import { mulberry32 } from '../src/game3d/rng.js';
+import { runGrid, violations } from './lib/balance.mjs';
 
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log(`  ✓ ${name}`); };
@@ -140,8 +141,9 @@ test('the ring: nobody leaves it, nobody walks through the other, and a knock-ou
   assert.equal(k.O.state, 'ko');
 });
 
-test('a knock-down: the first time his health runs out he goes down for a count and gets up with a little health back; the second time is the knock-out', () => {
+test('a knock-down (the old rule: one, and he always gets up): the first time his health runs out he goes down for a count and gets up with a little health back; the second time is the knock-out', () => {
   const b = setup({ ...dummy, hp: 14 });
+  b.rise = [1]; // (one knock-down and he always gets up: the dice have their own tests below)
   b.O.z = -1.2; b.P.z = 0.2;
   const ev = [];
   for (let t = 0; t < 3 && b.O.state !== 'down'; t += DT) { b.update(DT, { jab: true, cross: true }); ev.push(...b.drain()); }
@@ -246,6 +248,16 @@ test('the hidden boss: absurdly fast (he teleports), so the same careful boxer n
   assert.ok(BOSS.ai.speed === undefined && BOSS.speed > 2 && BOSS.atk > 1.8, 'exaggerated speed');
 });
 
+test('balance lab (a small grid; `node scripts/balance-lab.mjs` prints the whole table to .night/balance.md): an opponent never gets harder as Ori levels up, and a masher never does better against a later neighbour than an earlier one', () => {
+  const grid = runGrid({ runs: 8, levels: [1, 5, 10] });
+  const bad = violations(grid, 0.3).filter((v) => v.kind === 'level' || v.bot === 'masher');
+  assert.deepEqual(bad, [], JSON.stringify(bad));
+  const c = grid.cells;
+  assert.ok(c.careful.shilo[1].win <= 0.35, 'the hidden boss is no walk-over for a first-level boxer');
+  assert.ok(['inspector', 'dov', 'coach', 'shilo'].every((id) => c.masher[id][1].win === 0), 'a first-level masher beats none of the strong ones');
+  assert.ok(grid.opponents.every((id) => c.careful[id][10].win >= 0.9), 'a careful boxer of the top level beats everybody');
+});
+
 test('the ladder opens in order and with love; the boss is hidden until the champion has fallen', () => {
   const rec = { beaten: [] };
   assert.equal(availability(LADDER[0], rec, 0).open, true);
@@ -262,6 +274,90 @@ test('the ladder opens in order and with love; the boss is hidden until the cham
   assert.equal(nextFight(rec, 100), null);
   assert.equal(FIGHTERS.length, 6);
   for (const f of FIGHTERS) assert.ok(f.pre.length >= 2 && f.win && f.lose && f.reward.xp > 0);
+});
+
+// ── the dice (Shilo): the man on the canvas may not get up ──
+test('the dice: the opponent gets up 60 % of the time after the first knock-down, then 30 %, 15 %, 7.5 % and 3 %; Ori always gets up once', () => {
+  assert.deepEqual(RISE, [0.6, 0.3, 0.15, 0.075, 0.03]);
+  assert.equal(RISE_HP, 0.22);
+  let rise = 0; const N = 400;
+  for (let s = 1; s <= N; s++) {
+    const b = createBout({ level: 1, opp: { ...dummy, hp: 14 }, seed: s, intro: 0 });
+    b.O.z = -1.2; b.P.z = 0.2;
+    for (let t = 0; t < 3 && b.O.state !== 'down'; t += DT) { b.update(DT, { jab: true, cross: true }); b.drain(); }
+    assert.equal(b.O.state, 'down', 'seed ' + s);
+    if (b.O.willRise) rise++;
+  }
+  assert.ok(rise / N > 0.52 && rise / N < 0.68, `about six in ten: ${rise} of ${N}`);
+  const hitter = { id: 'hitter', hp: 300, dmg: 60, speed: 1, atk: 1, ai: { start: 0.05, react: 9, tell: 1, patterns: [['jab']], rest: [0.2, 0.2], block: 0, dodge: 0, range: 1.5 } };
+  const b = createBout({ level: 1, opp: hitter, seed: 4, intro: 0 });
+  b.rise = [0]; // (the dice are for the opponent only)
+  b.O.z = b.P.z - 1.3; b.O.x = b.P.x;
+  let up = false;
+  for (let t = 0; t < 12 && !up; t += DT) { b.update(DT, {}); for (const e of b.drain()) if (e.type === 'getup' && e.who === 'player') up = true; }
+  assert.ok(up && b.P.willRise === true, 'Ori goes down and gets up, whatever the dice say');
+});
+
+test('he does not get up: the count runs out (one to five), the referee waves it off, and it is a knock-out for Ori', () => {
+  const b = setup({ ...dummy, hp: 14 });
+  b.rise = [0];
+  b.O.z = -1.2; b.P.z = 0.2;
+  const ev = [];
+  for (let t = 0; t < 14 && !b.over; t += DT) { b.update(DT, t < 3 ? { jab: true, cross: true } : {}); ev.push(...b.drain()); }
+  assert.ok(b.over && b.result.how === 'ko' && b.result.winner === 'player' && b.O.state === 'ko', JSON.stringify(b.result));
+  const kinds = ev.map((e) => e.type);
+  assert.ok(kinds.indexOf('knockdown') >= 0 && kinds.indexOf('ko') > kinds.lastIndexOf('count') && kinds.lastIndexOf('count') > kinds.indexOf('knockdown') && !kinds.includes('getup'), kinds.join());
+  assert.deepEqual(ev.filter((e) => e.type === 'count').map((e) => e.n), [1, 2, 3, 4, 5]);
+  assert.equal(ev.find((e) => e.type === 'ko').fromDown, true, 'the K.O. comes from the canvas (the 3D side does not make him fall twice)');
+});
+
+test('five knock-downs at most: each time he gets up with half the health of the time before, and the sixth time is final', () => {
+  const b = setup({ ...dummy, hp: 100 });
+  b.rise = [1, 1, 1, 1, 1];
+  b.O.z = -1.2; b.P.z = 0.2; b.O.hp = 1;
+  const ups = []; const downs = []; let finalKo = null;
+  for (let t = 0; t < 240 && !b.over; t += DT) {
+    if (b.O.state === 'idle') { b.O.x = b.P.x; b.O.z = b.P.z - 1.2; b.P.st = b.P.maxSt; if (b.O.hp > 2 && ups.length < 5) b.O.hp = Math.min(b.O.hp, 2); }
+    b.update(DT, { jab: true, cross: true });
+    for (const e of b.drain()) {
+      if (e.type === 'knockdown' && e.who === 'opp') downs.push(e.n);
+      if (e.type === 'getup' && e.who === 'opp') ups.push(b.O.hp / b.O.maxHp);
+      if (e.type === 'ko' && e.who === 'opp') finalKo = e;
+    }
+  }
+  assert.deepEqual(downs, [1, 2, 3, 4, 5], 'five knock-downs');
+  assert.equal(ups.length, 5);
+  for (const [i, f] of ups.entries()) assert.ok(Math.abs(f - RISE_HP * 0.5 ** i) < 0.003, `get-up ${i + 1}: ${f.toFixed(4)} of the bar, expected ${(RISE_HP * 0.5 ** i).toFixed(4)}`);
+  assert.ok(b.over && b.result.how === 'ko' && finalKo && finalKo.fromDown === false, 'the sixth time he is knocked out on his feet, for good');
+});
+
+test('a fight can start with part of the health (the 2nd and 3rd fight of the Sababa Open): the share is kept between a tenth and the whole', () => {
+  const mk = (hpFrac) => createBout({ level: 2, opp: dummy, seed: 3, intro: 0, hpFrac });
+  const full = mk(1);
+  assert.equal(full.P.hp, full.P.maxHp);
+  assert.ok(Math.abs(mk(0.7).P.hp / mk(0.7).P.maxHp - 0.7) < 1e-9);
+  assert.ok(Math.abs(mk(0).P.hp / mk(0).P.maxHp - 0.1) < 1e-9 && mk(5).P.hp === mk(5).P.maxHp);
+  assert.equal(createBout({ level: 2, opp: dummy, seed: 3, intro: 0 }).P.hp, full.P.maxHp, 'no share given: the whole bar');
+});
+
+test('out of breath (Ori): the punch still comes - slower and a lot softer, nothing locks him out; a punch that lands gives breath back', () => {
+  const run = (st) => {
+    const b = setup({ ...dummy, hp: 100 });
+    b.O.z = -1.2; b.P.z = 0.2; b.P.st = st;
+    const ev = [];
+    let stSwing = null; let stHit = null;
+    for (let t = 0; t < 1.6; t += DT) {
+      b.update(DT, t === 0 ? { jab: true } : {});
+      for (const e of b.drain()) { ev.push(e); if (e.type === 'swing' && stSwing == null) stSwing = b.P.st; if (e.type === 'hit' && stHit == null) stHit = b.P.st; }
+    }
+    return { b, ev, dealt: 100 - b.O.hp, stSwing, stHit };
+  };
+  const fresh = run(100); const spent = run(0);
+  assert.ok(fresh.dealt > 4 && !fresh.b.P.weak && !fresh.ev.some((e) => e.type === 'tired'), 'a rested jab is a jab');
+  assert.ok(spent.ev.some((e) => e.type === 'swing') && spent.ev.some((e) => e.type === 'tired') && spent.b.P.weak === true, 'an empty bar: the punch comes out, and he is told he is out of breath');
+  assert.ok(spent.dealt > 0 && spent.dealt < fresh.dealt * 0.35, `and it is a tap: ${spent.dealt.toFixed(1)} against ${fresh.dealt.toFixed(1)}`);
+  assert.equal(spent.b.P.st >= 0, true, 'the bar never goes below nothing');
+  assert.ok(Math.abs(fresh.stHit - fresh.stSwing - (1 + MOVES.jab.st * 0.25)) < 0.01, `a jab that lands gives ${(fresh.stHit - fresh.stSwing).toFixed(2)} back`);
 });
 
 console.log(`${n} boxing tests passed`);

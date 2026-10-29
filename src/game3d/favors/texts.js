@@ -124,6 +124,13 @@ export const TEXT = {
   anotherDay: 'Another day',
   backToDesktop: 'Back to the desktop',
   pausedHint: 'Esc resumes · the day waits for you',
+  saveFull: 'Storage is full on this device, so today lives only in my head - free some space and I will save again!',
+  saveBlocked: 'This browser does not let me save here (a private window?). The day still works, I just will not remember it tomorrow.',
+  saveCorrupt: 'The old save was scrambled, so we start fresh - I kept a copy aside in case it can be rescued.',
+  saveLoaded: (what) => `Save loaded: ${what}. Welcome back!`,
+  saveCopied: 'Save code copied - keep it somewhere safe!',
+  trophy: (name) => `Achievement: ${name}`,
+  trophies: (n) => `${n} achievements unlocked!`,
 };
 
 /** A different warm line each time, but always the same for the same task. */

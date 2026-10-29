@@ -1,0 +1,65 @@
+/* the journal's career page (T15) and a card that scrolls on a short window */
+.jr-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }
+.jr-career { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; }
+.jr-career li { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
+.jr-career b { font: 750 17px/1.15 Inter, system-ui, sans-serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.jr-career small { color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 11px; }
+@media (max-width: 700px) { .jr-career { grid-template-columns: repeat(2, 1fr); } }
+
+/* the journal's two pages and the achievements page (T31) [experimental] */
+.jr-tabs { display: flex; gap: 6px; margin-top: 8px; }
+.jr-tabs button { font: 700 12px Inter, system-ui, sans-serif; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: var(--fv-ink, #f5f6fa); }
+.jr-tabs button[aria-selected='true'] { background: #ffb25b; color: #1d1208; border-color: transparent; }
+.jr-tabs button:focus-visible { outline: 2px solid var(--fv-accent, #ff9f43); outline-offset: 2px; }
+.jr-tabs b { margin-left: 6px; font-weight: 800; opacity: 0.75; }
+.tr-grid { list-style: none; margin: 12px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tr { display: grid; grid-template-columns: 34px 1fr; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); opacity: 0.6; min-width: 0; }
+.tr.on { opacity: 1; background: rgba(255, 178, 91, 0.13); }
+.tr b { display: block; font-size: 13px; }
+.tr small { display: block; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 11px; line-height: 1.25; }
+.tr .tr-n { display: block; margin-top: 2px; font-style: normal; font-size: 10px; font-weight: 700; color: #ffb25b; font-variant-numeric: tabular-nums; }
+.tr-bar { display: block; height: 4px; margin-top: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.tr-bar i { display: block; height: 100%; background: #ffb25b; }
+.tr-ic { width: 30px; height: 30px; background: var(--c, #ffb25b); }
+.tr-ic[data-shape='heart'] { clip-path: polygon(50% 92%, 6% 46%, 6% 24%, 24% 6%, 42% 6%, 50% 18%, 58% 6%, 76% 6%, 94% 24%, 94% 46%); }
+.tr-ic[data-shape='star'] { clip-path: polygon(50% 4%, 61% 36%, 96% 38%, 68% 58%, 78% 92%, 50% 72%, 22% 92%, 32% 58%, 4% 38%, 39% 36%); }
+.tr-ic[data-shape='bolt'] { clip-path: polygon(58% 2%, 18% 56%, 46% 56%, 38% 98%, 84% 40%, 54% 40%); }
+.tr-ic[data-shape='diamond'] { clip-path: polygon(50% 2%, 94% 50%, 50% 98%, 6% 50%); }
+.tr-ic[data-shape='shield'] { clip-path: polygon(50% 2%, 92% 16%, 86% 60%, 50% 98%, 14% 60%, 8% 16%); }
+.tr-ic[data-shape='ring'] { border-radius: 50%; background: radial-gradient(circle, transparent 36%, var(--c) 40%); }
+.tr-ic[data-shape='peach'] { border-radius: 50% 50% 46% 46%; }
+@media (max-width: 760px) { .tr-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 480px) { .tr-grid { grid-template-columns: 1fr; } }
+
+/* the daily wishes page (T38) [experimental] */
+.wi-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.wi { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); }
+.wi.on { background: rgba(255, 210, 77, 0.14); }
+.wi.late { opacity: 0.6; }
+.wi b { display: block; font-size: 15px; }
+.wi small { display: block; margin-top: 2px; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 12px; }
+.wi .tr-bar { display: block; margin-top: 6px; }
+.wi-st { display: block; position: relative; width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); }
+.wi.t2 .wi-st { border-radius: 8px; }
+.wi.t3 .wi-st { border-radius: 4px; }
+.wi.on .wi-st { border-color: #ffd24d; background: #ffd24d; }
+.wi.on .wi-st::after { content: ''; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid #3a2a00; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+.wi-days { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.wi-day { display: grid; justify-items: center; gap: 4px; padding: 6px 9px; border-radius: 12px; background: rgba(255, 255, 255, 0.06); font: 600 11px Inter, system-ui, sans-serif; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+.wi-day.now { outline: 1px dashed rgba(255, 210, 77, 0.6); }
+.wi-day span { display: flex; gap: 3px; }
+.wi-day i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255, 255, 255, 0.16); }
+.wi-day i.on { background: #ffd24d; box-shadow: 0 0 6px rgba(255, 210, 77, 0.6); }
+
+/* the stamp book (T39) [experimental] */
+.sb-head { display: flex; justify-content: space-between; align-items: baseline; margin: 2px 0 6px; font: 700 14px Inter, system-ui, sans-serif; }
+.sb-head span { color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-weight: 600; }
+.sb-grid { list-style: none; margin: 0 0 16px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 8px; }
+.sb { display: grid; justify-items: center; gap: 5px; padding: 8px 4px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); text-align: center; }
+.sb i { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; font: 800 8px/1 Inter, system-ui, sans-serif; font-style: normal; letter-spacing: 0.02em; color: rgba(255, 255, 255, 0.4); border: 2px dashed rgba(255, 255, 255, 0.22); transform: rotate(-8deg); }
+.sb.on i { color: #fff; background: var(--c); border: 2px solid rgba(255, 255, 255, 0.85); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); }
+.sb small { font-size: 11px; line-height: 1.2; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+
+/* gifts from the neighbours (T41) [experimental]: the same little grid as the stamp book */
+.gf.on i { background: #ff9f5b; color: #3a2000; border: 2px solid rgba(255, 255, 255, 0.85); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); font-size: 17px; letter-spacing: 0; transform: none; }
+.gf i { transform: none; border-radius: 14px; }

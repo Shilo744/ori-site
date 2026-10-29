@@ -130,7 +130,7 @@ export function makeTask(uid, tpl, at, dist, difficulty, planned = at, slack = 1
     pri: tpl.fake ? 3 : tpl.pri ?? tone.pri,
     createdAt: Math.round(at), deadline, window: deadline - Math.round(planned),
     score: Math.round(tone.score * boost), relGain: tone.rel, penRel: tone.penRel, chaos: tone.chaos,
-    mech: tpl.mech || null, setpiece: !!tpl.setpiece, delegable: (tpl.delegable ?? tpl.tone === 'trivial') && !tpl.mech, calm: !!tpl.calm, coffee: !!tpl.coffee, then: tpl.then || null,
+    mech: tpl.mech || null, setpiece: !!tpl.setpiece, optional: !!tpl.optional, delegable: (tpl.delegable ?? tpl.tone === 'trivial') && !tpl.mech, calm: !!tpl.calm, coffee: !!tpl.coffee, then: tpl.then || null,
     state: 'new', later: false, doneAt: null, resolveAt: null,
   };
 }
@@ -171,6 +171,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal', rel = null
   }
 
   function fail(t) {
+    if (t.optional) { t.state = 'dropped'; t.doneAt = state.min; emit({ type: 'declined', uid: t.uid }); return; } // (a race he chose and did not run: nothing is lost)
     t.state = 'failed';
     t.doneAt = state.min;
     state.stats.failed++;
@@ -203,7 +204,7 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal', rel = null
   function chaosTarget() {
     let w = 0;
     for (const t of state.tasks) {
-      if (!isOpen(t)) continue;
+      if (!isOpen(t) || t.optional) continue; // (a race he chose is no pressure)
       const urgency = clamp(1 - (t.deadline - state.min) / Math.max(1, t.window), 0, 1);
       w += t.pri * (0.5 + 1.0 * urgency);
     }
@@ -270,12 +271,13 @@ export function createQuests({ seed = 1, dist, difficulty = 'normal', rel = null
         t.later = true;
         t.deadline = Math.min(DAY_END - 1, CLOSES[t.at] != null ? Math.min(CLOSES[t.at], t.deadline + REPLY_LATER_MIN) : t.deadline + REPLY_LATER_MIN);
         t.window += REPLY_LATER_MIN;
-        adjRel(t.rel, -2);
+        if (!t.optional) adjRel(t.rel, -2);
         if (t.state === 'new') t.state = 'accepted';
         emit({ type: 'later', uid });
         return true;
       }
       if (kind === 'no') {
+        if (t.optional) { t.state = 'dropped'; t.doneAt = state.min; emit({ type: 'declined', uid }); return true; }
         t.state = 'declined';
         t.doneAt = state.min;
         state.stats.declined++;

@@ -1,0 +1,3 @@
+/* reduce motion in the ring (T05): the same quiet as prefers-reduced-motion in fight.css, but from the game's own setting (the room's System Settings) */
+.fi-big.fi-calm.on, .fi-calm .fi-combo.pop, .fi-calm .fi-card, .fi-calm .fi-levelup, .fi-calm .fi-target.on { animation: none; }
+.fi-calm .fi-tb, .fi-calm .fi-stick i { transition: none; }

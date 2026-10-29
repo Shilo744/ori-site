@@ -45,7 +45,7 @@ export async function runFavorsSound(session, { ok, fail }) {
   check(st0.track === 'fight' && st0.bpm === 128 && st0.step > 8, `the fight track (${st0.bpm} bpm, step ${st0.step}, layer ${st0.level})`);
 
   // a punch is a sound: nodes appear and are all gone a few seconds later
-  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.P.x = 0; b.P.z = 0.5; b.O.x = 0; b.O.z = -0.85; b.O.hp = b.O.maxHp; });
+  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.rise = [1]; b.P.x = 0; b.P.z = 0.5; b.O.x = 0; b.O.z = -0.85; b.O.hp = b.O.maxHp; }); // (b.rise = [1]: one knock-down and he gets up, so the order of the sounds below is the same every time)
   await g(() => { window.__calls.length = 0; });
   await press('KeyJ'); await sleep(450);
   const calls1 = await g(() => window.__calls.slice());
@@ -53,7 +53,7 @@ export async function runFavorsSound(session, { ok, fail }) {
   check(iw >= 0 && ih > iw && calls1[iw][1] > 0.05 && calls1[ih][1].dmg > 3, `a jab: the whoosh (wind-up ${iw >= 0 ? calls1[iw][1].toFixed(2) : '?'} s, Ori's own) comes first, then the thud (${ih >= 0 ? Math.round(calls1[ih][1].dmg) : '?'} damage on the opponent)`);
 
   // the music builds when somebody is hurt (on a bar line: give it a few bars)
-  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.O.hp = b.O.maxHp * 0.12; b.O.x = 0; b.O.z = -2.6; });
+  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.rise = [1]; b.O.hp = b.O.maxHp * 0.12; b.O.x = 0; b.O.z = -2.6; });
   let lvl = 0;
   for (let i = 0; i < 50 && lvl < 3; i++) { await sleep(300); lvl = await g(() => window.__ori.game3d.game.fight.music.level); }
   check(lvl >= 2, `the music builds as the opponent is hurt: layer ${lvl} (of 3)`);
@@ -84,7 +84,7 @@ export async function runFavorsSound(session, { ok, fail }) {
     if (s.f.O.state === 'down') { sawDown = true; whisper = Math.min(whisper, s.gate); }
     else if (sawDown && s.f.O.state === 'idle') back = Math.max(back, s.gate);
     if (s.f.over || s.f.phase === 'result' || s.f.O.state === 'ko') { koDone = true; break; }
-    if (s.f.O.state === 'idle' || s.f.O.state === 'attack') await g(() => { const b = window.__ori.game3d.game.fight.bout; b.P.hp = b.P.maxHp; b.P.st = b.P.maxSt; b.O.hp = Math.min(b.O.hp, 2); b.O.x = b.P.x; b.O.z = b.P.z - 1.2; });
+    if (s.f.O.state === 'idle' || s.f.O.state === 'attack') await g(() => { const b = window.__ori.game3d.game.fight.bout; b.rise = [1]; b.P.hp = b.P.maxHp; b.P.st = b.P.maxSt; b.O.hp = Math.min(b.O.hp, 2); b.O.x = b.P.x; b.O.z = b.P.z - 1.2; });
     await press('KeyJ'); await sleep(240);
   }
   check(sawDown && whisper < 0.2 && back > 0.7, `the knock-down count: the music drops to ${whisper.toFixed(2)} and is back at ${back.toFixed(2)} when he gets up`);

@@ -35,7 +35,7 @@
 @keyframes fv-heart { from { transform: translateY(0) scale(0.6); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-110px) scale(1.15); opacity: 0; } }
 
 /* the "T to talk" hint and the barks */
-.fv-talkhint { position: absolute; left: 50%; bottom: max(70px, env(safe-area-inset-bottom)); transform: translateX(-50%); padding: 9px 16px; border-radius: 999px; font: 650 14px/1 Inter, system-ui, sans-serif; display: none; pointer-events: auto; cursor: pointer; border: 1px solid var(--fv-edge, rgba(255, 255, 255, 0.16)); color: inherit; }
+.fv-talkhint { position: absolute; left: 50%; bottom: max(70px, env(safe-area-inset-bottom)); translate: -50% 0; padding: 9px 16px; border-radius: 999px; font: 650 14px/1 Inter, system-ui, sans-serif; display: none; pointer-events: auto; cursor: pointer; border: 1px solid var(--fv-edge, rgba(255, 255, 255, 0.16)); color: inherit; }
 .fv-talkhint.on { display: inline-flex; gap: 8px; align-items: center; animation: fv-in 0.25s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .fv-talkhint kbd { font: 650 11px Inter, system-ui, sans-serif; padding: 2px 7px; border-radius: 6px; background: rgba(255, 255, 255, 0.2); }
 .fv-bark { position: absolute; left: 50%; bottom: 22%; transform: translateX(-50%); max-width: min(420px, 86vw); padding: 8px 15px; border-radius: 18px; font: 600 15px/1.3 Inter, system-ui, sans-serif; opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease; pointer-events: none; text-align: center; }

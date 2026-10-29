@@ -57,7 +57,14 @@ export async function runFavorsLife(session, { ok, fail }) {
   await sleep(400);
   const mp = await g(() => ({ rows: document.querySelectorAll('.mp-list li').length, text: document.querySelector('.mp-list').textContent, others: document.querySelector('.mp-others').textContent }));
   check((await S()).mapOpen && mp.rows >= 15 && /The Ring/.test(mp.text) && /Ori's car/.test(mp.text) && /Maya, Noga/.test(mp.others), `M opens the big map: the stars and every other place with what is there (${mp.rows} rows)`);
+  check(await g(() => document.querySelectorAll('.mp-list li[data-p="cup"]').length === 1) && /The Sababa Cup/.test(mp.text), 'the races are on the big map: "The Sababa Cup" has a row of its own (it leads to the start line)');
+  check(await g(() => /M\s*big map/i.test((document.querySelector('.pl-mini-key') || {}).textContent || '')), 'the minimap says that M opens the big map');
   await shot('T64-map.png');
+  const hMum0 = await g(() => document.querySelector('.mp-others li[data-p="mum"]').getBoundingClientRect().height);
+  await page.click('.mp-others li[data-p="mum"]');
+  await sleep(300);
+  const hMum1 = await g(() => { const li = document.querySelector('.mp-others li[data-p="mum"]'); return { h: li.getBoundingClientRect().height, on: li.classList.contains('follow'), text: li.innerText }; });
+  check(hMum1.on && Math.abs(hMum1.h - hMum0) < 1 && !/following/i.test(hMum1.text), 'following a place in "Other places" writes nothing and does not make its card taller (it is outlined in orange)');
   await page.click('.mp-list li[data-p="startup"]');
   await sleep(300);
   check((await S()).tracked === 'startup', 'a click on a place follows it');
@@ -77,7 +84,7 @@ export async function runFavorsLife(session, { ok, fail }) {
   await g(() => window.__ori.game3d.game.enterOwnCar());
   await sleep(400);
   check((await S()).driving, 'he is in his car');
-  await g(() => { const gm = window.__ori.game3d.game; const d = gm.map.places.mum.door; gm.placeCar(d.x + d.nx * 5, d.z + d.nz * 5, Math.atan2(d.nx, d.nz)); });
+  await g(() => { const gm = window.__ori.game3d.game; const w = gm.crowd.walkers[0]; gm.placeCar(w.x + 2.5, w.z, 0); }); // (next to a passer-by, not to a door: nobody may be at the door)
   await page.waitForFunction(() => { const h = document.querySelector('.fv-talkhint:not(.fv-gohint).on'); return !!h && /Say hi to/.test(h.textContent); }, null, { timeout: 6000 }).catch(() => {}); // (the person must be found: wait for it, do not guess a time)
   await sleep(200);
   const hellos0 = (await S()).progress.hellos;
@@ -166,10 +173,10 @@ export async function runFavorsLife(session, { ok, fail }) {
   check(await g(() => /Step into The Ring/.test(document.querySelector('.fv-gohint').textContent)), 'at the foot of the ring the chip says "Space Step into The Ring"');
   await page.keyboard.press('Space');
   await page.waitForFunction(() => window.__ori.game3d.game.fight.ui.menuOpen, null, { timeout: 3000 });
-  check(await g(() => document.querySelectorAll('.fi-row').length === 5 && /Pick your fight/.test(document.querySelector('.fi-card').textContent)), 'the ladder: five neighbours to fight (the sixth is a secret)');
+  check(await g(() => document.querySelectorAll('.fi-row').length === 6 && /Pick your fight/.test(document.querySelector('.fi-card').textContent)), 'the ladder: five neighbours to fight and the night of three (the sixth is a secret)');
   await shot('T63-ring-menu.png');
   const locked = await g(() => [...document.querySelectorAll('.fi-row')].filter((r) => r.classList.contains('locked')).length);
-  check(locked === 4, 'only the first is open: the others need the one before, and love');
+  check(locked === 5, 'only the first is open: the others need the one before, and love');
   await page.keyboard.press('Digit1');
   await page.waitForFunction(() => window.__ori.game3d.game.fight.phase === 'intro' || window.__ori.game3d.game.fight.phase === 'fight', null, { timeout: 8000 });
   await sleep(900);
@@ -224,7 +231,7 @@ export async function runFavorsLife(session, { ok, fail }) {
   await sleep(300);
   await page.keyboard.press('Space');
   await page.waitForFunction(() => window.__ori.game3d.game.fight.ui.menuOpen, null, { timeout: 3000 });
-  check(await g(() => { const r = document.querySelectorAll('.fi-row'); return r.length === 6 && r[5].classList.contains('secret') && /\?\?\?/.test(r[5].textContent); }), 'after the champion the ladder shows a sixth name: ???');
+  check(await g(() => { const r = document.querySelectorAll('.fi-row'); return r.length === 7 && r[5].classList.contains('secret') && /\?\?\?/.test(r[5].textContent); }), 'after the champion the ladder shows a sixth name: ???');
   await page.keyboard.press('Digit6');
   await page.waitForFunction(() => window.__ori.game3d.game.fight.phase === 'intro', null, { timeout: 8000 });
   await sleep(1200);
@@ -247,7 +254,7 @@ export async function runFavorsLife(session, { ok, fail }) {
   check(fastest > 4.5, `Shilo moves at an absurd speed (${fastest.toFixed(1)} m/s; Ori walks at 2.7)`);
   await shot('T63-boss-fight.png');
   // finish him (the numbers are tested elsewhere): one clean jab at his last scrap of health
-  await g(() => { const f = window.__ori.game3d.game.fight.bout; f.O.hp = 3; f.O.st = 150; });
+  await g(() => { const f = window.__ori.game3d.game.fight.bout; f.rise = [1]; f.O.hp = 3; f.O.st = 150; }); // (rise [1]: he goes down once and gets up, as this check expects)
   let sawDown = false; let sawUp = false; // (the first time his health runs out he goes down for a count and gets up; only the second time is the knock-out)
   for (let i = 0; i < 100; i++) {
     const f = await g(() => window.__ori.game3d.game.fight.snapshot());

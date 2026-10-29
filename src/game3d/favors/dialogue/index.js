@@ -20,7 +20,7 @@ const ROLE_LINES = {
   perach: ['Ori! The kids asked about you all week.', 'The whiteboard is full of ideas. Half are good!'],
   friends: ['Ori! What a day, hey? Tell me everything.', 'You look like you need a coffee. I will not take no.'],
   hobbies: ['Ori! Ready for a round?', 'Perfect, you came. I saved the best spot for you.'],
-  family: ['Ori, habibi! Come in, come in.', 'You came! Are you hungry? You must be hungry.'],
+  family: ['Ori, motek! Come in, come in.', 'You came! Are you hungry? You must be hungry.'],
   strangers: ['Oh, hello! Lovely day for it.', 'Hi there! Good timing, I was about to ask somebody something.'],
 };
 

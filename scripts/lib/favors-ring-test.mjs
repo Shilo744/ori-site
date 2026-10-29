@@ -111,7 +111,7 @@ export async function runFavorsRing(session, { ok, fail }) {
   check(Math.abs(face.end.open - face.base.open) < 0.12, `a second later the face is back to normal (${face.end.open.toFixed(2)})`);
 
   // ── finish him, back to the ladder ──
-  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.O.hp = 2; b.P.hp = b.P.maxHp; });
+  await g(() => { const b = window.__ori.game3d.game.fight.bout; b.rise = [0]; b.O.hp = 2; b.P.hp = b.P.maxHp; }); // (rise [0]: he goes down and does not get up: the count runs out)
   for (let i = 0; i < 40; i++) {
     const f = await g(() => window.__ori.game3d.game.fight.snapshot());
     if (f.over || f.phase === 'result') break;
@@ -119,6 +119,7 @@ export async function runFavorsRing(session, { ok, fail }) {
     await press('KeyJ'); await sleep(260);
   }
   await page.waitForFunction(() => window.__ori.game3d.game.fight.ui.cardOpen, null, { timeout: 15000 });
+  check(await g(() => { const b = window.__ori.game3d.game.fight.bout; return b.O.state === 'ko' && b.O.willRise === false && b.result.how === 'ko' && b.result.winner === 'player'; }), 'he went down and did not get up (the dice said no): the count ran out, a K.O., the result card is up');
   await page.click('.fi-btn.primary');
   await page.waitForFunction(() => window.__ori.game3d.game.fight.ui.menuOpen, null, { timeout: 8000 });
 
@@ -248,7 +249,7 @@ export async function runFavorsRingTouch(session, { ok, fail }) {
     check((await P()).state === 'dash' || (await g(() => window.__ori.game3d.game.fight.bout.P.dashCd)) > 0, 'DASH dashes');
 
     // finish the fight quickly and tap through to the speed bag
-    await g(() => { const b = window.__ori.game3d.game.fight.bout; b.O.hp = 1; b.P.hp = b.P.maxHp; });
+    await g(() => { const b = window.__ori.game3d.game.fight.bout; b.rise = [1]; b.O.hp = 1; b.P.hp = b.P.maxHp; });
     for (let i = 0; i < 40; i++) {
       const f = await g(() => window.__ori.game3d.game.fight.snapshot());
       if (f.over || f.phase === 'result') break;

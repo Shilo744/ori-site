@@ -1,4 +1,4 @@
-// "Ori, Can You...?" on the desktop: a Dock icon (2nd slot, right after Finder) that opens the 3D game in its own full-screen overlay.
+// "Ori's Life" on the desktop: a Dock icon (2nd slot, right after Finder) that opens the 3D game in its own full-screen overlay.
 // It is a LAUNCHER, not a window: the registry runs `launch()` instead of mounting a window (see wm.js), the Dock icon bounces like any
 // other, and quitting the game puts you back on the desktop exactly as you left it.
 import { registerApp } from './registry.js';
@@ -22,8 +22,8 @@ export const FAVORS_ICON = `<svg viewBox="0 0 64 64" aria-hidden="true">
 
 registerApp({
   id: 'favors',
-  name: 'Ori, Can You...?',
-  menuTitle: 'Ori, Can You...?',
+  name: "Ori's Life",
+  menuTitle: "Ori's Life",
   icon: FAVORS_ICON,
   dock: true,
   hidden: true, // not in the plain app lists (Spotlight and the terminal have their own entries)

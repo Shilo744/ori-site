@@ -271,7 +271,7 @@ test('every one of the favours in the game has a mission that can be built, with
     if (spec.kind === 'verb') { assert.ok(['carry', 'fix', 'queue', 'chat', 'shop', 'assemble', 'handle'].includes(spec.verb), `${tpl.id}: ${spec.verb}`); }
   }
   assert.ok(Object.keys(kinds).length >= 8, JSON.stringify(kinds));
-  assert.ok(kinds.delivery >= 6 && kinds.taxi >= 5 && kinds.find >= 3 && kinds.chase >= 1 && kinds.list >= 3 && kinds.race === 1 && kinds.gauntlet === 1 && kinds.verb >= 40, JSON.stringify(kinds));
+  assert.ok(kinds.delivery >= 6 && kinds.taxi >= 5 && kinds.find >= 3 && kinds.chase >= 1 && kinds.list >= 3 && kinds.race === 1 + 7 + 4 && kinds.gauntlet === 1 && kinds.verb >= 40, JSON.stringify(kinds));
 });
 
 test('the week: the set pieces are planned on their days, the first days have no epic favours, and the days get busier', () => {

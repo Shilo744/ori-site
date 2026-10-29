@@ -9,10 +9,11 @@ import { mulberry32 } from '../rng.js';
 export const GAMES = [
   { id: 'tetris', name: 'BLOCKS', blurb: 'Falling blocks. Clear lines.' },
   { id: '2048', name: '2048', blurb: 'Slide, merge, reach 2048.' },
+  { id: 'snake', name: 'SNAKE', blurb: 'Eat peaches. Do not eat yourself.', fresh: true }, // [experimental] (a night addition: Shilo judges it)
 ];
 
 /** How many peaches a score is worth (a good run pays well, a tiny run pays a little, nobody pays nothing). */
-export const peachesFor = (game, score) => Math.max(2, Math.min(60, Math.floor(game === 'tetris' ? score / 120 : score / 80)));
+export const peachesFor = (game, score) => Math.max(2, Math.min(60, Math.floor(score / (game === 'tetris' ? 120 : game === 'snake' ? 30 : 80))));
 
 export function createTetrisRun({ seed = 1 } = {}) {
   const rng = mulberry32(seed);
@@ -87,4 +88,67 @@ export function createRun2048({ seed = 1 } = {}) {
     },
     view() { return { values: toValues(s.cells), score: s.score, over: s.over, won: s.won, best: maxTile(s.cells) }; },
   };
+}
+
+// ── SNAKE (a night addition, [experimental]): the board is a grid, the snake eats peaches and grows, a wall or its own tail ends the run. Each 4 peaches the level goes up: more points, quicker steps. ──
+export const SNAKE = { cols: 18, rows: 20 };
+const SNAKE_DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+const OPPOSITE = { up: 'down', down: 'up', left: 'right', right: 'left' };
+/** Seconds between two steps at a level: 0.17 at the start, quicker each level, never quicker than 0.07. */
+export const snakeStep = (level) => Math.max(0.07, 0.17 - 0.012 * (level - 1));
+
+export function createSnakeRun({ seed = 1, cols = SNAKE.cols, rows = SNAKE.rows } = {}) {
+  const rng = mulberry32(seed);
+  const cx = Math.floor(cols / 2);
+  const cy = Math.floor(rows / 2);
+  const s = { snake: [[cx, cy], [cx, cy + 1], [cx, cy + 2]], dir: 'up', queue: [], food: null, score: 0, eaten: 0, level: 1, over: false, won: false, acc: 0, moves: 0 };
+  function place() { // a free cell, picked by the seed (null when the whole board is the snake)
+    const used = new Set(s.snake.map(([x, y]) => y * cols + x));
+    const free = [];
+    for (let i = 0; i < cols * rows; i++) if (!used.has(i)) free.push(i);
+    if (!free.length) { s.food = null; return; }
+    const k = free[Math.floor(rng() * free.length)];
+    s.food = [k % cols, Math.floor(k / cols)];
+  }
+  place();
+  const api = {
+    state: s,
+    /** Turns the snake ('up' | 'down' | 'left' | 'right'). A turn straight back is ignored; two quick taps between steps are both kept. */
+    turn(dir) {
+      if (s.over || !SNAKE_DIRS[dir]) return false;
+      const last = s.queue.length ? s.queue[s.queue.length - 1] : s.dir;
+      if (dir === last || dir === OPPOSITE[last] || s.queue.length >= 2) return false;
+      s.queue.push(dir);
+      return true;
+    },
+    /** One move. */
+    step() {
+      if (s.over) return;
+      if (s.queue.length) s.dir = s.queue.shift();
+      const [dx, dy] = SNAKE_DIRS[s.dir];
+      const nx = s.snake[0][0] + dx;
+      const ny = s.snake[0][1] + dy;
+      const eating = !!s.food && nx === s.food[0] && ny === s.food[1];
+      const body = eating ? s.snake : s.snake.slice(0, -1); // (the tail moves out of the way unless he is growing)
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows || body.some(([x, y]) => x === nx && y === ny)) { s.over = true; return; }
+      s.snake.unshift([nx, ny]);
+      s.moves++;
+      if (eating) {
+        s.eaten++;
+        s.level = 1 + Math.floor(s.eaten / 4);
+        s.score += 10 * s.level;
+        place();
+        if (!s.food) { s.over = true; s.won = true; } // the board is full: a perfect game
+      } else s.snake.pop();
+    },
+    update(dt) {
+      if (s.over) return;
+      s.acc += dt;
+      const g = snakeStep(s.level);
+      while (s.acc >= g && !s.over) { s.acc -= g; api.step(); }
+    },
+    /** For drawing and for tests. */
+    view() { return { snake: s.snake.map((c) => c.slice()), head: s.snake[0].slice(), food: s.food ? s.food.slice() : null, dir: s.dir, score: s.score, length: s.snake.length, level: s.level, over: s.over, won: s.won, cols, rows }; },
+  };
+  return api;
 }

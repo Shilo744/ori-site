@@ -1,0 +1,44 @@
+/* the first-steps card and the "what now?" panel (T32) [experimental] */
+.gd-tour { position: absolute; right: max(14px, env(safe-area-inset-right)); top: calc(max(14px, env(safe-area-inset-top)) + 58px); width: min(310px, calc(100vw - 28px)); padding: 12px 14px; border-radius: 16px; pointer-events: auto; z-index: 2; color: var(--fv-ink, #f5f6fa); font-family: Inter, system-ui, sans-serif; animation: gd-in 0.35s ease both; }
+.gd-tour[hidden] { display: none; }
+.gd-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.gd-head b { font-size: 14px; letter-spacing: 0.02em; }
+.gd-skip, .gd-close { font: 700 12px Inter, system-ui, sans-serif; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(255, 255, 255, 0.08); color: inherit; }
+.gd-skip:hover, .gd-close:hover { background: rgba(255, 255, 255, 0.16); }
+.gd-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.gd-steps li { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; align-items: start; font-size: 13px; opacity: 0.95; }
+.gd-steps li i { width: 14px; height: 14px; margin-top: 2px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.55); }
+.gd-steps li.done i { background: #6fd48b; border-color: #6fd48b; }
+.gd-steps li.done b { text-decoration: line-through; text-decoration-color: rgba(255, 255, 255, 0.4); opacity: 0.8; }
+.gd-steps b { margin-right: 4px; }
+.gd-steps small { display: block; margin-top: 2px; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 11px; }
+.gd-steps kbd, .gd-keys kbd, .gd-card kbd { font: 700 11px Inter, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.16); margin-right: 2px; }
+.gd-state { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #8ff0c0; }
+.gd-tour.ready { box-shadow: 0 0 0 2px rgba(111, 212, 139, 0.55), 0 8px 28px rgba(8, 10, 20, 0.28); }
+@keyframes gd-in { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+.gd-card { width: min(520px, 94vw); text-align: left; gap: 10px; }
+.gd-card h2 { margin: 2px 0 0; font-size: 24px; }
+.gd-card h3 { margin: 6px 0 4px; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+.gd-prog { margin-top: 2px; font-weight: 800; color: #ffb25b; font-variant-numeric: tabular-nums; }
+.gd-hint { margin: 0; font-size: 15px; }
+.gd-where { margin: 0; font-size: 13px; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+.gd-keys { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 13px; }
+.gd-keys li { display: flex; gap: 8px; align-items: center; }
+.gd-keys kbd { min-width: 56px; text-align: center; }
+.gd-card footer { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+.gd-card .fi-btn.primary { align-self: flex-start; }
+.fv-hud.hc .gd-tour { background: #000; border: 2px solid #fff; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.fv-hud.calm .gd-tour { animation: none; }
+@media (max-width: 640px) { .gd-tour { right: 8px; left: 8px; top: auto; bottom: 150px; width: auto; } .gd-keys { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .gd-tour { animation: none; } }
+.fv-goal.on { pointer-events: auto; cursor: var(--cur-hand); }
+.fv-btn span { font: 800 17px Inter, system-ui, sans-serif; line-height: 1; }
+.fv-tr { display: flex; gap: 10px; align-items: center; }
+
+/* the story chip (T34) [experimental]: a second line under the goal chip */
+.fv-story { position: absolute; top: calc(max(16px, env(safe-area-inset-top)) + 84px); left: 50%; transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; font: 600 12px/1 Inter, system-ui, sans-serif; white-space: nowrap; max-width: calc(100vw - 40px); overflow: hidden; text-overflow: ellipsis; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; display: flex; gap: 8px; align-items: center; }
+.fv-story.on { opacity: 1; pointer-events: auto; cursor: var(--cur-hand); }
+.fv-story b { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffb25b; }
+.fv-story:focus-visible { outline: 2px solid var(--fv-accent, #ff9f43); outline-offset: 2px; }
+.fv-hud.calm .fv-story { transition: none; }
+.fv-toasts { top: 148px; } /* (under the goal chip and the story chip) */

@@ -15,7 +15,7 @@ export const LADDER = [
     id: 'albert', cast: 'albert', name: 'Albert', title: 'Kiosk 24/7', hp: 330, dmg: 1.25, speed: 0.72, atk: 0.78, st: 110,
     ai: { tell: 1.6, react: 0.5, block: 0.12, dodge: 0.03, range: 1.55, patterns: [['cross'], ['cross'], ['hook'], ['jab', 'cross']], rest: [1.0, 1.8], punish: 0.35 },
     reward: { xp: 70, peaches: 45, love: 3 }, need: { love: 0 },
-    pre: ['Slow and heavy, habibi. Slow and heavy.', 'Every bag I carry is a rep.'], win: 'Respect! Gum is on the house.', lose: 'That is for the milk you never bought!',
+    pre: ['Slow and heavy, my friend. Slow and heavy.', 'Every bag I carry is a rep.'], win: 'Respect! Gum is on the house.', lose: 'That is for the milk you never bought!',
   },
   {
     id: 'inspector', cast: 'inspector', name: 'The Inspector', title: 'By the Book', hp: 390, dmg: 1.1, speed: 0.92, atk: 1.0, st: 120,

@@ -1,8 +1,8 @@
-/* "Ori, Can You...?" — the in-game overlay: a glass clock, the place label, a stamina bar, the pause menu and the touch controls.
+/* "Ori's Life" — the in-game overlay: a glass clock, the place label, a stamina bar, the pause menu and the touch controls.
    The shell (.g3d, .g3d-menu, .g3d-card, .g3d-btn) comes from game3d.css; everything here is prefixed fv-. */
 .g3d[data-game='favors'] { --fv-glass: rgba(20, 24, 36, 0.55); --fv-edge: rgba(255, 255, 255, 0.16); --fv-ink: #f5f6fa; --fv-ink2: rgba(235, 238, 250, 0.7); --fv-accent: #ff9f43; background: #bcd4ea; }
 .g3d[data-game='favors'].booting::after {
-  content: 'Ori, Can You...?'; font: 700 34px Inter, system-ui, sans-serif; font-style: normal; letter-spacing: -0.01em; color: #1d1d1f; text-shadow: none;
+  content: "Ori's Life"; font: 700 34px Inter, system-ui, sans-serif; font-style: normal; letter-spacing: -0.01em; color: #1d1d1f; text-shadow: none;
   background: radial-gradient(ellipse at 50% 55%, #fdf3e3, #cfe0f1 75%);
 }
 .g3d[data-game='favors'] .g3d-card { background: linear-gradient(180deg, rgba(36, 40, 58, 0.96), rgba(22, 25, 38, 0.96)); }
@@ -73,3 +73,36 @@
 .g3d[data-game='favors'] small { letter-spacing: 0; font-weight: 500; }
 .g3d[data-game='favors'] .g3d-kicker { font-style: normal; letter-spacing: 0.14em; font-weight: 700; color: #ffb25b; }
 .g3d[data-game='favors'] .g3d-btn.big { font-style: normal; }
+
+/* settings in the pause menu (T04): the sound slider and three switches; high contrast changes the tokens, reduce motion stills the HUD */
+.fv-set { margin: 14px 0 4px; padding-top: 12px; border-top: 1px solid var(--fv-edge); display: grid; gap: 8px; text-align: left; }
+.fv-vol { display: grid; grid-template-columns: auto 1fr 2.4em; align-items: center; gap: 12px; padding: 4px 6px 4px 4px; font: 600 14px Inter, system-ui, sans-serif; color: var(--fv-ink); }
+.fv-vol[hidden], .fv-opt[hidden] { display: none; }
+.fv-vol input { width: 100%; accent-color: #ffb25b; }
+.fv-vol input:focus-visible { outline: 2px solid var(--fv-accent); outline-offset: 3px; border-radius: 4px; }
+.fv-vol b { text-align: right; font-variant-numeric: tabular-nums; color: var(--fv-ink2); font-weight: 600; }
+.fv-opt { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; font-size: 14px; text-align: left; }
+.fv-opt b { font-weight: 600; color: var(--fv-ink2); }
+.fv-opt i { position: relative; flex: none; width: 38px; height: 22px; border-radius: 999px; background: rgba(255, 255, 255, 0.18); transition: background 0.15s ease; }
+.fv-opt i::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+.fv-opt.on i { background: #ffb25b; }
+.fv-opt.on i::after { transform: translateX(16px); }
+.fv-keys.gone { display: none; }
+.fv-hud.hc { --fv-glass: rgba(0, 0, 0, 0.92); --fv-edge: #ffffff; --fv-ink: #ffffff; --fv-ink2: #ffffff; }
+.fv-hud.hc .fv-glass { -webkit-backdrop-filter: none; backdrop-filter: none; border-width: 2px; }
+.fv-hud.hc .fv-keys kbd { background: #ffffff; color: #000000; }
+.fv-hud.hc .fv-stam { background: #000000; border-width: 2px; }
+.fv-hud.calm .fv-toast, .fv-hud.calm .fv-place, .fv-hud.calm .fv-keys, .fv-hud.calm .fv-float, .fv-hud.calm .fv-btn, .fv-hud.calm.shake { animation: none; transition: none; }
+
+/* the save code (T07) */
+.fv-code { display: grid; gap: 8px; text-align: left; }
+.fv-code[hidden], .fv-codebox[hidden], .fv-codebox [data-s='load'][hidden] { display: none; }
+.fv-codebtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.g3d-btn.fv-mini { padding: 9px 8px; font-size: 13px; }
+.fv-codebox { display: grid; gap: 8px; }
+.fv-codebox textarea { width: 100%; box-sizing: border-box; resize: none; padding: 8px 10px; border-radius: 12px; border: 1px solid var(--fv-edge); background: rgba(0, 0, 0, 0.35); color: var(--fv-ink); font: 12px/1.35 ui-monospace, Menlo, Consolas, monospace; word-break: break-all; }
+.fv-codebox textarea:focus-visible { outline: 2px solid var(--fv-accent); outline-offset: 2px; }
+.fv-codebox p { margin: 0; min-height: 1.3em; text-align: center; }
+.fv-codebox p.bad { color: #ff9db0; }
+/* a short window: the pause card scrolls instead of being cut off */
+.g3d[data-game='favors'] .g3d-menu:not(.fv-report) .g3d-card { max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; }

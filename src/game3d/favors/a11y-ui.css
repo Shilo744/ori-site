@@ -1,0 +1,22 @@
+/* "Ori, Can You...?" — the last of the accessibility pass (T40): the sound captions, and the high-contrast setting reaching every card, not only the HUD. */
+
+/* ── sound captions [experimental]: a short line of words for the sounds that tell you something (a setting in the pause menu, off by default) ── */
+.fv-cap { position: absolute; left: 50%; bottom: max(92px, env(safe-area-inset-bottom)); translate: -50% 0; display: grid; gap: 6px; justify-items: center; max-width: min(560px, calc(100vw - 28px)); pointer-events: none; z-index: 4; }
+.fv-cap-line { padding: 7px 15px; border-radius: 10px; background: rgba(0, 0, 0, 0.82); color: #ffffff; font: 700 15px/1.25 Inter, system-ui, sans-serif; text-align: center; letter-spacing: 0.01em; animation: fv-in 0.18s ease-out both; }
+.fv-tui .fv-cap { bottom: 34%; max-width: calc(100vw - 150px); }
+.fv-hud.calm .fv-cap-line, .fv-hud.calm.hc .fv-cap-line { animation: none; }
+
+/* ── high contrast: the HUD's setting reaches the whole overlay (the ring, the map, the journal, the cards) ── */
+.g3d[data-game='favors'].fv-hc { --fv-glass: rgba(0, 0, 0, 0.94); --fv-edge: #ffffff; --fv-ink: #ffffff; --fv-ink2: #ffffff; }
+.fv-hc .fv-glass { -webkit-backdrop-filter: none; backdrop-filter: none; border-width: 2px; }
+.fv-hc .fi-overlay { background: rgba(0, 0, 0, 0.84); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.fv-hc .fi-card { background: #000000; border: 2px solid #ffffff; }
+.fv-hc .fi-card small, .fv-hc .fi-card .jr-sub, .fv-hc .g3d-small, .fv-hc .fi-name span, .fv-hc .fi-mid span, .fv-hc .tr small, .fv-hc .wi small, .fv-hc .sb small, .fv-hc .mp-list small, .fv-hc .wi-day { color: #ffffff; opacity: 1; }
+.fv-hc .tr, .fv-hc .wi.late, .fv-hc .fi-row.locked, .fv-hc .sb:not(.on), .fv-hc .jr-ladder li.locked, .fv-hc .jr-moves li:not(.on) { opacity: 1; }
+.fv-hc .fi-btn, .fv-hc .g3d-btn { background: #000000; color: #ffffff; border: 2px solid #ffffff; }
+.fv-hc .fi-btn.primary, .fv-hc .g3d-btn.primary { background: #ffe14d; color: #000000; border-color: #ffffff; }
+.fv-hc .fi-bar, .fv-hc .jr-bar, .fv-hc .tr-bar { background: #000000; border: 2px solid #ffffff; }
+.fv-hc .fi-bar.hp i { background: #19e68a; }
+.fv-hc .fi-bar.st i { background: #ffe14d; }
+.fv-hc .fi-keys kbd, .fv-hc .jr-card kbd, .fv-hc .mp-card kbd { background: #ffffff; color: #000000; }
+.fv-hc .fv-cap-line { background: #000000; border: 2px solid #ffffff; }

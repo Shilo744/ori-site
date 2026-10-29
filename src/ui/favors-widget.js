@@ -1,4 +1,4 @@
-// The "Ori, Can You...?" hero widget on the desktop (2 x 2): a flat portrait of Ori, a little stack of tasks that cycles, and a big PLAY.
+// The "Ori's Life" hero widget on the desktop (2 x 2): a flat portrait of Ori, a little stack of tasks that cycles, and a big PLAY.
 // Pure markup + CSS: the notifications cycle with CSS animation, which is paused whenever the screen is locked (the camera is away from it).
 import './favors-widget.css';
 
@@ -36,8 +36,8 @@ const STACK = [
 /** The widget's HTML (inserted into the desktop by shell.js). The PLAY button and the card carry `data-open="favors"`. */
 export function favorsWidgetHTML() {
   return `
-    <div class="wg-hero" data-open="favors" role="button" tabindex="0" aria-label="Play: Ori, Can You...?">
-      <div class="oh-top">${ORI_PORTRAIT}<div class="oh-t"><b>Ori, Can You...?</b><span>The man who does everything</span></div></div>
+    <div class="wg-hero" data-open="favors" role="button" tabindex="0" aria-label="Play: Ori's Life">
+      <div class="oh-top">${ORI_PORTRAIT}<div class="oh-t"><b>Ori's Life</b><span>The man who does everything</span></div></div>
       <ul class="oh-stack" aria-hidden="true">${STACK.map((s, i) => `<li style="--i:${i};--c:${s.color}"><i></i><div><b>${s.who}</b><span>${s.text}</span></div><em>now</em></li>`).join('')}</ul>
       <button class="oh-play" type="button" data-open="favors">Play</button>
     </div>`;

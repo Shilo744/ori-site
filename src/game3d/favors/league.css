@@ -1,0 +1,37 @@
+/* "Ori, Can You...?" — the Sababa Cup board (T51) [experimental]. Prefix lg-. Nothing here names a cursor. */
+.lg-card { width: min(560px, 94vw); text-align: left; gap: 10px; }
+.lg-card h2 { margin: 2px 0 0; }
+.lg-me { display: grid; gap: 6px; padding: 10px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.06); }
+.lg-me b { font: 800 16px Inter, system-ui, sans-serif; }
+.lg-me small { color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 12px; line-height: 1.35; }
+.lg-xp { height: 8px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); overflow: hidden; }
+.lg-xp i { display: block; height: 100%; background: linear-gradient(90deg, #7fb6ff, #9b6bff); border-radius: 6px; }
+.lg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lg-row { display: grid; grid-template-columns: 40px 1fr auto 22px; gap: 12px; align-items: center; padding: 7px 12px; border-radius: 14px; background: rgba(255, 255, 255, 0.07); text-align: left; }
+.lg-row b { display: block; font-size: 15px; }
+.lg-row small { display: block; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 12px; }
+.lg-wait { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(255, 178, 91, 0.16); font: 600 13px Inter, system-ui, sans-serif; }
+.lg-drop { font: 700 13px Inter, system-ui, sans-serif; padding: 7px 14px; border-radius: 10px; border: 1px solid var(--fv-edge, rgba(255, 255, 255, 0.2)); background: rgba(255, 255, 255, 0.1); color: #fff; }
+.fv-tui .lg-drop { min-height: 44px; }
+.fv-hc .lg-wait { background: #000; border: 2px solid #fff; }
+.fv-hc .lg-drop { background: #000; color: #fff; border: 2px solid #fff; }
+.lg-h { margin: 6px 0 0; font: 800 12px Inter, system-ui, sans-serif; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); }
+.lg-row small.lg-pay { color: #ffd9a0; font-weight: 600; }
+.lg-row em { font-style: normal; font-size: 12px; font-weight: 700; }
+.lg-row em.go { color: #ffb25b; }
+.lg-row em.ok { color: #8ff0c0; }
+.lg-row em.lock { color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-weight: 600; }
+.lg-row.next { background: rgba(255, 178, 91, 0.16); }
+.lg-row.locked { opacity: 0.55; }
+.lg-row kbd { font: 700 11px Inter, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.16); }
+.lg-av { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--c, #888); color: #111; font: 800 17px Inter, system-ui, sans-serif; font-style: normal; }
+.lg-row:focus-visible, .lg-close:focus-visible { outline: 2px solid var(--fv-accent, #ffb25b); outline-offset: 2px; }
+.lg-card footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.lg-card footer small { color: var(--fv-ink2, rgba(235, 238, 250, 0.7)); font-size: 12px; }
+.lg-close { font: 700 14px Inter, system-ui, sans-serif; padding: 11px 20px; border-radius: 13px; border: 1px solid var(--fv-edge, rgba(255, 255, 255, 0.16)); background: rgba(255, 255, 255, 0.1); color: #fff; }
+.fv-tui .lg-close { min-height: 44px; }
+.fv-tui .lg-row { min-height: 52px; }
+.fv-hc .lg-row, .fv-hc .lg-me { background: #000; border: 2px solid #fff; }
+.fv-hc .lg-row.locked { opacity: 1; }
+.fv-hc .lg-row small, .fv-hc .lg-row small.lg-pay, .fv-hc .lg-me small, .fv-hc .lg-row em.lock, .fv-hc .lg-card footer small { color: #fff; }
+.fv-hc .lg-close { background: #000; color: #fff; border: 2px solid #fff; }

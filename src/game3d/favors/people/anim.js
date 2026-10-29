@@ -16,7 +16,7 @@ export const GESTURES = {
   blockhit: 0.24, stagger: 0.62, ko: 0.9, dodgeL: 0.3, dodgeR: 0.3, dodgeB: 0.3,
 };
 const FIGHT = new Set(['jab', 'cross', 'hook', 'upper', 'hit', 'dodge', 'blockhit', 'stagger', 'ko', 'dodgeL', 'dodgeR', 'dodgeB']); // (no slow fade in and out: the wind-up is part of their shape)
-const HOLD = new Set(['phone', 'carry', 'guard', 'block', 'ko']); // poses that stay while the flag is set
+const HOLD = new Set(['phone', 'carry', 'guard', 'block', 'tired', 'ko']); // poses that stay while the flag is set
 
 const BONES = ['hips', 'spine', 'chest', 'neck', 'head', 'shoulderL', 'shoulderR', 'upperArmL', 'upperArmR', 'lowerArmL', 'lowerArmR', 'handL', 'handR', 'upLegL', 'upLegR', 'lowLegL', 'lowLegR', 'footL', 'footR', 'toeL', 'toeR'];
 
@@ -263,6 +263,15 @@ function heldPose(name) {
     set('upLegL', -0.28, 0, 0); set('lowLegL', 0.5, 0, 0); set('upLegR', 0.18, 0, 0); set('lowLegR', 0.35, 0, 0);
     P.hipsDY = -0.07;
     P.fingers = { L: { curl: 1, thumb: 0.5 }, R: { curl: 1, thumb: 0.5 } };
+    P.expression = 'determined';
+  } else if (name === 'tired') { // out of breath: the guard sags, the shoulders drop, the head hangs, the knees give a little
+    set('upperArmL', -0.42, -0.2, 0.3); set('lowerArmL', -1.5, 0, 0); set('handL', -0.1, 0, 0);
+    set('upperArmR', -0.46, 0.2, 0.22); set('lowerArmR', -1.45, 0, 0);
+    set('shoulderL', 0, 0, 0.12); set('shoulderR', 0, 0, -0.12);
+    set('spine', 0.34, 0.14, 0); set('chest', 0.16, 0.06, 0); set('hips', 0, 0.1, 0); set('head', 0.36, -0.08, 0);
+    set('upLegL', -0.3, 0, 0); set('lowLegL', 0.66, 0, 0); set('upLegR', 0.2, 0, 0); set('lowLegR', 0.5, 0, 0);
+    P.hipsDY = -0.12;
+    P.fingers = { L: { curl: 0.8, thumb: 0.4 }, R: { curl: 0.8, thumb: 0.4 } };
     P.expression = 'determined';
   } else if (name === 'block') { // the guard up for real: both forearms in front of the face, elbows in, chin down, knees bent
     set('upperArmL', -1.0, -0.15, 0.3); set('lowerArmL', -2.45, 0, 0); set('handL', -0.2, 0, 0);

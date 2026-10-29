@@ -2,6 +2,7 @@
 // DASH and, once Peach Fury is open, FURY. They are only on screen on a touch device (a coarse pointer, or from the first finger that touches the game) and only
 // while a fight or the speed bag is on. They do exactly what the keys do: fight3d.js hands them the same pulses.
 import { TEXT } from './texts.js';
+import { isTouchDevice } from './touch.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
@@ -9,7 +10,7 @@ const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
  * @param {{ root: HTMLElement, onJab: () => void, onCross: () => void, onDash: () => void, onFury: () => void, onGuard: (on: boolean) => void, onStick: (x: number, y: number) => void }} o
  */
 export function createFightTouch({ root, onJab, onCross, onDash, onFury, onGuard, onStick }) {
-  const coarse = typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  const coarse = typeof window !== 'undefined' && isTouchDevice({ coarse: !!window.matchMedia && window.matchMedia('(pointer: coarse)').matches, search: location.search }); // (a coarse pointer, or ?touch=1)
   let enabled = coarse; // a touch device
   let on = false; // a fight (or the speed bag) is on
   const el = document.createElement('div');

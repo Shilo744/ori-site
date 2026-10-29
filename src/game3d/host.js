@@ -13,14 +13,16 @@ import { createFavorsGame } from './favors/game.js';
 import { createInput as createFavorsInput } from './favors/input.js';
 import { GAME as FAVORS } from './favors/content.js';
 import { prewarmOri, prewarmCrowd } from './favors/people/loader.js';
+import { createTripwire, tripCard } from './tripwire.js';
+import { createAdaptiveRes } from './adaptive-res.js';
 
 /** The games the host can run: how to build the controller and its input, what it is called, the colour behind the canvas. */
 const GAMES = {
   drift: { title: 'NEON DRIFT', create: (o) => createGame(o), input: (hooks) => createKeyboard(hooks), clear: 0x07030f },
-  favors: { title: FAVORS.title, create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea, prewarm: (tier) => Promise.all([prewarmOri(tier), prewarmCrowd()]) },
+  favors: { title: FAVORS.title, who: 'Ori', create: (o) => createFavorsGame(o), input: (hooks, canvas) => createFavorsInput(hooks, canvas), clear: 0xbcd4ea, prewarm: (tier) => Promise.all([prewarmOri(tier), prewarmCrowd()]) },
 };
 
-const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, isMuted: () => false, volume: () => 1, reduceMotion: () => false, storage: null, scores: null, achievements: null };
+const hooks = { pauseRoom() {}, resumeRoom() {}, duck() {}, emit() {}, isMuted: () => false, volume: () => 1, reduceMotion: () => false, setVolume: null, setReduceMotion: null, storage: null, scores: null, achievements: null };
 const settings = { pixelRatioCap: 2, tier: 'high' };
 let current = null;
 let lastMemory = null; // renderer.info.memory right after the last session was disposed (leak checks)
@@ -82,6 +84,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
   let fpsT0 = performance.now();
   let fps = 0;
   let gone = false;
+  const trip = createTripwire();
 
   const teardown = () => {
     if (gone) return;
@@ -132,15 +135,21 @@ export function launchGame3D(id = 'drift', opts = {}) {
     fail('The graphics card said no', 'The browser could not start WebGL for the game. Try closing other tabs and opening it again.');
     return Promise.resolve(null);
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
+  const screenRatio = () => Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap);
+  // the frame rate keeper: a slow stretch trades resolution for smoothness (T18). Off while a browser test drives the page, unless the test asks (opts.adaptive = true, or { down, up, hold, ... } to tune it).
+  const adaptive = opts.adaptive != null ? !!opts.adaptive : !navigator.webdriver;
+  const keeper = createAdaptiveRes({ max: screenRatio(), ...(opts.adaptive && typeof opts.adaptive === 'object' ? opts.adaptive : {}) });
+  const warmup = opts.warmup != null ? opts.warmup : 4000; // (the first seconds compile shaders and build the world: not a measure of the machine)
+  const startedAt = performance.now();
+  renderer.setPixelRatio(keeper.ratio);
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   renderer.setClearColor(def.clear, 1);
   renderer.info.autoReset = false; // the composer renders several passes per frame: the session resets the counters once per frame
 
   game = def.create({
-    renderer, overlay, quit, quick: !!opts.quick,
+    renderer, overlay, quit, quick: !!opts.quick, fresh: opts.fresh, tour: opts.tour,
     storage: hooks.storage, scores: hooks.scores, achievements: hooks.achievements, emit: hooks.emit,
-    isMuted: hooks.isMuted, volume: hooks.volume, reduceMotion: hooks.reduceMotion,
+    isMuted: hooks.isMuted, volume: hooks.volume, reduceMotion: hooks.reduceMotion, setVolume: hooks.setVolume, setReduceMotion: hooks.setReduceMotion,
     biome: opts.biome, look: opts.look, tier: opts.tier || settings.tier, seed: opts.seed, carType: opts.carType, paint: opts.paint,
   });
   kb = def.input({
@@ -164,7 +173,8 @@ export function launchGame3D(id = 'drift', opts = {}) {
   function onResize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, settings.pixelRatioCap));
+    if (keeper.max !== screenRatio()) keeper.reset(screenRatio()); // (another screen)
+    renderer.setPixelRatio(keeper.ratio);
     renderer.setSize(w, h, false);
     game.resize(w, h);
     if (game.paused) game.render(0); // a resized canvas is blank until it is drawn again
@@ -190,19 +200,54 @@ export function launchGame3D(id = 'drift', opts = {}) {
   canvas.addEventListener('webglcontextlost', onLost);
   canvas.addEventListener('webglcontextrestored', onRestored);
 
+  // ── the error boundary: an exception in a frame must not leave a frozen canvas and a flood of console errors. The game pauses on a warm card (T06). ──
+  function tripped(err, startup = false) {
+    console.error('[game3d] the game tripped:', err);
+    try { hooks.emit('game3d:error', { id, message: String((err && err.message) || err) }); } catch { /* nobody listens */ }
+    cancelAnimationFrame(raf);
+    raf = 0;
+    const carryOn = !startup && trip.hit().carryOn;
+    try { game.pause(); } catch { /* it may be the pause that is broken */ }
+    try { if (game.hud && game.hud.menu) game.hud.menu.hidden = true; } catch { /* the card stands alone: no pause menu behind it */ }
+    modal = 'msg';
+    const card = tripCard({ carryOn, who: def.who || 'The game', startup });
+    try { game.hud.message(card.title, card.body, carryOn ? [{ label: 'Carry on', primary: true, run: carryOnAgain }, { label: 'Back to desktop', run: quit }] : [{ label: 'Back to desktop', primary: true, run: quit }]); } catch { quit(); }
+  }
+  function carryOnAgain() {
+    try { game.hud.clearMessage(); } catch { /* the card is gone anyway */ }
+    modal = null;
+    trip.resumed();
+    last = performance.now();
+    try { game.resume(); } catch { /* the next frame will say so */ }
+    raf = requestAnimationFrame(frame);
+  }
+
   function frame(now) {
     raf = requestAnimationFrame(frame);
     const dt = Math.min(0.1, Math.max(0, (now - last) / 1000));
     last = now;
     if (!game.paused) {
-      game.update(dt, kb);
-      game.render(dt);
+      try {
+        if (current && current.fault) { const f = current.fault; current.fault = null; throw new Error(f); } // (dev hook: game3dDebug.injectError)
+        game.update(dt, kb);
+        game.render(dt);
+      } catch (err) { tripped(err); return; }
     }
     fpsFrames++;
     if (now - fpsT0 >= 500) {
-      fps = (fpsFrames * 1000) / (now - fpsT0);
+      const span = now - fpsT0;
+      fps = (fpsFrames * 1000) / span;
       fpsFrames = 0;
       fpsT0 = now;
+      if (adaptive && span < 1500 && now - startedAt > warmup && !modal) { // (a long gap is a hidden tab)
+        if (game.settings && game.settings.get().resolution === 'full') { // (the player chose "Resolution: Full" in the pause menu: the keeper leaves it alone and gives back what it took)
+          if (keeper.ratio < keeper.max) { keeper.reset(screenRatio()); onResize(); }
+        } else {
+          const fake = current && current.fpsFake;
+          const r = keeper.sample(fake == null ? fps : typeof fake === 'function' ? fake(keeper.ratio) : fake, span / 1000);
+          if (r != null) { onResize(); hooks.emit('game3d:quality', { id, ratio: r, fps }); }
+        }
+      }
     }
   }
 
@@ -217,7 +262,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
     get session() { return game.session; },
     get renderer() { return renderer; },
   };
-  current = { api, quit };
+  current = { api, quit, fault: null, fpsFake: null };
   hooks.emit('game3d:opened', { id });
   if (opts.quick) {
     game.open(); // tests and screenshots: ready on return
@@ -227,7 +272,7 @@ export function launchGame3D(id = 'drift', opts = {}) {
     overlay.classList.add('booting');
     const begin = () => {
       if (gone) return;
-      game.open();
+      try { game.open(); } catch (err) { overlay.classList.remove('booting'); tripped(err, true); return; }
       overlay.classList.remove('booting');
       last = performance.now();
       raf = requestAnimationFrame(frame);
@@ -254,6 +299,10 @@ export const game3dDebug = {
   quit: () => current?.quit(),
   pause: () => current?.api?.pause(),
   resume: () => current?.api?.resume(),
+  /** Dev / tests: the next frame throws this message (the error boundary must catch it). */
+  injectError: (message = 'injected test error') => { if (current) current.fault = String(message); },
+  /** Dev / tests: the frame rate keeper sees this fps instead of the real one: a number, or a function of the pixel ratio (a machine held back by its graphics); null = the real one. */
+  injectFps: (n) => { if (current) current.fpsFake = n == null ? null : typeof n === 'function' ? n : Number(n); },
   stats() {
     const a = current?.api;
     if (!a) return null;

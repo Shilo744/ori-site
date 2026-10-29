@@ -1,0 +1,83 @@
+/* The on-screen key pad (T37) [experimental]: big buttons that send keys (touch.js / key-pad.js). Prefix fv-kp (the pad) and fv-kb (a button). Nothing here names a cursor: cursors.css owns them. */
+.fv-kp { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 8px; padding: 8px; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.fv-kp[hidden] { display: none; }
+.fv-kb { min-width: 56px; min-height: 56px; padding: 0 14px; display: inline-grid; place-items: center; font: 800 15px Inter, system-ui, sans-serif; letter-spacing: 0.01em; color: #fff; background: rgba(20, 24, 36, 0.78); border: 1px solid var(--fv-edge, rgba(255, 255, 255, 0.24)); border-radius: 16px; touch-action: none; -webkit-tap-highlight-color: transparent; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); }
+.fv-kb.ic { padding: 0; width: 56px; }
+.fv-kb svg { width: 24px; height: 24px; fill: currentColor; }
+.fv-kb.down { background: rgba(255, 178, 91, 0.85); color: #20120a; transform: scale(0.95); }
+.fv-kb.back { background: rgba(255, 255, 255, 0.12); color: var(--fv-ink2, rgba(235, 238, 250, 0.85)); font-weight: 700; }
+.fv-kb:focus-visible { outline: 2px solid var(--fv-accent, #ffb25b); outline-offset: 2px; }
+
+/* the office computer: the pad sits under the monitor, and the monitor shrinks to leave it room on a short screen */
+.ar { align-content: center; gap: 10px; }
+.ar > .fv-kp { max-width: min(420px, 96vw); gap: 6px; }
+.ar > .fv-kp .fv-kb { min-width: 52px; padding: 0 10px; }
+.ar > .fv-kp .fv-kb.ic { width: 52px; padding: 0; }
+.ar-screen canvas { touch-action: manipulation; }
+.ar.kp-on .ar-screen canvas { width: min(360px, 78vw, calc((100svh - 250px) * 0.8182)); }
+.ar.kp-on .ar-base small { display: none; }
+
+/* the cafe job: the pad closes the card */
+.cf-card > .fv-kp { padding: 4px 0 0; }
+.cf-card > .fv-kp .fv-kb { flex: 1 1 0; min-width: 64px; padding: 0 6px; font-size: 14px; }
+.cf-card > .fv-kp .fv-kb.back { flex: 0 0 auto; }
+
+/* walking about: hello, map, journal over Run / Use, the camera over the stick. One pad, placed by key (the hud's own sizes). */
+.fv-kp.walk { position: absolute; inset: 0; padding: 0; display: block; pointer-events: none; }
+.fv-kp.walk[hidden] { display: none; }
+.fv-kp.walk .fv-kb { position: absolute; pointer-events: auto; min-width: 44px; min-height: 44px; width: 68px; height: 44px; padding: 0; font-size: 13px; border-radius: 22px; }
+.fv-kp.walk .fv-kb.ic { width: 52px; }
+.fv-kp.walk [data-id='journal'] { right: max(24px, env(safe-area-inset-right)); bottom: calc(max(30px, env(safe-area-inset-bottom)) + 192px); }
+.fv-kp.walk [data-id='map'] { right: max(24px, env(safe-area-inset-right)); bottom: calc(max(30px, env(safe-area-inset-bottom)) + 244px); }
+.fv-kp.walk [data-id='hi'] { right: max(24px, env(safe-area-inset-right)); bottom: calc(max(30px, env(safe-area-inset-bottom)) + 296px); }
+.fv-kp.walk [data-id='camL'] { left: max(22px, env(safe-area-inset-left)); bottom: calc(max(28px, env(safe-area-inset-bottom)) + 148px); }
+.fv-kp.walk [data-id='camR'] { left: calc(max(22px, env(safe-area-inset-left)) + 62px); bottom: calc(max(28px, env(safe-area-inset-bottom)) + 148px); }
+/* a phone held sideways: the three words go in a row beside Run / Use, the camera beside the stick */
+@media (max-height: 520px) {
+  .fv-kp.walk [data-id='journal'] { right: calc(max(24px, env(safe-area-inset-right)) + 80px); bottom: max(30px, env(safe-area-inset-bottom)); }
+  .fv-kp.walk [data-id='map'] { right: calc(max(24px, env(safe-area-inset-right)) + 154px); bottom: max(30px, env(safe-area-inset-bottom)); }
+  .fv-kp.walk [data-id='hi'] { right: calc(max(24px, env(safe-area-inset-right)) + 228px); bottom: max(30px, env(safe-area-inset-bottom)); }
+  .fv-kp.walk [data-id='camL'] { left: calc(max(22px, env(safe-area-inset-left)) + 148px); bottom: max(28px, env(safe-area-inset-bottom)); }
+  .fv-kp.walk [data-id='camR'] { left: calc(max(22px, env(safe-area-inset-left)) + 210px); bottom: max(28px, env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .fv-kb.down { transform: none; } }
+
+/* ── the touch UI: a coarse pointer or ?touch=1 puts .fv-tui on the game's overlay; every control is thumb-sized and the way out of a card is always on screen ── */
+.fv-tui .fv-btn { width: 44px; height: 44px; }
+.fv-tui .fi-btn, .fv-tui .g3d-btn, .fv-tui .gd-close, .fv-tui .gd-skip, .fv-tui .pl-close, .fv-tui .pl-buy, .fv-tui .vb-btn, .fv-tui .vb-back { min-height: 44px; }
+.fv-tui .jr-tabs button { min-height: 44px; padding-inline: 16px; }
+.fv-tui .fv-opt { min-height: 48px; }
+.fv-tui .fv-vol input[type='range'] { height: 44px; }
+.fv-tui .fv-tk-choices button, .fv-tui .fv-tk-comp, .fv-tui .fv-tk-bye { min-height: 44px; }
+.fv-tui .fi-card > footer { position: sticky; bottom: 0; margin-bottom: -18px; padding: 8px 0 20px; background: rgba(24, 27, 40, 0.98); z-index: 1; } /* (it covers the card's bottom padding too, so nothing peeks out under it) */
+/* the chips at the bottom: no key letters on a phone (there is no key), no second line; up out of the way of the stick, Use and Run, on the left where the other thumb is free */
+.fv-tui .fv-talkhint kbd, .fv-tui .fv-gohint small { display: none; }
+#g3d.fv-tui .fv-talkhint { left: max(14px, env(safe-area-inset-left)); bottom: calc(max(28px, env(safe-area-inset-bottom)) + 214px); translate: none; min-height: 44px; max-width: calc(100vw - 150px); white-space: normal; }
+#g3d.fv-tui .fv-gohint { bottom: calc(max(28px, env(safe-area-inset-bottom)) + 266px); }
+
+/* a narrow screen (a phone held upright): the top of the screen in rows, nothing on top of anything: clock | place | buttons, then peaches + the goal, the story, the toasts */
+@media (max-width: 480px) {
+  #g3d .fv-goal { top: calc(max(14px, env(safe-area-inset-top)) + 84px); left: calc(max(14px, env(safe-area-inset-left)) + 88px); transform: none; max-width: calc(100vw - 88px - 28px); }
+  #g3d .pl-peaches { top: calc(max(14px, env(safe-area-inset-top)) + 84px); }
+  #g3d .fv-story { top: calc(max(14px, env(safe-area-inset-top)) + 128px); }
+  #g3d .fv-toasts { top: calc(max(14px, env(safe-area-inset-top)) + 172px); }
+}
+@media (max-width: 480px) {
+  /* the place chip lives between the clock and the two buttons: no "Here", and it shortens its name rather than touch them */
+  #g3d .fv-place small { display: none; }
+  #g3d .fv-place { max-width: calc(100vw - 2 * (max(14px, env(safe-area-inset-left)) + 108px + 8px)); overflow: hidden; text-overflow: ellipsis; }
+}
+/* held sideways there is no room above the stick: the chips go back to the middle of the bottom edge, between the stick and the keys */
+@media (max-height: 520px) {
+  #g3d.fv-tui .fv-talkhint { left: 50%; translate: -50% 0; bottom: max(28px, env(safe-area-inset-bottom)); max-width: 300px; }
+  #g3d.fv-tui .fv-gohint { bottom: calc(max(28px, env(safe-area-inset-bottom)) + 56px); }
+}
+/* the minimap sits where the stick is: with the touch controls on, the Map key opens the big map instead */
+.fv-tui .pl-mini { display: none; }
+
+/* photo mode (T27): one more pill in the column over Use */
+.fv-kp.walk [data-id='photo'] { right: max(24px, env(safe-area-inset-right)); bottom: calc(max(30px, env(safe-area-inset-bottom)) + 348px); }
+@media (max-height: 520px) { .fv-kp.walk [data-id='photo'] { right: calc(max(24px, env(safe-area-inset-right)) + 302px); bottom: max(30px, env(safe-area-inset-bottom)); } }
+
+/* the night of three fights is for the keyboard: a row more would push the ring menu under its buttons on a phone */
+.fv-tui .fi-row[data-id="open"] { display: none; }

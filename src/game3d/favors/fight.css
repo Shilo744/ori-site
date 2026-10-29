@@ -200,3 +200,6 @@
 .jr-card footer { display: flex; justify-content: space-between; align-items: center; }
 .jr-card kbd { font: 700 11px Inter, system-ui, sans-serif; padding: 2px 6px; border-radius: 5px; background: rgba(255, 255, 255, 0.16); margin-left: 4px; }
 @media (max-width: 700px) { .jr-cols { grid-template-columns: 1fr; } }
+
+/* food for the next fight (T25) [experimental]: the line on the ring menu and the journal */
+.fi-fed { display: block; margin-top: 2px; color: #ffd24d; }

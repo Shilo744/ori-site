@@ -8,7 +8,7 @@ const BLOCK = '#f1eee8';
 const ROAD = '#ffffff';
 const LOT = '#d9d4ca';
 
-export const ICON_NAMES = ['ring', 'arcade', 'garage', 'coffee', 'car'];
+export const ICON_NAMES = ['ring', 'arcade', 'garage', 'coffee', 'car', 'event', 'flag'];
 /** A round badge with a white picture in it: the stars of the map (places-guide.js LANDMARKS). */
 function badge(g, icon, x, y, r, color) {
   g.save();
@@ -33,6 +33,14 @@ function badge(g, icon, x, y, r, color) {
     g.beginPath(); g.roundRect(-u * 0.62, -u * 1.05, u * 1.24, u * 2.1, u * 0.4); g.stroke();
     g.beginPath(); g.moveTo(-u * 0.42, -u * 0.38); g.lineTo(u * 0.42, -u * 0.38); g.moveTo(-u * 0.42, u * 0.5); g.lineTo(u * 0.42, u * 0.5); g.stroke();
     g.fillRect(-u * 0.9, -u * 0.8, u * 0.22, u * 0.5); g.fillRect(u * 0.68, -u * 0.8, u * 0.22, u * 0.5); g.fillRect(-u * 0.9, u * 0.35, u * 0.22, u * 0.5); g.fillRect(u * 0.68, u * 0.35, u * 0.22, u * 0.5);
+  } else if (icon === 'event') { // a star: something is on in the city right now
+    g.beginPath();
+    for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5; const rr = i % 2 ? u * 0.5 : u * 1.12; g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr + u * 0.05); }
+    g.closePath(); g.fill();
+  } else if (icon === 'flag') { // a chequered flag on a pole: where the races start
+    g.beginPath(); g.moveTo(-u * 0.8, u * 1.0); g.lineTo(-u * 0.8, -u * 1.0); g.stroke();
+    g.strokeRect(-u * 0.8, -u * 1.0, u * 1.8, u * 1.1);
+    g.fillRect(-u * 0.8, -u * 1.0, u * 0.6, u * 0.55); g.fillRect(u * 0.4, -u * 1.0, u * 0.6, u * 0.55); g.fillRect(-u * 0.2, -u * 0.45, u * 0.6, u * 0.55);
   } else if (icon === 'coffee') { // a cup with steam
     g.beginPath(); g.moveTo(-u * 0.75, -u * 0.1); g.lineTo(-u * 0.55, u * 0.85); g.lineTo(u * 0.55, u * 0.85); g.lineTo(u * 0.75, -u * 0.1); g.closePath(); g.fill();
     g.beginPath(); g.arc(u * 0.95, u * 0.3, u * 0.38, -1.4, 1.4); g.stroke();

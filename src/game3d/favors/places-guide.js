@@ -6,9 +6,12 @@
 export const LANDMARKS = [
   { place: 'court', icon: 'ring', short: 'RING', name: 'The Ring', what: 'Fight the neighbours: jab, guard, dash, level up', color: '#ff6a3d' },
   { place: 'startup', icon: 'arcade', short: 'OFFICE', name: 'The Startup', what: 'Shilo works here, and the office computer has games', color: '#1aa6c8' },
-  { place: 'workshop', icon: 'garage', short: 'GARAGE', name: "Uzi's Garage", what: "Upgrades for Ori's car (for peaches)", color: '#6f7f99' },
+  { place: 'workshop', icon: 'garage', short: 'GARAGE', name: "Uzi's Garage", what: 'Upgrades, parcels, Sababa Cup races', color: '#6f7f99' },
   { place: 'cafe', icon: 'coffee', short: 'CAFE', name: 'Cafe Sababa', what: 'An espresso at the counter: a burst of speed', color: '#b8793a' },
 ];
+
+/** The car races (the Sababa Cup) on the map: a chequered flag at the start line, and a row in the big map's list that leads to the board, which is in the garage. */
+export const CUP = { icon: 'flag', short: 'RACES', name: 'The Sababa Cup', what: "Car races, out of town: end of the main road, R", color: '#e5484d' };
 
 /** His car on the map: it shows while it is parked; a click on it in the big map makes the beam and the arrow lead to it. */
 export const CAR = { icon: 'car', short: 'CAR', name: "Ori's car", what: 'Parked where he left it. Press F next to it to get in', color: '#6a5cff' };
@@ -28,7 +31,7 @@ export const PLACE_LINES = {
   busstop: 'Bus 5 - it is coming. Probably',
   park: 'Lawn, palms and the sea. Golden peaches hide around here',
   court: 'THE RING - fight the neighbours',
-  workshop: "Uzi's Garage - upgrades for Ori's car",
+  workshop: "Uzi's Garage - upgrades, parcels and the Sababa Cup",
 };
 
 export const lineFor = (id) => PLACE_LINES[id] || '';

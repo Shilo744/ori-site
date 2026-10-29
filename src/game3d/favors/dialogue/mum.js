@@ -2,7 +2,7 @@
 export default {
   id: 'mum', who: 'ima', title: "Mum's soup", start: 'hi',
   nodes: {
-    hi: { s: 'ima', e: 'love', t: 'Ori! Habibi! Look at you, so thin. Sit, sit. Have you eaten?', choices: [
+    hi: { s: 'ima', e: 'love', t: 'Ori! Motek! Look at you, so thin. Sit, sit. Have you eaten?', choices: [
       { t: "Mum, I'd love to. What are we having?", next: 'soup' },
       { t: "I ate! But I'm always ready for your soup.", next: 'soup', fx: { rel: 1 } },
       { t: 'Mum, you look wonderful today.', next: 'blush', fx: { rel: 3, flag: 'ima.complimented' } },

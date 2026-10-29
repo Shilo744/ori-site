@@ -3,13 +3,13 @@ import { mulberry32 } from '../../rng.js';
 
 const pick = (rnd, a) => a[Math.floor(rnd() * a.length) % a.length];
 
-const GENERAL = ['Ori! Habibi!', 'Hey, Ori! Looking good!', 'Ori! Big smile today!', 'Shalom, Ori!', 'There he is!', 'Ori, you always look like you are on a mission!', 'Great curls today, Ori!'];
+const GENERAL = ['Ori! My friend!', 'Hey, Ori! Looking good!', 'Ori! Big smile today!', 'Shalom, Ori!', 'There he is!', 'Ori, you always look like you are on a mission!', 'Great curls today, Ori!'];
 const MORNING = ['Good morning, Ori! Coffee is on me later.', 'Early bird! Good morning, Ori!'];
 const NOON = ['Ori! Have you eaten? Come, there is plenty!', 'Lunchtime, Ori! The falafel is on fire.'];
 const EVENING = ['Ori! Beautiful evening, no?', 'Evening, Ori! Look at that sky.'];
 const NIGHT = ['Ori! Late night hero!', 'Go home soon, hero! Or not. You are glowing.'];
 const FRIENDS = ['Ori! Grab a coffee after?', 'My favourite helper!', 'Ori! You owe me a game, you know.'];
-const FAMILY = ['Ori! Call your mother. She is proud already.', 'Ori, habibi! Family dinner Friday!'];
+const FAMILY = ['Ori! Call your mother. She is proud already.', 'Ori, motek! Family dinner Friday!'];
 const STRANGER = ['Hi! You look like someone who knows the way!', 'Nice day, huh?', 'Hello there! Great glasses!'];
 
 /** One bark for a speaker group. `rel` = 'friends' | 'family' | ... | null, `hour` 0-24. */

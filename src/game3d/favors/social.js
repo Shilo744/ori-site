@@ -18,9 +18,9 @@ const GIFTS = { cookies: 'a box of cookies' };
 
 /**
  * @param {{ overlay: HTMLElement, hud: object, sfx: object, map: object, crowd: object, tier: string,
- *           ctrl: () => object, quests: () => object, ori: () => object, hour: () => number, bubbles?: object, onHello?: (h: object) => void }} o
+ *           ctrl: () => object, quests: () => object, ori: () => object, hour: () => number, bubbles?: object, onHello?: (h: object) => void, getLove?: () => number, getClue?: (id: string) => string | null }} o
  */
-export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests, ori, hour, bubbles = null, onHello = null }) {
+export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests, ori, hour, bubbles = null, onHello = null, getLove = () => 0, getClue = null }) {
   const flags = new Set();
   const residents = new Map(); // place id -> [cast ids]
   for (const [id, c] of Object.entries(CAST)) {
@@ -132,14 +132,16 @@ export function createSocial({ overlay, hud, sfx, map, crowd, tier, ctrl, quests
     if (!driving && tg.x != null && Math.hypot(tg.x - c.x, tg.z - c.z) > 0.4) c.heading = Math.atan2(tg.x - c.x, tg.z - c.z);
     const seed = ++helloCount * 7 + (tg.walker ? tg.walker.id * 13 : tg.id.length * 5);
     const sp = speaker(tg.id);
+    const clue = getClue ? getClue(tg.id) : null; // (the story: the next person in it says the clue instead of the usual line)
+    const line = clue || replyFor(tg.id, { hour: hour(), seed: seed * 3 + 1, first, rel: relOf(tg.id), love: getLove() });
     if (bubbles) {
       bubbles.say(() => ({ x: ctrl().state.x, y: driving ? 2.3 : (o ? o.height : 1.85) + 0.15, z: ctrl().state.z }), helloFor(seed), { kind: 'ori', ms: 1500, key: 'ori', dx: -95 });
       const pos = () => (tg.walker ? { x: tg.walker.x, y: 1.95, z: tg.walker.z } : { x: tg.x, y: 1.95, z: tg.z });
       setTimeout(() => {
-        bubbles.say(pos, replyFor(tg.id, { hour: hour(), seed: seed * 3 + 1, first }), { name: sp.name, kind: tg.id === 'shilo' ? 'boss' : 'them', ms: 2800, key: `them:${tg.id}`, dx: 95 });
+        bubbles.say(pos, line, { name: sp.name, kind: tg.id === 'shilo' ? 'boss' : 'them', ms: clue ? 5600 : 2800, key: `them:${tg.id}`, dx: 95 });
         if (first) bubbles.heart(pos);
       }, 520);
-    } else hud.toast(`${sp.name}: ${replyFor(tg.id, { hour: hour(), seed, first })}`, 2200);
+    } else hud.toast(`${sp.name}: ${line}`, clue ? 5200 : 2200);
     sfx.pop();
     const love = loveFor(tg.id, first);
     if (onHello) onHello({ id: tg.id, name: sp.name, first, love, stranger: tg.id.startsWith('stranger') });

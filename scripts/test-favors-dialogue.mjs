@@ -157,7 +157,7 @@ test('barks: warm, vary by the hour and the relationship, deterministic', () => 
   for (let s = 1; s <= 80; s++) set.add(barkFor({ rel: s % 3 ? 'friends' : 'family', hour: (s * 3) % 24, seed: s }));
   assert.ok(set.size >= 10, `${set.size} different barks`);
   assert.equal(barkFor({ seed: 3, hour: 9 }), barkFor({ seed: 3, hour: 9 }));
-  assert.ok(ALL_BARKS.some((b) => /Habibi/.test(b)));
+  assert.ok(ALL_BARKS.some((b) => /[Mm]otek/.test(b)));
 });
 
 test('graphFor finds the right conversation for Mum, the clerk, strangers and everyone else', () => {

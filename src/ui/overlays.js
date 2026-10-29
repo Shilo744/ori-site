@@ -37,7 +37,7 @@ export function createOverlays({ root, wm, closeMenus }) {
       ...C.projects.map((p) => ({ n: p.name, k: 'Project', icon: icon('safari'), go: () => wm.open('projects') })),
       { n: `Email ${C.name}`, k: 'Mail', icon: icon('mail'), go: () => wm.open('contact') },
       ...listApps({ hidden: false }).map((a) => ({ n: a.name, k: a.spotlightKind, icon: a.icon, go: () => wm.open(a.id) })),
-      { n: 'Play: Ori, Can You...?', k: 'Game', icon: FAVORS_ICON, go: () => wm.open('favors') },
+      { n: "Play: Ori's Life", k: 'Game', icon: FAVORS_ICON, go: () => wm.open('favors') },
       { n: 'Play NEON DRIFT', k: 'Game', icon: DRIFT_ICON, go: () => launchGame3D('drift') },
     ];
   };

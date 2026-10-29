@@ -1,0 +1,29 @@
+/* "Ori, Can You...?" — photo mode (T27) [experimental]: the viewfinder, the flash and the little polaroid. The HUD is put away while it is on (the overlay carries .fv-photo). Prefix ph-. Nothing here names a cursor. */
+.g3d.fv-photo .fv-hud { visibility: hidden; }
+.g3d.fv-photo .fv-gohint, .g3d.fv-photo .fv-talkhint { visibility: hidden; } /* (the door and hello chips live beside the HUD, not in it) */
+.ph { position: absolute; inset: 0; z-index: 5; pointer-events: none; font-family: Inter, system-ui, sans-serif; }
+.ph[hidden] { display: none; }
+.ph-frame { position: absolute; inset: max(18px, 3vmin); }
+.ph-frame i { position: absolute; width: 38px; height: 38px; border: 3px solid rgba(255, 255, 255, 0.88); filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.55)); }
+.ph-frame i:nth-child(1) { left: 0; top: 0; border-right: 0; border-bottom: 0; }
+.ph-frame i:nth-child(2) { right: 0; top: 0; border-left: 0; border-bottom: 0; }
+.ph-frame i:nth-child(3) { left: 0; bottom: 0; border-right: 0; border-top: 0; }
+.ph-frame i:nth-child(4) { right: 0; bottom: 0; border-left: 0; border-top: 0; }
+.ph-hint { position: absolute; left: 50%; bottom: calc(max(22px, env(safe-area-inset-bottom)) + 62px); translate: -50% 0; margin: 0; padding: 7px 15px; border-radius: 999px; background: rgba(0, 0, 0, 0.62); color: #ffffff; font: 600 13px/1.2 Inter, system-ui, sans-serif; white-space: nowrap; max-width: calc(100vw - 28px); overflow: hidden; text-overflow: ellipsis; }
+.ph-btns { position: absolute; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); translate: -50% 0; display: flex; gap: 10px; pointer-events: auto; }
+.ph-btn { font: 700 14px Inter, system-ui, sans-serif; padding: 11px 20px; border-radius: 13px; border: 1px solid rgba(255, 255, 255, 0.22); background: rgba(20, 24, 36, 0.78); color: #ffffff; pointer-events: auto; } /* (its own class: not .fi-btn, which the tests and the cards look for) */
+.ph-btn.shoot { background: linear-gradient(135deg, #ffb25b, #ff7a59); color: #20120a; border-color: transparent; }
+.ph-btn:focus-visible { outline: 2px solid var(--fv-accent, #ffb25b); outline-offset: 2px; }
+.fv-tui .ph-btn { min-height: 44px; }
+.fv-hc .ph-btn { background: #000000; color: #ffffff; border: 2px solid #ffffff; }
+.fv-hc .ph-btn.shoot { background: #ffe14d; color: #000000; }
+.ph-flash { position: absolute; inset: 0; background: #ffffff; opacity: 0; pointer-events: none; }
+.ph-flash.go { animation: ph-flash 0.4s ease-out; }
+@keyframes ph-flash { from { opacity: 0.85; } to { opacity: 0; } }
+.ph-thumb { position: absolute; right: max(24px, env(safe-area-inset-right)); bottom: calc(max(22px, env(safe-area-inset-bottom)) + 62px); width: min(240px, 36vw); height: auto; border-radius: 3px; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); transform: rotate(3deg); }
+.ph-thumb[hidden] { display: none; }
+.ph-thumb.in { animation: ph-in 0.38s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes ph-in { from { opacity: 0; transform: translateY(34px) rotate(9deg); } to { opacity: 1; transform: rotate(3deg); } }
+.ph.calm .ph-flash.go, .ph.calm .ph-thumb.in { animation: none; }
+.fv-hc .ph-hint { background: #000000; border: 2px solid #ffffff; }
+@media (prefers-reduced-motion: reduce) { .ph-flash.go, .ph-thumb.in { animation: none; } }

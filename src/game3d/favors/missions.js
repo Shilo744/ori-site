@@ -14,6 +14,7 @@
 //   env = { places, blocked(x, z, r), seed, day }
 import { mulberry32, subSeed } from '../rng.js';
 import { CARGO, PASSENGERS, FIND_KINDS, CHASE_KINDS, LISTS, RACE, GAUNTLET, WEEK, VERB_PARAMS, LIKES } from './play-content.js';
+import { buildTrack, GRID_GAP } from './tracks.js';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const dist = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
@@ -68,6 +69,8 @@ function shell(kind, spec, env, body) {
     goal() { return null; },
     /** True while Ori must not be bumped off the mission by a follow switch (cargo in hand, a passenger aboard). */
     get committed() { return false; },
+    /** True while the car must not move (the countdown of a race: no false start). */
+    get locked() { return false; },
   };
   Object.defineProperties(m, Object.getOwnPropertyDescriptors(body)); // (not a spread: the getters must stay getters)
   return m;
@@ -395,9 +398,13 @@ function listMission(spec, env) {
 
 // ───────────────────────────── race: Dov the courier ─────────────────────────────
 function raceMission(spec, env) {
+  if (spec.rivals) return fieldRaceMission(spec, env); // (a whole field on a track out of town)
   const loop = RACE.loop;
   const day = clamp((env.day || 1) - 1, 0, 4);
   const speed = (spec.rival || RACE.rival[day]) * (spec.scale || 1);
+  const who = spec.who || 'Dov'; // (the Sababa Cup races somebody else, in his own car; the story's race is Dov's)
+  const prize = spec.prize ?? 120;
+  const consolation = spec.consolation ?? 35;
   // the rival's polyline and cumulative lengths
   const cum = [0];
   for (let i = 1; i < loop.length; i++) cum.push(cum[i - 1] + dist(loop[i][0], loop[i][1], loop[i - 1][0], loop[i - 1][1]));
@@ -412,12 +419,13 @@ function raceMission(spec, env) {
   const start = { x: loop[0][0], z: loop[0][1] };
   const m = shell('race', spec, env, {
     get committed() { return s.stage === 'go' || s.stage === 'count'; },
+    get locked() { return s.stage === 'count'; },
     goal() { if (m.done) return null; if (s.stage === 'grid') return { ...start, place: null }; const p = loop[Math.min(s.cp, loop.length - 1)]; return { x: p[0], z: p[1], place: null }; },
     update(ctx) {
       if (m.done) return;
       const car = ctx.car;
       if (s.stage === 'grid') {
-        if (car && dist(car.x, car.z, start.x, start.z) < 9 && Math.abs(car.speed) < 5) { s.stage = 'count'; s.count = RACE.countdown; m.emit({ type: 'stage', id: 'count', say: 'Dov grins. Ready?' }); }
+        if (car && dist(car.x, car.z, start.x, start.z) < 9 && Math.abs(car.speed) < 5) { s.stage = 'count'; s.count = RACE.countdown; m.emit({ type: 'stage', id: 'count', say: `${who} grins. Ready?` }); }
         return;
       }
       if (s.stage === 'count') {
@@ -438,8 +446,8 @@ function raceMission(spec, env) {
           if (s.cp >= loop.length) {
             const win = s.rivalDone == null || s.clock <= s.rivalDone;
             s.place = win ? 1 : 2;
-            m.emit({ type: 'stage', id: win ? 'win' : 'lose', say: win ? 'You beat Dov! He is delighted.' : 'Dov wins by a whisker - he buys you a coffee!' });
-            m.finish(win ? 1 : 0.62, { tip: win ? 120 : 35, place: s.place, special: 'race' });
+            m.emit({ type: 'stage', id: win ? 'win' : 'lose', say: win ? `You beat ${who}! ${who === 'Dov' ? 'He is delighted.' : 'Well driven!'}` : `${who} wins by a whisker - a kind word and a coffee!` });
+            m.finish(win ? 1 : 0.62, { tip: win ? prize : consolation, place: s.place, special: 'race' });
           }
         }
       }
@@ -449,7 +457,7 @@ function raceMission(spec, env) {
       const gap = s.stage === 'go' ? (s.rival - 0) : 0;
       void gap;
       return {
-        label: s.stage === 'grid' ? 'Race Dov: line up at the start' : s.stage === 'count' ? `Get ready... ${Math.max(1, Math.ceil(s.count))}` : `Race Dov! Checkpoint ${Math.min(s.cp, total_)} of ${total_}`,
+        label: s.stage === 'grid' ? `Race ${who}: line up at the start` : s.stage === 'count' ? `Get ready... ${Math.max(1, Math.ceil(s.count))}` : `Race ${who}! Checkpoint ${Math.min(s.cp, total_)} of ${total_}`,
         sub: s.stage === 'grid' ? 'Drive your own car to the glowing ring and stop.' : 'Pass every ring in order. Shift is the afterburner!',
         meters: s.stage === 'go' ? [{ k: 'race', label: 'Rival', v: clamp(s.rival / total, 0, 1), mine: clamp((cum[Math.min(s.cp - 1, cum.length - 1)] || 0) / total, 0, 1) }] : [],
         steps: [],
@@ -457,13 +465,165 @@ function raceMission(spec, env) {
     },
     targets() {
       const out = [];
-      if (s.stage !== 'grid') out.push({ kind: 'rival', ...rivalAt(s.rival), name: 'Dov' }); else out.push({ kind: 'rival', ...rivalAt(0), name: 'Dov' });
+      if (s.stage !== 'grid') out.push({ kind: 'rival', ...rivalAt(s.rival), name: who, car: spec.car }); else out.push({ kind: 'rival', ...rivalAt(0), name: who, car: spec.car });
       const p = loop[Math.min(s.cp, loop.length - 1)];
       if (!m.done) out.push({ kind: 'checkpoint', x: p[0], z: p[1], next: s.cp, r: RACE.radius });
       return out;
     },
     state: s,
     total,
+  });
+  return m;
+}
+
+// ───────────────────────────── field race: several cars on a track out of town ─────────────────────────────
+const ORD = ['', '1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+export const ordinal = (n) => ORD[n] || `${n}th`;
+const RIVAL_ACCEL = 11; // m/s² (the player's own car pulls away quicker, but a rival gets there)
+const RIVAL_BRAKE = 22;
+const RIVAL_LAT = 2.6; // m/s sideways when he changes his mind
+/** A race with a whole field: spec = { track, laps, rivals: [{ who, speed, aLat, block, error, car }], prizes: [peaches by place], consolation, cup }. The player starts at the back of the grid and every car stands still until GO.
+ * Each rival is a driver: he accelerates, carries a turn only as fast as his grip allows (aLat) and brakes for it, slips now and then (error), steers round the cones and the cars in front, and defends his line against a car right behind him (block).
+ * He is quicker when the player is far ahead (never unbeatable: +10 % at most) and a touch slower when he is far ahead. A bump from the player costs him speed and moves him sideways (`shove`); the game keeps the cars apart (`cars`).
+ * The place at the line is the number of rivals that finished before him + 1. */
+function fieldRaceMission(spec, env) {
+  const T = buildTrack(spec.track);
+  const laps = spec.laps || T.laps;
+  const total = T.total * laps;
+  const field = spec.rivals;
+  const nR = field.length;
+  const cps = [];
+  for (let l = 0; l < laps; l++) for (const c of T.cps) cps.push({ x: c.x, z: c.z, d: l * T.total + c.d });
+  const backOf = (k) => GRID_GAP * (1 + Math.floor(k / 2));
+  const slot = T.slot(nR);
+  const start = { x: slot.x, z: slot.z };
+  const pp0 = -backOf(nR);
+  const ring = T.width / 2 + 2;
+  const half = T.width / 2;
+  const rnd = mulberry32(subSeed(env.seed || 1, 77));
+  const R = field.map((r, i) => ({ ...r, i, d: -backOf(i), lane: i % 2 ? 3 : -3, lat: i % 2 ? 3 : -3, v: 0, finish: null, wob: i * 1.7, stun: 0, slip: 0, nextSlip: 5 + rnd() * 9, x: 0, z: 0, h: 0, aLat: r.aLat || 28, block: r.block ?? 0.4, error: r.error ?? 0.3 }));
+  const place = (r) => { const q = T.offsetAt(r.d, r.lat); r.x = q.x; r.z = q.z; r.h = q.h; };
+  R.forEach(place);
+  const s = { stage: 'grid', cp: 0, clock: 0, count: RACE.countdown, place: 0, pp: pp0, rank: nR + 1, lap: 1 };
+  const prizeOf = (pl) => spec.prizes[pl - 1] ?? spec.consolation ?? 10;
+  const keep = (lat) => clamp(lat, -half + 2.2, half - 2.2);
+  /** Where the player is on the track, counted in laps like the race (distance along and sideways), or null. */
+  const along = (car) => { if (!car) return null; const q = T.nearest(car.x, car.z); return { d: q.d + T.total * Math.round((s.pp - q.d) / T.total), lat: q.lat }; };
+  /** What is in this rival's way: the cars just ahead of (or beside) him and the obstacles near him, each with its sideways place and its radius. */
+  const blockers = (r) => {
+    const out = [];
+    for (const o of R) { if (o === r || o.finish != null) continue; const ahead = o.d - r.d; if (ahead > -3 && ahead < 15) out.push({ lat: o.lat, r: 1 }); }
+    const here = ((r.d % T.total) + T.total) % T.total;
+    for (const h of T.hazards) { let ahead = (((h.d - here) % T.total) + T.total) % T.total; if (ahead > T.total / 2) ahead -= T.total; if (ahead > -6 && ahead < 24) out.push({ lat: h.lat, r: h.r }); } // (until it is well behind him: the car is 5 m long)
+    return out;
+  };
+  const drive = (r, pl, dt) => {
+    if (r.finish != null) { r.v *= Math.max(0, 1 - 1.4 * dt); r.d += r.v * dt; place(r); return; }
+    // sideways first: into a lane with room round what is in the way (on the side he is already on: never across it), else, boxed in, he stays and queues; else he defends the line against a car right behind; else back to his own lane
+    const bl = blockers(r);
+    let target = r.lane; let rate = RIVAL_LAT; let queue = 1;
+    if (bl.length) {
+      const room = (lat) => Math.min(...bl.map((b) => Math.abs(b.lat - lat) - b.r));
+      rate = 4.4;
+      if (room(r.lane) < 1.5) {
+        let best = null; let cost = 99;
+        for (let c = -half + 1.8; c <= half - 1.8 + 1e-6; c += 0.4) {
+          if (room(c) < 1.1) continue; // (no room there)
+          // going round on the side he is on beats cutting across what is in his way (only when he is clear of it now)
+          const cross = bl.some((x) => Math.abs(r.lat - x.lat) > x.r + 1.2 && (c - x.lat) * (r.lat - x.lat) < 0);
+          const k = Math.abs(c - r.lat) + (cross ? 8 : 0);
+          if (k < cost) { cost = k; best = c; }
+        }
+        if (best != null) target = best; else { target = r.lat; queue = 0.78; } // (boxed in: he lifts and follows)
+      }
+    } else if (pl && r.block > 0.25 && pl.d < r.d && r.d - pl.d < 18 && r.v > 8) target = keep(r.lane + (pl.lat - r.lane) * r.block);
+    r.lat += clamp(target - r.lat, -rate * dt, rate * dt);
+    // then the speed
+    const gap = clamp((s.pp - r.d) / 120, -1, 1); // > 0: the player is ahead of him
+    const rub = s.clock < 6 ? 0 : gap > 0 ? 0.1 * gap : 0.04 * gap;
+    let want = r.speed * (1 + rub) * (1 + 0.025 * Math.sin(s.clock * 0.7 + r.wob)) * queue;
+    if (r.slip > 0) { r.slip -= dt; want *= 0.7; } else if ((r.nextSlip -= dt) <= 0) { r.nextSlip = 6 + rnd() * 10; if (rnd() < r.error) r.slip = 0.9; }
+    if (r.stun > 0) { r.stun -= dt; want *= 0.8; }
+    want = Math.min(want, T.speedAt(r.d, r.aLat));
+    r.v += clamp(want - r.v, -RIVAL_BRAKE * dt, RIVAL_ACCEL * dt);
+    r.d += r.v * dt;
+    place(r);
+  };
+  const m = shell('race', spec, env, {
+    get committed() { return s.stage === 'go' || s.stage === 'count'; },
+    get locked() { return s.stage === 'count'; },
+    goal() { if (m.done) return null; if (s.stage === 'grid') return { ...start, place: null }; const c = cps[Math.min(s.cp, cps.length - 1)]; return { x: c.x, z: c.z, place: null }; },
+    update(ctx) {
+      if (m.done) return;
+      const car = ctx.car;
+      if (s.stage === 'grid') {
+        if (car && dist(car.x, car.z, start.x, start.z) < 9 && Math.abs(car.speed) < 5) { s.stage = 'count'; s.count = RACE.countdown; m.emit({ type: 'stage', id: 'count', say: `${spec.cup || 'The race'}: ready?` }); }
+        return;
+      }
+      if (s.stage === 'count') {
+        const before = Math.ceil(s.count);
+        s.count -= ctx.dt;
+        if (Math.ceil(s.count) !== before && s.count > 0) m.emit({ type: 'count', n: Math.ceil(s.count) });
+        if (s.count <= 0) { s.stage = 'go'; s.clock = 0; m.emit({ type: 'count', n: 0 }); }
+        return;
+      }
+      s.clock += ctx.dt;
+      const pl = along(car);
+      for (const r of R) drive(r, pl, ctx.dt);
+      if (car) {
+        const c = cps[s.cp];
+        if (c && dist(car.x, car.z, c.x, c.z) < ring) {
+          s.cp++;
+          const per = T.cps.length;
+          if (s.cp % per === 0 && s.cp < cps.length) { s.lap = s.cp / per + 1; m.emit({ type: 'lap', lap: s.lap, of: laps, final: s.lap === laps }); }
+        }
+        const nxt = cps[Math.min(s.cp, cps.length - 1)];
+        const base = s.cp > 0 ? cps[s.cp - 1].d : pp0;
+        const span = Math.max(1, nxt.d - base);
+        s.pp = s.cp >= cps.length ? total : base + clamp(span - dist(car.x, car.z, nxt.x, nxt.z), 0, span);
+      }
+      for (const r of R) if (r.finish == null && r.d >= total) r.finish = s.clock;
+      s.rank = 1 + R.filter((r) => r.d > s.pp && r.finish == null).length + R.filter((r) => r.finish != null).length;
+      if (s.cp >= cps.length) {
+        const pos = 1 + R.filter((r) => r.finish != null).length;
+        s.place = pos;
+        const say = pos === 1 ? `You won ${spec.cup || 'the race'}!` : pos === 2 ? `Second of ${nR + 1}: so close!` : `${ordinal(pos)} of ${nR + 1}: well driven, and a coffee on the house.`;
+        m.emit({ type: 'stage', id: pos === 1 ? 'win' : 'lose', say });
+        const order = R.slice().sort((a, b) => (a.finish != null ? 0 : 1) - (b.finish != null ? 0 : 1) || (a.finish ?? 0) - (b.finish ?? 0) || b.d - a.d).map((r) => r.who);
+        order.splice(pos - 1, 0, 'You');
+        m.finish(pos === 1 ? 1 : pos <= 3 ? 0.85 : 0.65, { tip: prizeOf(pos), place: pos, field: nR + 1, special: 'race', board: order.map((w, i) => `${ordinal(i + 1)} ${w}`).join(' · ') });
+      }
+    },
+    view() {
+      const lead = Math.max(0, ...R.map((r) => r.d));
+      const lap = Math.min(laps, Math.floor(Math.max(0, s.pp) / T.total) + 1);
+      return {
+        label: s.stage === 'grid' ? `${spec.cup || 'Race'}: roll up to the grid` : s.stage === 'count' ? `Get ready... ${Math.max(1, Math.ceil(s.count))}` : `${spec.cup || 'Race'}`,
+        sub: s.stage === 'grid' ? 'Drive to the glowing ring at your place on the grid and stop.' : s.stage === 'count' ? 'The engines are held until GO.' : 'Stay on the road, mind the cones, oil and tyres. Shift is the afterburner!',
+        meters: s.stage === 'go' ? [{ k: 'race', label: 'Leader', v: clamp(lead / total, 0, 1), mine: clamp(s.pp / total, 0, 1) }] : [],
+        steps: [],
+        race: s.stage === 'grid' ? null : { lap, laps, rank: s.rank, field: nR + 1, clock: s.stage === 'go' ? s.clock : 0, count: s.stage === 'count' ? Math.max(1, Math.ceil(s.count)) : 0, final: lap === laps },
+      };
+    },
+    targets() {
+      const out = R.map((r) => ({ kind: 'rival', x: r.x, z: r.z, heading: r.h, name: r.who, car: r.car }));
+      if (!m.done && s.stage === 'grid') out.push({ kind: 'checkpoint', x: start.x, z: start.z, next: s.cp, r: ring }); // (a glowing ring only where he lines up; on the road he follows the road)
+      return out;
+    },
+    /** The cars of the field, for the game to keep apart from the player's: [{ i, x, z, h, v }]. */
+    cars() { return R.map((r) => ({ i: r.i, x: r.x, z: r.z, h: r.h, v: r.v })); },
+    /** The player touched rival `i`: (nx, nz) = the unit vector from the rival to the player, `pen` = how deep, `closing` = how fast they met (m/s), `fromBehind` = the player hit him from behind. */
+    shove(i, nx, nz, pen, closing, fromBehind) {
+      const r = R[i];
+      if (!r || r.finish != null) return;
+      const lx = Math.cos(r.h); const lz = -Math.sin(r.h);
+      r.lat = clamp(r.lat - (nx * lx + nz * lz) * pen * 0.7, -half + 1.4, half - 1.4);
+      r.v = Math.max(0, r.v + (fromBehind ? 1 : -1) * Math.min(3.5, closing * 0.25));
+      r.stun = 0.35;
+    },
+    state: s,
+    total,
+    field: R,
   });
   return m;
 }

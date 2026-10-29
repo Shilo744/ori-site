@@ -32,8 +32,10 @@ export function createPlayUi({ root, hud, sfx, map }) {
   card.hidden = true;
   const boost = mk('pl-boost', '<span>AFTERBURNER</span><div><i></i></div>');
   const big = mk('pl-big');
-  const mini = mk('pl-mini fv-glass', '<canvas width="176" height="182" aria-label="Map"></canvas>');
-  hudRoot.append(peach, card, boost, big, mini);
+  const mini = mk('pl-mini fv-glass', '<canvas width="176" height="182" role="img" aria-label="Minimap (M opens the big map)"></canvas><span class="pl-mini-key" aria-hidden="true"><kbd>M</kbd> big map</span>');
+  const race = mk('pl-race fv-glass'); // the race panel: the lap, the place and the time (field races out of town)
+  race.hidden = true;
+  hudRoot.append(peach, card, boost, big, mini, race);
   const map2d = createMap2d(mini.querySelector('canvas'), map);
   const k = (el, key) => el.querySelector(`[data-k="${key}"]`);
   const last = {};
@@ -63,6 +65,16 @@ export function createPlayUi({ root, hud, sfx, map }) {
     const html = `<b>${esc(view.label)}</b><small>${esc(view.sub || '')}</small>${meters}${steps}`;
     setHtml(card, 'm', html);
   }
+  /** The race panel: r = { lap, laps, rank, field, clock, count, final } or null. The count is the countdown before GO. */
+  function setRace(r) {
+    race.hidden = !r;
+    if (!r) { last.r = ''; return; }
+    const mm = Math.floor(r.clock / 60); const ss = (r.clock % 60).toFixed(1).padStart(4, '0');
+    const html = r.count
+      ? `<div class="pr-get"><small>GET READY</small><b>${r.count}</b></div>`
+      : `<div><small>LAP</small><b>${r.lap}<span>/${r.laps}</span></b></div><div><small>PLACE</small><b>${r.rank}<span>/${r.field}</span></b></div><div><small>TIME</small><b class="pr-t">${mm}:${ss}</b></div>${r.final ? '<em>FINAL LAP</em>' : ''}`;
+    setHtml(race, 'r', html);
+  }
   function bigWord(text, ms = 900) {
     big.textContent = text;
     big.classList.remove('on'); void big.offsetWidth; big.classList.add('on');
@@ -71,6 +83,8 @@ export function createPlayUi({ root, hud, sfx, map }) {
   }
   /** The minimap: where Ori is, the beam's place and the extra points (golden peaches nearby are not shown on purpose). */
   let miniAt = 0;
+  /** The minimap is put away on a track out of town (it shows the city). */
+  function setMinimapVisible(v) { mini.hidden = !v; }
   function setMinimap(now, { player, pins = [], points = [], landmarks = [], goal = null }) {
     if (now - miniAt < 0.12) return;
     miniAt = now;
@@ -224,7 +238,7 @@ export function createPlayUi({ root, hud, sfx, map }) {
   function hideDay() { if (dayEl) { dayEl.remove(); dayEl = null; } }
 
   return {
-    setPeaches, setBoost, setMission, bigWord, setMinimap,
+    setPeaches, setBoost, setMission, setRace, bigWord, setMinimap, setMinimapVisible,
     openVerb, cancelVerb, get verbOpen() { return !!verb; },
     openShop, closeShop, buy, get shopOpen() { return !!shop; }, set onShopClose(fn) { if (shop) shop.onClose = fn; },
     showDay, hideDay, get dayOpen() { return !!dayEl; },

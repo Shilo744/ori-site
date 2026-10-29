@@ -7,6 +7,7 @@ import { GESTURES } from './people/anim.js';
 import { speaker } from './dialogue/cast.js';
 import { createBout, RING } from './boxing.js';
 import { createFightSfx } from './fight-sfx.js';
+import { withCaptions } from './captions.js';
 import { createFightMusic } from './fight-music.js';
 import { createFightUi } from './fight-ui.js';
 import { createFightTouch } from './fight-touch.js';
@@ -214,13 +215,14 @@ function buildBeacon() {
 
 /**
  * @param {{ scene: THREE.Scene, map: object, tier: string, shadows: boolean, overlay: HTMLElement, getOri: () => object, groundAt: (x:number,z:number)=>number,
- *   setCamera: (cfg: object|null) => void, setFade: (a:number) => void, isMuted?: () => boolean, volume?: () => number, getLove: () => number, getLevel: () => number }} o
+ *   setCamera: (cfg: object|null) => void, setFade: (a:number) => void, isMuted?: () => boolean, volume?: () => number, reduceMotion?: () => boolean, getLove: () => number, getLevel: () => number }} o
  */
 export function createFightMode(o) {
   const { scene, map, tier, shadows, overlay, getOri, groundAt, setCamera, setFade } = o;
-  const sfx = createFightSfx({ isMuted: o.isMuted, volume: o.volume });
+  const sfx = withCaptions(createFightSfx({ isMuted: o.isMuted, volume: o.volume }), 'ring', (t) => { if (o.caption) o.caption(t); }); // (the same call that makes a sound says its words, when the player asked for captions)
   let lastUpdate = performance.now(); // (the game stops calling update() when it is paused: the music notices and goes quiet)
   const music = createFightMusic({ audio: sfx.audio, active: () => performance.now() - lastUpdate < 500 });
+  const calm = () => !!(o.reduceMotion && o.reduceMotion()); // reduce motion (T05): no shake, no hit-stop, no flashes, no swoop or spin of the camera, no zoom of the words
   const ui = createFightUi({ root: overlay });
   // the touch buttons do what the keys do (they are only on screen on a touch device)
   const stick = { x: 0, y: 0 };
@@ -350,19 +352,20 @@ export function createFightMode(o) {
 
   /** Opens the ring: fade to black, put everybody in place, the bell. */
   let tipFlags = {}; // what the player has been told already (kept in the save)
-  function start(def, { level = 1, boss = false, seed = 1, done, tips = null } = {}) {
+  function start(def, { level = 1, boss = false, seed = 1, done, tips = null, buff = null, hpFrac = 1, round = 'ROUND 1' } = {}) {
     tipFlags = tips || {};
+    ui.setCalm(calm());
     if (phase !== 'off' && phase !== 'leaving') return false;
     opp = def; onEnd = done || null; bossIntro = boss || !!def.hidden;
     phase = 'fade'; phaseT = 0;
     pending = () => {
       const ori = getOri();
       foe = makeOpponent(def);
-      bout = createBout({ level, opp: def, seed, intro: bossIntro ? 3.6 : 2.6 });
+      bout = createBout({ level, opp: def, seed, intro: bossIntro ? 3.6 : 2.6, buff, hpFrac });
       me = { person: ori.person };
       ori.setMirror(true); ori.hold('guard'); ori.group.rotation.order = 'YXZ';
       names.me = 'Ori'; names.level = level; names.foe = def.name; names.title = def.title; names.fury = !!bout.P.unlocks.fury;
-      ui.show(bout, names); ui.setRound('ROUND 1');
+      ui.show(bout, names); ui.setRound(round);
       mode = 'bout'; run = null;
       side = { x: 1, z: 0 }; koT = [0, 0]; upT = [0, 0]; introStage = 0; timeT = 0; winPlayed = 0; shake = 0; hitStop = 0; camPos = null; camLook = null;
       pend.jab = pend.cross = pend.dash = pend.fury = false; held = new Set(); stick.x = stick.y = 0; touchGuard = false;
@@ -399,7 +402,10 @@ export function createFightMode(o) {
 
   // ── events of the sim -> animations, sounds, effects ──
   /** The held pose of a fighter: the guard, the block when his guard is up, lying when he is down. */
-  const holdFor = (f) => (f.state === 'ko' || f.state === 'down' ? 'ko' : f.state === 'win' ? null : f.blocking ? 'block' : 'guard');
+  const tiredNow = new WeakMap();
+  /** Out of breath (with a margin so it does not flicker at the edge): the bar is nearly empty until it has filled a third again. */
+  const isTired = (f) => { const was = tiredNow.get(f) || false; const now = was ? f.st < f.maxSt * 0.32 : f.st < f.maxSt * 0.15; tiredNow.set(f, now); return now; };
+  const holdFor = (f) => (f.state === 'ko' || f.state === 'down' ? 'ko' : f.state === 'win' ? null : f.blocking ? 'block' : isTired(f) ? 'tired' : 'guard');
   /** How far down a fighter is (0 standing .. 1 flat on the canvas): the fall eases in; after a knock-down the get-up eases out. */
   function fallOf(f, i, dt) {
     if (f.state === 'ko' || f.state === 'down') { upT[i] = 0; return 1 - (1 - Math.min(1, (koT[i] += dt) / FALL)) ** 2; }
@@ -445,7 +451,7 @@ export function createFightMode(o) {
         spark(x, floorY + 1.35, z, e.heavy ? 1.9 : 1.2);
         sfx.thud(e);
         shake = Math.min(0.5, shake + (e.heavy ? 0.28 : 0.13));
-        hitStop = e.heavy ? 0.085 : 0.045;
+        hitStop = calm() ? 0 : e.heavy ? 0.085 : 0.045;
         if (e.target === 'player') { ui.flash('hurt'); crowd.cheer(0.3); sfx.gasp(0.7); } else { crowd.cheer(0.5); if (e.heavy || e.counter) sfx.gasp(e.counter ? 1 : 0.5); }
         if (e.counter) ui.bigWord('COUNTER!', 'good', 700);
         else if (e.who === 'player' && e.combo >= 4 && e.combo % 2 === 0) ui.subWord(`${e.combo} hit combo!`, 900);
@@ -473,9 +479,9 @@ export function createFightMode(o) {
       case 'knockdown': { sfx.knockdown(e.who); music.pause(true); sfx.gasp(1); fighterOf(e.who).person.play('ko', 1.0); ui.bigWord('DOWN!', 'red', 1100); ui.flash('ko'); shake = 0.45; crowd.cheer(1.0); if (e.who === 'player') ui.subWord('Mash J / K to get up!', 2800); else ui.subWord('Count with the referee... he may get up', 2000); break; }
       case 'count': sfx.count(e.n); ui.bigWord(String(e.n), e.who === 'player' ? 'red' : 'good', 650); break;
       case 'getup': { sfx.getup(e.who); music.pause(false); upT[e.who === 'player' ? 0 : 1] = RISE; ui.bigWord(e.who === 'player' ? 'UP!' : 'HE IS UP!', e.who === 'player' ? 'good' : '', 800); break; }
-      case 'ko': { fighterOf(e.who).person.play('ko', 1.0); sfx.ko(e.who); music.stop({ fade: 0.08 }); music.sting(e.who === 'opp' ? (opp && opp.hidden ? 'boss' : 'win') : 'lose', 1.6); if (e.who === 'opp') sfx.cheer(1.4, 1.0); ui.bigWord('K.O.!', 'red', 1700); ui.flash('ko'); shake = 0.6; crowd.cheer(1.4); break; }
+      case 'ko': { if (!e.fromDown) fighterOf(e.who).person.play('ko', 1.0); sfx.ko(e.who); music.stop({ fade: 0.08 }); music.sting(e.who === 'opp' ? (opp && opp.hidden ? 'boss' : 'win') : 'lose', 1.6); if (e.who === 'opp') sfx.cheer(1.4, 1.0); ui.bigWord('K.O.!', 'red', 1700); ui.flash('ko'); shake = 0.6; crowd.cheer(1.4); break; }
       case 'over': if (e.how === 'time') { ui.bigWord(e.winner === 'player' ? 'YOU WIN!' : e.winner === 'opp' ? 'TIME!' : 'DRAW', e.winner === 'player' ? 'good' : '', 1500); sfx.bell(3); music.stop({ fade: 0.15 }); music.sting(e.winner === 'player' ? (opp && opp.hidden ? 'boss' : 'win') : 'lose', 1.0); if (e.winner === 'player') sfx.cheer(1, 0.6); } break;
-      case 'tired': ui.subWord('Catch your breath!', 700); if (!tipFlags.tired) { tipFlags.tired = true; ui.subWord('Out of breath: let your hands rest a moment', 2400); } break;
+      case 'tired': ui.subWord('Catch your breath!', 700); if (!tipFlags.tired) { tipFlags.tired = true; ui.subWord('Out of breath: your punches are slower and softer until you rest. Landing a punch or a parry gives breath back', 3600); } break;
       default: break;
     }
   }
@@ -494,7 +500,7 @@ export function createFightMode(o) {
     const want = new THREE.Vector3(mx + side.x * dist, floorY + 2.5 + sep * 0.1 + (dist - baseDist) * 0.22, mz + side.z * dist);
     const look = new THREE.Vector3(mx, floorY + 0.95, mz);
     let fov = 40;
-    const introK = bout.time < bout.intro ? 1 - smooth(0, bout.intro, bout.time) : 0;
+    const introK = bout.time < bout.intro && !calm() ? 1 - smooth(0, bout.intro, bout.time) : 0;
     if (introK > 0) { // a swoop in from above and in front of the opponent
       const sx = mx + side.x * dist * 1.5 - ax * 3.2 * introK; const sz = mz + side.z * dist * 1.5 - az * 3.2 * introK;
       want.lerp(new THREE.Vector3(sx, floorY + 3.4, sz), introK * introK);
@@ -504,7 +510,8 @@ export function createFightMode(o) {
       const w = bout.result && bout.result.winner === 'opp' ? O : P;
       const t = bout.over_t;
       const k2 = smooth(1.3, 2.6, t);
-      const close = new THREE.Vector3(cx + w.x + Math.sin(t * 0.5 + (w === O ? 0 : 2)) * 3.4, floorY + 1.6, cz + w.z + Math.cos(t * 0.5 + (w === O ? 0 : 2)) * 3.4);
+      const spin = calm() ? 0 : t * 0.5; // (the slow turn round the winner stands still)
+      const close = new THREE.Vector3(cx + w.x + Math.sin(spin + (w === O ? 0 : 2)) * 3.4, floorY + 1.6, cz + w.z + Math.cos(spin + (w === O ? 0 : 2)) * 3.4);
       want.lerp(close, k2);
       look.lerp(new THREE.Vector3(cx + w.x, floorY + 1.2, cz + w.z), k2);
       fov = 40 - 2 * k2;
@@ -514,9 +521,9 @@ export function createFightMode(o) {
     camPos.lerp(want, k); camLook.lerp(look, k);
     camRel = { x: camPos.x - cx, z: camPos.z - cz };
     shake *= Math.exp(-dt * 9);
-    const sh = shake * 0.12;
+    const sh = calm() ? 0 : shake * 0.12;
     const pos = [camPos.x + (Math.random() - 0.5) * sh, camPos.y + (Math.random() - 0.5) * sh, camPos.z + (Math.random() - 0.5) * sh];
-    setCamera({ pos, look: [camLook.x, camLook.y, camLook.z], fov: fov - (bout.slow > 0 ? 6 : 0) + shake * 4 });
+    setCamera({ pos, look: [camLook.x, camLook.y, camLook.z], fov: fov - (bout.slow > 0 && !calm() ? 6 : 0) + (calm() ? 0 : shake * 4) });
   }
 
   function update(dt) {
@@ -559,6 +566,7 @@ export function createFightMode(o) {
   /** Opens the ring for the drill: fade to black, the bag and its stand appear, three clicks, GO. */
   function startTraining({ done, tips = null } = {}) {
     tipFlags = tips || {};
+    ui.setCalm(calm());
     if (phase !== 'off' && phase !== 'leaving') return false;
     opp = null; onEnd = done || null; bossIntro = false;
     phase = 'fade'; phaseT = 0;
@@ -641,7 +649,7 @@ export function createFightMode(o) {
     const want = new THREE.Vector3(cx + dist, floorY + 2.05 + (dist - baseDist) * 0.2, zMid); // (above the top rope, which would cross the picture)
     const look = new THREE.Vector3(cx, floorY + 0.9, zMid);
     let fov = 40;
-    const introK = phase === 'intro' ? 1 - smooth(0.2, BAG_INTRO - 0.4, phaseT) : 0;
+    const introK = phase === 'intro' && !calm() ? 1 - smooth(0.2, BAG_INTRO - 0.4, phaseT) : 0;
     if (introK > 0) { // a swoop in from above and behind the bag
       want.lerp(new THREE.Vector3(cx + dist * 1.5, floorY + 3.3, zMid - 1.6), introK * introK);
       fov = 40 + 5 * introK;
@@ -651,8 +659,8 @@ export function createFightMode(o) {
     camPos.lerp(want, k); camLook.lerp(look, k);
     camRel = { x: camPos.x - cx, z: camPos.z - cz };
     shake *= Math.exp(-dt * 9);
-    const sh = shake * 0.12;
-    setCamera({ pos: [camPos.x + (Math.random() - 0.5) * sh, camPos.y + (Math.random() - 0.5) * sh, camPos.z + (Math.random() - 0.5) * sh], look: [camLook.x, camLook.y, camLook.z], fov: fov + shake * 3 });
+    const sh = calm() ? 0 : shake * 0.12;
+    setCamera({ pos: [camPos.x + (Math.random() - 0.5) * sh, camPos.y + (Math.random() - 0.5) * sh, camPos.z + (Math.random() - 0.5) * sh], look: [camLook.x, camLook.y, camLook.z], fov: fov + (calm() ? 0 : shake * 3) });
   }
   /** Per frame in the drill: Ori at the bag, the bag on its swivel. */
   function renderBag(dt, t, night) {
@@ -719,6 +727,11 @@ export function createFightMode(o) {
     get active() { return phase !== 'off' && phase !== 'leaving'; }, // (leaving = already back on the street, the screen is just fading in)
     get phase() { return phase; },
     get bout() { return bout; },
+    /** Dev / tests: reduce motion on?, the camera shake and the hit-stop as they are right now, and a way to push an event of the sim through the show (a hit, a knock-down...). */
+    get calm() { return calm(); },
+    get shakeNow() { return calm() ? 0 : shake; },
+    get hitStopNow() { return hitStop; },
+    debugEvent(e) { onEvent(e); },
     get opponent() { return opp; },
     /** Is the point (x, z) near enough to the ring to step up to it (Space)? */
     near(x, z, r = 7.2) { return Math.hypot(x - cx, z - cz) < r; },
@@ -730,7 +743,9 @@ export function createFightMode(o) {
     follow(dt, camera) {
       if (!ui.floatsLive && phase === 'off') return;
       const w = overlay.clientWidth || 1; const h = overlay.clientHeight || 1;
-      ui.updateFloats(dt, (x, y, z) => { pv.set(x, y, z).project(camera); return pv.z > 1 ? null : { x: (pv.x * 0.5 + 0.5) * w, y: (-pv.y * 0.5 + 0.5) * h }; });
+      const screen = (x, y, z) => { pv.set(x, y, z).project(camera); return pv.z > 1 ? null : { x: (pv.x * 0.5 + 0.5) * w, y: (-pv.y * 0.5 + 0.5) * h }; };
+      ui.updateFloats(dt, screen);
+      ui.updateBuffer(phase === 'fight' && bout && bout.O.lag > 0 && !bout.over ? screen(cx + bout.O.x, floorY + 2.3, cz + bout.O.z) : null); // (the boss is lagging: the ring over his head)
     },
     touch,
     get mode() { return mode; },

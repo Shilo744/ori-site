@@ -103,6 +103,52 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     }
   }
 
+  // ── the street band (T33) [experimental]: a strummed guitar, an upright bass, an accordion-ish voice and a few claps playing a little tune in D, only while the event is on. `band(level)`: 0 = silent,
+  // 1 = he stands right next to them. The street music ducks while the band is heard (two keys at once would be a mess). ──
+  const BBEAT = 60 / 112;
+  const BAND_CHORDS = [[38, [62, 66, 69]], [43, [62, 67, 71]], [45, [61, 64, 69]], [38, [62, 66, 69]]]; // D, G, A, D
+  const BAND_TUNE = [[74, 76, 78, 76, 74, 76, 78, 81], [79, 81, 79, 78, 76, 74, 76, 78], [81, 78, 81, 83, 81, 78, 76, 78], [76, 74, 73, 74, 74, 0, 74, 0]];
+  let bandOn = false;
+  let bandTimer = 0;
+  let bNext = 0;
+  let bIdx = 0;
+  let bgain = null;
+  const bpluck = (c, f, t, dur, peak, type) => {
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type = type; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(bgain); o.start(t); o.stop(t + dur + 0.05);
+  };
+  const bsqueeze = (c, f, t, dur, peak) => { // the accordion: a saw through a low-pass, a breath of attack and release
+    const o = c.createOscillator(); const g = c.createGain(); const lp = c.createBiquadFilter();
+    o.type = 'sawtooth'; o.frequency.value = f; lp.type = 'lowpass'; lp.frequency.value = 1700; lp.Q.value = 0.7;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(peak, t + 0.03); g.gain.setValueAtTime(peak, t + dur * 0.6); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    o.connect(lp); lp.connect(g); g.connect(bgain); o.start(t); o.stop(t + dur + 0.05);
+  };
+  const bclap = (c, t) => {
+    const n = c.createBufferSource(); const len = Math.floor(c.sampleRate * 0.05); const buf = c.createBuffer(1, len, c.sampleRate); const d = buf.getChannelData(0);
+    for (let k = 0; k < len; k++) d[k] = (Math.random() * 2 - 1) * (1 - k / len) ** 2;
+    n.buffer = buf; const bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.9; const g = c.createGain(); g.gain.value = 0.16;
+    n.connect(bp); bp.connect(g); g.connect(bgain); n.start(t);
+  };
+  function bandBar(c, t) {
+    const [root, tones] = BAND_CHORDS[bIdx % 4];
+    for (let b = 0; b < 4; b++) bpluck(c, mtof(b % 2 ? root + 7 : root), t + b * BBEAT, BBEAT * 0.9, 0.2, 'sine');
+    for (const b of [0.5, 1.5, 2.5, 3.5]) tones.forEach((m, i) => bpluck(c, mtof(m), t + b * BBEAT + i * 0.022, BBEAT * 0.6, 0.07, 'triangle'));
+    BAND_TUNE[bIdx % 4].forEach((m, i) => { if (m) bsqueeze(c, mtof(m), t + i * BBEAT * 0.5, BBEAT * 0.46, 0.05); });
+    for (const b of [1, 3]) bclap(c, t + b * BBEAT);
+    bIdx++;
+  }
+  function bandTick() {
+    const c = ready();
+    if (!c || !bandOn) return;
+    while (bNext < c.currentTime + 0.6) {
+      if (bNext < c.currentTime) bNext = c.currentTime + 0.05;
+      bandBar(c, bNext);
+      bNext += BBEAT * 4;
+    }
+  }
+
   // ── the engine: a proper sporty voice. A stack of detuned saws and a sub through a soft clipper and a resonant low-pass (the growl), an intake hiss, a turbo whistle and a rush of
   // air while boosting, a gearbox whine in reverse and tyre noise when the car slides. Five "gears" make the revs climb and drop as the speed grows, like a real car. ──
   let eng = null;
@@ -214,6 +260,21 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
       musicTimer = setInterval(musicTick, 150);
       musicTick();
     },
+    /** The street band (T33): 0 = stop, up to 1 = right next to them (how loud). It starts by itself and ducks the street music while it is heard. */
+    band(level) {
+      const L = Math.max(0, Math.min(1, +level || 0));
+      if (L <= 0.005) {
+        if (bandOn) { bandOn = false; clearInterval(bandTimer); if (ctx && bgain) bgain.gain.setTargetAtTime(0, ctx.currentTime, 0.2); if (ctx && mgain && musicOn) mgain.gain.setTargetAtTime(0.55, ctx.currentTime, 0.5); }
+        return;
+      }
+      const c = ready();
+      if (!c) return;
+      if (!bgain) { bgain = c.createGain(); bgain.gain.value = 0; bgain.connect(master); }
+      bgain.gain.setTargetAtTime(0.9 * L, c.currentTime, 0.25);
+      if (mgain && musicOn) mgain.gain.setTargetAtTime(0.55 * (1 - 0.92 * L), c.currentTime, 0.3);
+      if (!bandOn) { bandOn = true; bNext = c.currentTime + 0.1; bandTimer = setInterval(bandTick, 150); bandTick(); }
+    },
+    get bandPlaying() { return bandOn; },
     /** A new task: a soft two-note bell (and a short vibration on phones). */
     buzz() { bell(784, 0.34, 0.12); bell(1175, 0.5, 0.1, 0.11); try { if (!isMuted() && navigator.vibrate) navigator.vibrate([60, 40, 60]); } catch { /* no vibration */ } },
     /** An urgent one: the same bell, then a brighter third note. */
@@ -228,6 +289,8 @@ export function createSfx({ isMuted = () => false, volume = () => 1 } = {}) {
     /** A friendly double toot of the horn (a hello from the car). */
     honk() { for (const d of [0, 0.17]) { tone('square', 392, 392, 0.12, 0.05, d); tone('square', 494, 494, 0.12, 0.045, d); } },
     sip() { tone('triangle', 300, 520, 0.12, 0.08); tone('triangle', 520, 780, 0.16, 0.08, 0.1); },
-    dispose() { roomStop(); engine(-1); musicOn = false; clearInterval(musicTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
+    purr() { for (let i = 0; i < 7; i++) tone('triangle', 150 - (i % 2) * 14, 118, 0.1, 0.05, i * 0.075); }, // (a cat: a low flutter)
+
+    dispose() { roomStop(); engine(-1); musicOn = false; clearInterval(musicTimer); bandOn = false; clearInterval(bandTimer); if (ctx) { ctx.close().catch(() => {}); ctx = null; } },
   };
 }

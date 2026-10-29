@@ -578,6 +578,9 @@ initGame3D({
   isMuted: () => !!system.get('muted'),
   volume: () => (system.get('volume') ?? 70) / 100,
   reduceMotion: () => !!system.get('reduceMotion'),
+  // (the full-screen games' pause menus write the same System Settings the Control Center does)
+  setVolume: (v) => { const n = Math.round(Math.max(0, Math.min(1, +v || 0)) * 100); system.set('volume', n); system.set('muted', n === 0); },
+  setReduceMotion: (b) => { system.set('reduceMotion', !!b); },
   emit: (name, data) => bus.emit(name, data),
   storage,
   scores,

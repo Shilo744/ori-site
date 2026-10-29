@@ -1,0 +1,8 @@
+/* the hidden boss lags (T11): a spinning ring and a word over his head say "now, hit him" */
+.fi-buf { position: absolute; left: 0; top: 0; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 2px; z-index: 2; }
+.fi-buf[hidden] { display: none; }
+.fi-buf svg { width: 44px; height: 44px; fill: none; stroke: #7de3ff; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 70 40; animation: fi-buf-spin 0.9s linear infinite; filter: drop-shadow(0 0 6px rgba(80, 200, 255, 0.8)); }
+.fi-buf b { font: 800 11px ui-monospace, 'Cascadia Mono', Consolas, monospace; letter-spacing: 0.18em; color: #bff2ff; text-shadow: 0 0 8px rgba(80, 200, 255, 0.9), 0 1px 2px #000; }
+.fi-buf.fi-calm svg { animation: none; }
+@keyframes fi-buf-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .fi-buf svg { animation: none; } }

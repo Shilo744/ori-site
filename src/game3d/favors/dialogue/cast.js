@@ -8,7 +8,7 @@ const strHash = (s) => { let h = 7; for (let i = 0; i < s.length; i++) h = (Math
 
 /** Hand-made looks for the people in the sample conversations (everyone else comes from their id). */
 const LOOKS = {
-  ima: { seed: 4411, opts: { gender: 'f', age: 'elder', top: '#e07a8f', hair: 'bun' }, patch: { glasses: null, glass: false } },
+  ima: { seed: 4411, opts: { gender: 'f', age: 'adult', top: '#e07a8f', hair: 'long', hairColor: '#17100c' }, patch: { glasses: null, glass: false } }, // (Shilo: Mum is quite young, with long black hair)
   clerk: { seed: 2907, opts: { gender: 'f', age: 'adult', top: '#8d939c', hair: 'bun' }, patch: { glasses: { frame: '#7a4a2a', w: 0.083, h: 0.054, r: 0.011 } } },
   moti: { seed: 1203, opts: { gender: 'm', age: 'elder' } },
   roee: { seed: 8120, opts: { gender: 'm', age: 'adult', top: '#4a90e2' } },

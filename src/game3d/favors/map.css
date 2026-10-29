@@ -16,7 +16,6 @@
 .mp-others { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .mp-others li { padding: 4px 10px; grid-template-columns: 18px 1fr; }
 .mp-others li em { display: none; }
-.mp-others li.follow em { display: block; grid-column: 2; }
 .mp-others b { font-size: 13px; }
 .mp-others small { font-size: 11px; }
 .mp-card footer { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
@@ -24,3 +23,9 @@
 
 /* the line under "G Go inside" at a door: what is in there */
 .fv-gohint small { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; opacity: 0.8; letter-spacing: 0; }
+
+/* on a phone the races are the flag on the map and the line of the garage: a row more would push the list under the Close button */
+.fv-tui .mp-list li.cup { display: none; }
+
+/* the map list: a stamped place says so (T39) */
+.mp-list li.stamped em { color: #ffd24d; font-weight: 700; }

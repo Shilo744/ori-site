@@ -1,4 +1,4 @@
-// "Ori, Can You...?" browser checks (T51): the host opens the game in its overlay, the neighbourhood and Ori are drawn within budget,
+// "Ori's Life" browser checks (T51): the host opens the game in its overlay, the neighbourhood and Ori are drawn within budget,
 // the real keyboard walks and sprints him, places can be reached, the day clock runs, pause works, and quitting leaves no GPU memory behind.
 import { join } from 'node:path';
 import { SHOTS, sleep, settle } from './harness.mjs';
@@ -17,7 +17,7 @@ export async function runFavors3d(session, { ok, fail }) {
   await g(() => window.__ori.game3d.launch('favors', { quick: true }));
   await page.waitForFunction(() => window.__ori.game3d.running && window.__ori.game3d.state() && window.__ori.game3d.state().phase === 'play', null, { timeout: 40000 });
   const ov = await g(() => { const o = document.getElementById('g3d'); const r = document.querySelector('#g3d canvas').getBoundingClientRect(); return { game: o.dataset.game, label: o.getAttribute('aria-label'), w: r.width, h: r.height, open: document.body.classList.contains('g3d-open') }; });
-  check(ov.game === 'favors' && ov.label === 'Ori, Can You...?' && ov.open, 'the host opens it in the overlay with its own title');
+  check(ov.game === 'favors' && ov.label === "Ori's Life" && ov.open, 'the host opens it in the overlay with its own title');
   check(ov.w === session.width && ov.h === session.height, `the canvas covers the viewport (${ov.w}x${ov.h})`);
   const s0 = await st();
   check(/^06:0[0-3]$/.test(s0.clock.label) && s0.near === 'home' && s0.crowd === 40, `the day starts at 06:00 at home with 40 passers-by (${s0.clock.label}, near ${s0.near})`);
@@ -160,7 +160,7 @@ export async function runFavors3d(session, { ok, fail }) {
   await g(() => window.__ori.game3d.talk('ima'));
   await sleep(700);
   let ts = await g(() => window.__ori.game3d.talkState());
-  check(ts.open && ts.who === 'ima' && /Habibi/.test(ts.line.text), 'the conversation opens with Mum, in her own words');
+  check(ts.open && ts.who === 'ima' && /Motek/.test(ts.line.text), 'the conversation opens with Mum, in her own words');
   check(await g(() => { const c = [...document.querySelectorAll('.fv-talk canvas')]; return c.length === 2 && c.every((x) => x.width > 100 && x.getContext('2d').getImageData(120, 130, 1, 1).data[3] > 0); }), 'both faces are drawn (Ori and Mum, real 3D heads)');
   await page.keyboard.down('KeyW'); await sleep(500); await page.keyboard.up('KeyW');
   check((await st()).player.speed < 0.3, 'Ori stands and listens while they talk (W does nothing)');
@@ -190,6 +190,7 @@ export async function runFavors3d(session, { ok, fail }) {
   await g(() => { const x = window.__ori.game3d; x.setHour(13); x.teleport('cafe'); });
   await sleep(400);
   check(await g(() => /Go inside/.test(document.querySelector('.fv-gohint')?.textContent || '')), "at a door the chip says 'G Go inside'");
+  { const c = await g(() => { const r = document.querySelector('.fv-gohint').getBoundingClientRect(); return { mid: r.left + r.width / 2, half: innerWidth / 2, w: r.width }; }); check(Math.abs(c.mid - c.half) < 8, `the chip sits in the middle of the screen (its middle ${c.mid.toFixed(0)}, the screen's ${c.half.toFixed(0)})`); }
   const geo0 = await g(() => window.__ori.game3d.stats().geometries);
   await page.keyboard.press('KeyG');
   await page.waitForFunction(() => window.__ori.game3d.insideId() === 'cafe', null, { timeout: 4000 }).catch(() => {});
@@ -210,6 +211,7 @@ export async function runFavors3d(session, { ok, fail }) {
   await page.keyboard.press('Space'); // something near? (nothing breaks)
   await sleep(200);
   if ((await g(() => window.__ori.game3d.talkState())).open) { await page.keyboard.press('Escape'); await sleep(350); } // (it may have been a person: a conversation opens)
+  if (await g(() => !!window.__ori.game3d.game.coffee && window.__ori.game3d.game.coffee.isOpen)) { await page.keyboard.press('Escape'); await sleep(350); } // (or the order pad by the cafe counter: the Coffee Rush card opens)
   await g(() => { const x = window.__ori.game3d; const i = x.insideInfo(); x.teleport({ x: i.exit.x + 0.3, z: i.exit.z - 1.4 }, (i.spawn && i.spawn.heading) ?? Math.PI); }); // (facing the room's way, so the camera - which follows his heading - is straight and S walks straight at the door, not slantwise past the jamb)
   await sleep(300);
   await page.keyboard.down('KeyS'); // onto the doormat (held until he is out: a slow machine walks slower and must not fail the check)
@@ -240,7 +242,7 @@ export async function runFavors3d(session, { ok, fail }) {
   const t1 = (await st()).clock.hour;
   await sleep(500);
   check((await st()).clock.hour === t1, 'the clock stands still while paused');
-  { const cur = await g(scanCursors); check(cur.count === 0, `the overlay and its menu use the shared cursors (${cur.n} elements, ${cur.count} strays)`); }
+  { const cur = await g(scanCursors); check(cur.count === 0, `the overlay and its menu use the shared cursors (${cur.n} elements, ${cur.count} strays${cur.count ? `: ${cur.bad.join(' | ')}` : ''})`); }
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !window.__ori.game3d.paused, null, { timeout: 3000 });
   check(await g(() => document.querySelector('#g3d .g3d-menu').hidden), 'Esc resumes');

@@ -1,6 +1,8 @@
 // "Ori, Can You...?" — the DOM of the ring: the choice of opponent (the ladder), the health and breath bars, the combo counter, the big words (FIGHT!, KO!,
 // PERFECT!), the hit flash and the card after a fight (XP, level, new moves, peaches). The words come from fight-content.js / texts.js; this only lays them out.
 import './fight.css';
+import './calm.css';
+import './boss.css';
 import { MOVE_LIST, xpToNext, MAX_LEVEL } from './boxer.js';
 import { TEXT } from './texts.js';
 import { createFloatPool, floatLook } from './fight-floats.js';
@@ -41,7 +43,10 @@ export function createFightUi({ root }) {
   const dots = Array.from({ length: 9 }, () => { const d = mk('fi-dot', '', 'i'); d.hidden = true; bel.dots.append(d); return d; });
   const blast = {};
   const btext = (key, v) => { if (blast[key] !== v) { blast[key] = v; bel[key].textContent = v; } };
-  root.append(hud, nums, bag, big, sub, menu, card);
+  // the hidden boss lags after a flurry: a spinning ring and a word over his head say "now" (T11)
+  const buf = mk('fi-buf', '<svg viewBox="0 0 44 44" aria-hidden="true"><circle cx="22" cy="22" r="17"/></svg><b>BUFFERING</b>');
+  buf.hidden = true;
+  root.append(hud, nums, bag, big, sub, menu, card, buf);
   const k = (key) => hud.querySelector(`[data-k="${key}"]`);
   const el = Object.fromEntries(['mename', 'melv', 'mehp', 'mehpn', 'mest', 'mefuryw', 'mefury', 'clock', 'round', 'foename', 'foetitle', 'foehp', 'foehpn', 'combo', 'flash'].map((n) => [n, k(n)]));
   const last = {};
@@ -53,7 +58,7 @@ export function createFightUi({ root }) {
 
   function bigWord(t, kind = '', ms = 1000) {
     big.textContent = t;
-    big.className = `fi-big ${kind}`;
+    big.className = `fi-big ${kind}${calmOn ? ' fi-calm' : ''}`; // (the class is set again each time: keep the calm one)
     void big.offsetWidth;
     big.classList.add('on');
     clearTimeout(bigT);
@@ -65,7 +70,11 @@ export function createFightUi({ root }) {
     clearTimeout(subT);
     subT = setTimeout(() => sub.classList.remove('on'), ms);
   }
+  let calmOn = false;
+  /** Reduce motion: the flashes are not shown and the words and cards do not zoom (calm.css). */
+  function setCalm(on) { calmOn = !!on; for (const e of [hud, nums, bag, big, sub, menu, card, buf]) e.classList.toggle('fi-calm', calmOn); }
   function flash(kind) {
+    if (calmOn) return;
     el.flash.className = `fi-flash ${kind}`;
     void el.flash.offsetWidth;
     el.flash.classList.add('on');
@@ -85,6 +94,12 @@ export function createFightUi({ root }) {
   }
   /** Per frame: ages the numbers and places each on the screen. `project(x, y, z)` gives { x, y } in pixels of the overlay, or null when it is behind the camera. */
   let freezeNums = false; // dev / tests: hold the numbers still (to photograph them)
+  /** The buffering ring over the boss: `at` = { x, y } on the screen, or null to hide it. */
+  function updateBuffer(at) {
+    if (!at) { if (!buf.hidden) buf.hidden = true; return; }
+    if (buf.hidden) buf.hidden = false;
+    buf.style.transform = `translate(${at.x.toFixed(1)}px, ${at.y.toFixed(1)}px) translate(-50%, -100%)`;
+  }
   function updateFloats(dt, project) {
     if (!freezeNums) pool.update(dt);
     for (const sl of pool.slots) {
@@ -135,15 +150,15 @@ export function createFightUi({ root }) {
 
   // ── the card to pick the next fight ──
   let menuState = null;
-  function showMenu({ rows, level, xp, xpNeed, love, onPick, onClose, onTrain = null }) {
+  function showMenu({ rows, level, xp, xpNeed, love, fed = '', onPick, onClose, onTrain = null }) {
     const body = rows.map((r, i) => {
       const cls = `fi-row${r.open ? '' : ' locked'}${r.beaten ? ' beaten' : ''}${r.next ? ' next' : ''}${r.hidden ? ' secret' : ''}`;
       const tag = r.beaten ? '<em class="ok">Beaten</em>' : r.open ? (r.next ? '<em class="go">Next</em>' : '<em class="go">Rematch</em>') : `<em class="lock">${esc(r.why)}</em>`;
-      return `<li class="${cls}" data-i="${i}" ${r.open ? 'role="button" tabindex="0"' : ''}><i class="fi-av" style="--c:${r.color}">${esc(r.initial)}</i><div><b>${esc(r.name)}</b><small>${esc(r.title)}</small></div>${tag}<kbd>${i + 1}</kbd></li>`;
+      return `<li class="${cls}" data-i="${i}" data-id="${esc(r.id || '')}" ${r.open ? 'role="button" tabindex="0"' : ''}><i class="fi-av" style="--c:${r.color}">${esc(r.initial)}</i><div><b>${esc(r.name)}</b><small>${esc(r.title)}</small></div>${tag}<kbd>${i + 1}</kbd></li>`;
     }).join('');
     const moves = MOVE_LIST.filter((m) => m.lv <= level).map((m) => `<span title="${esc(m.how)}">${esc(m.name)}</span>`).join('');
     menu.innerHTML = `<div class="fi-card fv-glass"><div class="g3d-kicker">THE RING</div><h2>Pick your fight</h2>
-      <div class="fi-me-card"><b>Ori · Lv ${level}</b><div class="fi-xp"><i style="width:${Math.round((level >= MAX_LEVEL ? 1 : xp / xpNeed) * 100)}%"></i></div><small>Love of the neighbourhood: ${Math.round(love)}</small></div>
+      <div class="fi-me-card"><b>Ori · Lv ${level}</b><div class="fi-xp"><i style="width:${Math.round((level >= MAX_LEVEL ? 1 : xp / xpNeed) * 100)}%"></i></div><small>Love of the neighbourhood: ${Math.round(love)}</small>${fed ? `<small class="fi-fed">${esc(fed)}</small>` : ''}</div>
       <div class="fi-moves">${moves}</div>
       <ul class="fi-list">${body}</ul>
       ${onTrain ? `<button type="button" class="fi-train" data-train="1"><i class="fi-bagic" aria-hidden="true"></i><div><b>${TEXT.bagName}</b><small>${TEXT.bagMenuSub}</small></div><kbd>B</kbd></button>` : ''}
@@ -195,7 +210,7 @@ export function createFightUi({ root }) {
       for (const key of ['mehp', 'mest', 'mefury', 'foehp']) delete last[key];
       void bout;
     },
-    hide() { hud.hidden = true; root.classList.remove('fi-ring-on'); big.classList.remove('on'); sub.classList.remove('on'); hideBag(); clearFloats(); },
+    hide() { hud.hidden = true; buf.hidden = true; root.classList.remove('fi-ring-on'); big.classList.remove('on'); sub.classList.remove('on'); hideBag(); clearFloats(); },
     /** Per frame: the bars from the bout. */
     update(b) {
       const P = b.P; const O = b.O;
@@ -210,8 +225,8 @@ export function createFightUi({ root }) {
       if (last.combo !== label) { last.combo = label; el.combo.textContent = label; el.combo.classList.toggle('on', !!label); if (label) { el.combo.classList.remove('pop'); void el.combo.offsetWidth; el.combo.classList.add('pop'); } }
     },
     setRound(t) { text('round', t); },
-    bigWord, subWord, flash,
-    floatAt, updateFloats, clearFloats, get floatsLive() { return pool.live; }, floatSlots: pool.size, freezeFloats(on) { freezeNums = !!on; },
+    bigWord, subWord, flash, setCalm,
+    floatAt, updateFloats, updateBuffer, clearFloats, get floatsLive() { return pool.live; }, floatSlots: pool.size, freezeFloats(on) { freezeNums = !!on; },
     showBag, updateBag, hideBag, bagFlash, get bagOpen() { return !bag.hidden; },
     /** The keyboard hints give way to the touch buttons. */
     setTouch(on) { hud.classList.toggle('touch', !!on); bag.classList.toggle('touch', !!on); },
@@ -234,7 +249,7 @@ export function createFightUi({ root }) {
       }
       return false;
     },
-    dispose() { clearTimeout(bigT); clearTimeout(subT); clearTimeout(flashT); clearTimeout(targetT); pool.clear(); for (const e of [hud, nums, bag, big, sub, menu, card]) e.remove(); },
+    dispose() { clearTimeout(bigT); clearTimeout(subT); clearTimeout(flashT); clearTimeout(targetT); pool.clear(); for (const e of [hud, nums, bag, big, sub, menu, card, buf]) e.remove(); },
   };
 }
 

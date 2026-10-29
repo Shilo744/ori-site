@@ -4,18 +4,12 @@ import { WEEK, GUESTS, PARTY_LINES, GOLDEN } from './play-content.js';
 import { createEconomy } from './economy.js';
 import { gainXp } from './boxer.js';
 import { REL } from './content.js';
+import { safeStorage, sanitizeSave, encodeSave, decodeSave } from './save.js';
 
-const KEY = 'ori-favors-week-v1';
+export { safeStorage }; // (the save slot lives in save.js now: versioned, sanitised, and it never throws)
 
-/** A storage that never throws (private windows, blocked storage, tests without a window). */
-export function safeStorage(store) {
-  const get = () => { try { return store || (typeof localStorage !== 'undefined' ? localStorage : null); } catch { return null; } };
-  return {
-    read() { try { const s = get(); const t = s && s.getItem(KEY); return t ? JSON.parse(t) : null; } catch { return null; } },
-    write(v) { try { const s = get(); if (s) s.setItem(KEY, JSON.stringify(v)); } catch { /* nothing to do */ } },
-    clear() { try { const s = get(); if (s) s.removeItem(KEY); } catch { /* nothing to do */ } },
-  };
-}
+/** What `progress` holds in a first game: the complete shape the save code gives back (so state -> code -> state changes nothing, and nothing needs a `|| {}`). */
+const freshProgress = () => sanitizeSave({}).progress;
 
 /** Who would come to the party with these hearts: [{ id, name, line, came }]. */
 export function guestsFor(rel = {}, golden = 0) {
@@ -24,10 +18,16 @@ export function guestsFor(rel = {}, golden = 0) {
 export const partyLine = (n) => PARTY_LINES.reduce((a, [min, text]) => (n >= min ? text : a), PARTY_LINES[0][1]);
 
 /**
- * @param {{ storage?: { read(): any, write(v: any): void, clear(): void }, fresh?: boolean }} [o] `fresh` ignores the save
+ * @param {{ storage?: { read(): any, write(v: any): boolean | void, clear(): void, problem?: string | null }, fresh?: boolean, onProblem?: (kind: 'full' | 'blocked' | 'corrupt') => void }} [o]
+ *   `fresh` ignores the save; `onProblem` hears (once per kind) that the browser would not save, or that the old save could not be read
  */
-export function createCampaign({ storage = safeStorage(), fresh = false } = {}) {
-  const saved = fresh ? null : storage.read();
+export function createCampaign({ storage = safeStorage(), fresh = false, onProblem = null } = {}) {
+  let raw = null;
+  if (!fresh) { try { raw = storage.read(); } catch { raw = null; } }
+  const saved = sanitizeSave(raw); // (anything -> a complete, clamped save; null = a first game)
+  const told = new Set();
+  const tell = (kind) => { if (kind && !told.has(kind)) { told.add(kind); try { if (onProblem) onProblem(kind); } catch { /* the game goes on */ } } };
+  if (!fresh && storage.problem === 'corrupt') tell('corrupt');
   const eco = createEconomy(saved && saved.eco);
   const s = {
     day: saved ? Math.min(WEEK.days + 1, saved.day || 1) : 1,
@@ -39,9 +39,10 @@ export function createCampaign({ storage = safeStorage(), fresh = false } = {}) 
     // the life of Ori (T63): the love of the neighbourhood, the boxer, and what he has done (counters for the goals)
     love: saved && saved.love != null ? saved.love : 0,
     boxer: { xp: 0, level: 1, beaten: [], fights: 0, wins: 0, reveal: false, ...(saved && saved.boxer ? JSON.parse(JSON.stringify(saved.boxer)) : {}) },
-    progress: { hellos: 0, shiloHi: 0, arcade: 0, arcadeBest: 0, goalsDone: [], ...(saved && saved.progress ? JSON.parse(JSON.stringify(saved.progress)) : {}) },
+    progress: { ...freshProgress(), ...(saved && saved.progress ? JSON.parse(JSON.stringify(saved.progress)) : {}) },
     endless: true, // days follow each other (there is no last day any more)
   };
+  const snapshot = () => ({ day: s.day, rel: s.rel, golden: s.golden, history: s.history, seed: s.seed, wins: s.wins, love: s.love, boxer: s.boxer, progress: s.progress, eco: eco.snapshot() });
   const api = {
     eco,
     state: s,
@@ -86,9 +87,22 @@ export function createCampaign({ storage = safeStorage(), fresh = false } = {}) 
       const n = g.filter((x) => x.came).length;
       return { guests: g, came: n, of: g.length, line: partyLine(n), full: n === g.length };
     },
-    save() { storage.write({ day: s.day, rel: s.rel, golden: s.golden, history: s.history, seed: s.seed, wins: s.wins, love: s.love, boxer: s.boxer, progress: s.progress, eco: eco.snapshot() }); },
+    /** True when it was written; when the browser says no (full / blocked) `onProblem` hears of it once. */
+    save() { const ok = storage.write(snapshot()); if (ok === false) tell(storage.problem || 'blocked'); return ok !== false; },
+    /** Replaces the whole game with a save (the import). False when it is not a save. */
+    load(save) {
+      const v = sanitizeSave(save);
+      if (!v) return false;
+      eco.restore(v.eco);
+      Object.assign(s, { day: v.day, rel: v.rel, golden: v.golden, history: v.history, seed: v.seed, wins: v.wins, love: v.love, boxer: v.boxer, progress: v.progress });
+      return true;
+    },
+    /** The game as a short code to copy: ORI2-... */
+    exportCode() { return encodeSave(snapshot()); },
+    /** A pasted code: { ok: true, save } after it replaced the game (and was saved), or { ok: false, error } with everything left as it was. */
+    importCode(text) { const r = decodeSave(text); if (!r.ok) return r; api.load(r.save); api.save(); return r; },
     /** A brand new week (new seed). */
-    reset() { storage.clear(); const seed = s.seed + 1; eco.restore({ peaches: 40, owned: {}, lifetime: 0, spent: 0 }); eco.newDay(); Object.assign(s, { day: 1, rel: Object.fromEntries(Object.keys(REL).map((k) => [k, 60])), golden: [], history: [], seed, wins: {}, love: 0, boxer: { xp: 0, level: 1, beaten: [], fights: 0, wins: 0, reveal: false }, progress: { hellos: 0, shiloHi: 0, arcade: 0, arcadeBest: 0, goalsDone: [] } }); },
+    reset() { storage.clear(); const seed = s.seed + 1; eco.restore({ peaches: 40, owned: {}, lifetime: 0, spent: 0 }); eco.newDay(); Object.assign(s, { day: 1, rel: Object.fromEntries(Object.keys(REL).map((k) => [k, 60])), golden: [], history: [], seed, wins: {}, love: 0, boxer: { xp: 0, level: 1, beaten: [], fights: 0, wins: 0, reveal: false }, progress: freshProgress() }); },
   };
   return api;
 }

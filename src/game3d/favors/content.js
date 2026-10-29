@@ -1,10 +1,11 @@
-// "Ori, Can You...?" — ALL the personal facts, the cast and the place names live here, as plain data (no logic), so they can be edited
+import { leagueTemplates, eventTemplates } from './league.js';
+// "Ori's Life" — ALL the personal facts, the cast and the place names live here, as plain data (no logic), so they can be edited
 // without touching code. Everything that still needs the real fact from Ori is marked `// TODO(real fact)`. Keep the family generic
 // ('Mum', 'Auntie') and affectionate: this is a roast with love, never a cruel one.
 
 export const GAME = {
   id: 'favors',
-  title: 'Ori, Can You...?',
+  title: "Ori's Life",
   tagline: 'The man who does everything. Whatever it is, he said yes.',
 };
 
@@ -177,7 +178,7 @@ export const TEMPLATES = [
   { id: 't-grandma', rel: 'family', giver: 'auntie', at: 'auntie', verb: 'carry', tone: 'absurd', title: 'Fetch Grandma Rivka from the bus', body: 'She bruises like a peach. Drive as if she is made of glass. Nice glass.', doText: 'Drive Grandma home', win: [9, 19], mech: 'taxi', mp: { from: 'busstop', mood: 'nervous', tipMax: 30 }, legs: ['busstop'] },
   { id: 't-tourist', rel: 'strangers', giver: 'tourist', at: 'cafe', verb: 'escort', tone: 'absurd', title: 'The real city, by car', body: 'The park first (I read about the park), then a coffee, then life.', doText: 'Show the sights', win: [10, 19], mech: 'taxi', mp: { from: 'busstop', mood: 'sightseer', via: 'park', tipMax: 30 }, legs: ['busstop', 'park'] },
   { id: 't-teacher', rel: 'perach', giver: 'maya', at: 'perach', verb: 'chat', tone: 'trivial', title: 'Drive Mrs. Levi to Beit Perach', body: 'She loves to talk. Not too fast, not too slow. Conversation speed.', doText: 'Drive Mrs. Levi', win: [12, 19], mech: 'taxi', mp: { from: 'cityhall', mood: 'chatty', tipMax: 24 }, legs: ['cityhall'] },
-  { id: 'dov-race', rel: 'strangers', giver: 'dov', at: 'home', verb: 'handle', tone: 'epic', setpiece: true, title: 'Dov challenges you to a race', body: 'One lap round the neighbourhood: your car against my bike (it is a very fast bike).', doText: 'Race Dov', win: [15, 19], mech: 'race', mins: 45, rewardBoost: 2 },
+  ...leagueTemplates(), ...eventTemplates(), /* the Sababa Cup: a race against each rival of the league, started from the board in Uzi's workshop */ { id: 'dov-race', rel: 'strangers', giver: 'dov', at: 'home', verb: 'handle', tone: 'epic', setpiece: true, title: 'Dov challenges you to a race', body: 'One lap round the neighbourhood: your car against my bike (it is a very fast bike).', doText: 'Race Dov', win: [15, 19], mech: 'race', mins: 45, rewardBoost: 2 },
   { id: 'party-list', rel: 'family', giver: 'ima', at: 'home', verb: 'shop', tone: 'epic', setpiece: true, title: 'Shopping for a secret party (not yours!)', body: 'Balloons, lemonade, string lights, a BIG cake. For someone. Not you. Definitely not you.', doText: 'Gather the party supplies', win: [11, 16], mech: 'list', mp: { list: 'party', par: 210 }, legs: ['kiosk', 'cafe', 'workshop'], rewardBoost: 2, mins: 60 },
   { id: 'city-inspection', rel: 'city', giver: 'inspector', at: 'cityhall', verb: 'handle', tone: 'epic', setpiece: true, title: 'The Inspector inspects you (four trials)', body: 'A routine inspection. Bring a smile, a stamp and a polite opinion.', doText: 'Pass the inspection', win: [8, 12], mech: 'gauntlet', rewardBoost: 2.2, mins: 60 },
 ];

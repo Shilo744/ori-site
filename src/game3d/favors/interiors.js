@@ -52,7 +52,7 @@ export const ROOMS = {
       { k: 'coffeeTable', x: -2.0, z: -1.3, c: '#7a5a3c', doily: true }, { k: 'tv', x: -2.0, z: 1.4, rot: 180, c: '#3a2f28', doily: true },
       { k: 'photos', x: 0.2, z: -3.44, rot: 0, count: 40, say: 'Forty photos of Ori. Baby Ori, camp Ori, graduation Ori. She has a favourite.' },
       { k: 'glassCase', x: 3.7, z: -1.0, rot: 270, cups: true, say: 'The good cups. For guests. Nobody has ever been allowed to use them.' },
-      { k: 'table', x: 2.4, z: 1.4, rot: 0, c: '#d9c3a0', pot: true, say: 'A pot of chicken soup. It is already served, somehow.' },
+      { k: 'table', x: 2.4, z: 1.4, rot: 0, c: '#d9c3a0', pot: true, use: 'food:soup', say: 'A pot of chicken soup. It is already served, somehow.' },
       { k: 'chair', x: 1.6, z: 0.6, rot: 0, c: '#8a5a3a' }, { k: 'chair', x: 3.2, z: 0.6, rot: 0, c: '#8a5a3a' }, { k: 'chair', x: 1.6, z: 2.2, rot: 180, c: '#8a5a3a' }, { k: 'chair', x: 3.2, z: 2.2, rot: 180, c: '#8a5a3a' },
       { k: 'fridge', x: 3.9, z: -2.7, rot: 270, c: '#e9e9e4', magnets: true, say: 'Magnets from every country Mum has not visited.' }, { k: 'plant', x: -4.0, z: 2.6 },
       { k: 'window', x: 3.0, z: -3.44, rot: 0, sill: true },
@@ -63,7 +63,7 @@ export const ROOMS = {
     w: 10, d: 7, floor: 'tile', wall: '#f4ecd2', accent: '#e8a24a', mood: 'warm', hum: 'quiet',
     items: [
       { k: 'sofa', x: -2.6, z: -2.6, rot: 0, c: '#d6a85a' }, { k: 'armchair', x: 0.2, z: -2.4, rot: 20, c: '#a8c070' }, { k: 'coffeeTable', x: -1.4, z: -1.2, c: '#a8845a' },
-      { k: 'tree', x: 4.0, z: 2.4, lemon: true, say: 'A lemon tree, indoors. It has opinions about the sunshine.' }, { k: 'cabinet', x: 4.3, z: -2.6, rot: 270, c: '#ccb28a', router: true, use: 'router', say: 'The router, behind the lemon jam. Found it.' },
+      { k: 'tree', x: 4.0, z: 2.4, lemon: true, use: 'food:tea', say: 'A lemon tree, indoors. It has opinions about the sunshine.' }, { k: 'cabinet', x: 4.3, z: -2.6, rot: 270, c: '#ccb28a', router: true, use: 'router', say: 'The router, behind the lemon jam. Found it.' },
       { k: 'table', x: -2.2, z: 1.6, c: '#d6c4a0' }, { k: 'chair', x: -3.0, z: 0.8 }, { k: 'chair', x: -1.4, z: 0.8 }, { k: 'tv', x: 2.4, z: 0.6, rot: 90, c: '#5a4a3a' },
       { k: 'plant', x: -4.4, z: -3.0 }, { k: 'window', x: -1.0, z: -3.44, rot: 0, sill: true }, { k: 'rug', x: -1.0, z: 0.4, c: '#d98b5a' },
     ],
@@ -126,7 +126,7 @@ export const ROOMS = {
   cafe: {
     w: 13, d: 9, floor: 'wood', wall: '#f3e4d2', accent: '#c98a4b', mood: 'warm', hum: 'chatter',
     items: [
-      { k: 'counter', x: 2.0, z: -2.6, rot: 0, w: 6, glass: true, use: 'coffee', say: 'A fresh espresso. Sprint button engaged.', work: true }, { k: 'espresso', x: 4.4, z: -3.3, rot: 0 }, { k: 'shelf', x: -1.8, z: -4.2, w: 4, stuff: 'cups' },
+      { k: 'counter', x: 2.0, z: -2.6, rot: 0, w: 6, glass: true, use: 'coffee', say: 'A fresh espresso. Sprint button engaged.', work: true }, { k: 'counter', x: -2.6, z: -2.4, rot: 0, w: 1.5, d: 0.7, use: 'coffeejob', say: 'The order pad: Roee needs a hand.' }, { k: 'espresso', x: 4.4, z: -3.3, rot: 0 }, { k: 'shelf', x: -1.8, z: -4.2, w: 4, stuff: 'cups' },
       { k: 'round', x: -4.6, z: 0.4, c: '#c9a57a' }, { k: 'round', x: -2.2, z: 1.4, c: '#c9a57a' }, { k: 'round', x: 1.8, z: 0.6, c: '#c9a57a' }, { k: 'round', x: 4.2, z: 1.8, c: '#c9a57a' },
       { k: 'stool', x: -5.3, z: 0.4 }, { k: 'stool', x: -3.9, z: 0.4 }, { k: 'stool', x: -2.9, z: 1.4 }, { k: 'stool', x: -1.5, z: 1.4 }, { k: 'stool', x: 1.1, z: 0.6 }, { k: 'stool', x: 2.5, z: 0.6 }, { k: 'stool', x: 3.5, z: 1.8 }, { k: 'stool', x: 4.9, z: 1.8 },
       { k: 'sofa', x: -5.1, z: -3.4, rot: 0, c: '#b5683a' }, { k: 'plant', x: 6.0, z: 3.5 }, { k: 'plant', x: -6.0, z: 3.5 }, { k: 'window', x: -6.44, z: -0.5, rot: 90, sill: true }, { k: 'window', x: 6.44, z: 0.5, rot: 270, sill: true },
@@ -137,7 +137,7 @@ export const ROOMS = {
   kiosk: {
     w: 5.4, d: 4.6, floor: 'tile', wall: '#fbf3c8', accent: '#f2c14e', mood: 'warm', hum: 'quiet',
     items: [
-      { k: 'kioskShelf', x: -1.7, z: -1.9, rot: 0, stuff: 'candy' }, { k: 'kioskShelf', x: 0.2, z: -1.9, rot: 0, stuff: 'drinks' }, { k: 'counter', x: 1.0, z: 0.5, rot: 90, w: 2.4, d: 0.6, work: true, say: 'The stamp is here. Milk, gum, gossip.' },
+      { k: 'kioskShelf', x: -1.7, z: -1.9, rot: 0, stuff: 'candy' }, { k: 'kioskShelf', x: 0.2, z: -1.9, rot: 0, stuff: 'drinks' }, { k: 'counter', x: 1.0, z: 0.5, rot: 90, w: 2.4, d: 0.6, work: true, use: 'food:gum', say: 'The stamp is here. Milk, gum, gossip.' },
       { k: 'fridge', x: -2.2, z: 0.2, rot: 90, c: '#d7e8f2', say: 'Cold milk. Always cold.' }, { k: 'poster', x: 2.64, z: -1.4, rot: 270, art: 5 },
     ],
     npcs: [{ id: 'albert', x: 1.9, z: 0.5, rot: 270, work: true }],
@@ -147,7 +147,7 @@ export const ROOMS = {
     items: [
       { k: 'workbench', x: -2.6, z: -3.1, rot: 0, c: '#b58a58', tools: true, work: true, say: 'The borrowed drill goes right here.' }, { k: 'pegboard', x: -2.6, z: -3.7, rot: 0, tools: true },
       { k: 'workbench', x: 2.4, z: -3.1, rot: 0, c: '#b58a58', tools: true }, { k: 'crates', x: 4.6, z: 1.0, c: '#c9a27a' }, { k: 'crates', x: 4.6, z: 2.4, c: '#c9a27a' }, { k: 'shelf', x: -5.2, z: 0.6, rot: 90, stuff: 'parts' },
-      { k: 'shelf', x: -5.2, z: 2.2, rot: 90, stuff: 'parts' }, { k: 'table', x: -0.6, z: 1.6, w: 2.2, d: 1.0, c: '#a9b0b8' }, { k: 'plant', x: 5.0, z: -3.0 }, { k: 'window', x: 5.44, z: -0.5, rot: 270, sill: true },
+      { k: 'shelf', x: -5.2, z: 2.2, rot: 90, stuff: 'parts' }, { k: 'table', x: -0.6, z: 1.6, w: 2.2, d: 1.0, c: '#a9b0b8' }, { k: 'counter', x: -5.1, z: -1.7, rot: 90, w: 1.4, d: 0.7, use: 'league', say: 'The Sababa Cup board: seven rivals, one lap round the neighbourhood.' }, { k: 'poster', x: -5.44, z: -1.7, rot: 90, art: 4 }, { k: 'counter', x: 3.0, z: -0.8, rot: 0, w: 1.5, d: 0.7, use: 'parcel', say: "Uzi's parcels: somebody is waiting for one!" }, { k: 'plant', x: 5.0, z: -3.0 }, { k: 'window', x: 5.44, z: -0.5, rot: 270, sill: true },
     ],
     npcs: [{ id: 'uzi', x: 0.6, z: -1.6, rot: 190, work: true }],
   },
